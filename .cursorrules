@@ -1,0 +1,10 @@
+R1 (Preço): Diária direta = diária Booking / 1.20.
+R2 (Async): Nunca usar asyncio.run() em rotas Flask. Usar new_event_loop().
+R3 (API): Todas as rotas retornam JSON { "success": bool, "message": str, "data": obj }.
+R4 (UI): Nunca usar alert(). Usar Toasts do Bootstrap 5.
+R5 (Máscara): Campos monetários usam Cleave.js com a classe .moeda.
+R6 (Logs): Proibido usar print(). Usar loguru.
+R7 (Dados): Validar entradas com Pydantic antes de qualquer persistência.
+R8 (Arquivos): Projetos em data/projects/<id>.json. Market em data/projects/market_<id>.json.
+R9 (Evidências): Screenshots de falha do scraper salvos em artifacts/.
+R10 (Clean Code): Funções com responsabilidade única e máximo 30 linhas.
