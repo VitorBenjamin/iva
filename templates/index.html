@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IVA - Inteligência de Viabilidade de Arrendamento</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container py-4">
+    <header class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom pb-3 mb-4">
+      <h1 class="h4 mb-0">IVA - Inteligência de Viabilidade de Arrendamento</h1>
+      <div class="d-flex align-items-center gap-2">
+        <label class="form-label mb-0 text-muted">Projeto:</label>
+        <select id="seletor-projeto" class="form-select form-select-sm" style="min-width: 220px;">
+          <option value="">— Selecionar projeto —</option>
+        </select>
+      </div>
+    </header>
+
+    <section class="card mb-4">
+      <div class="card-header">Criar Novo Projeto</div>
+      <div class="card-body">
+        <form id="form-criar-projeto">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="criar-nome" class="form-label">Nome</label>
+              <input type="text" id="criar-nome" name="nome" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label for="criar-url" class="form-label">URL Booking</label>
+              <input type="url" id="criar-url" name="url_booking" class="form-control" placeholder="https://...">
+            </div>
+            <div class="col-md-4">
+              <label for="criar-quartos" class="form-label">Nº Quartos</label>
+              <input type="number" id="criar-quartos" name="numero_quartos" class="form-control" min="1" value="1">
+            </div>
+            <div class="col-md-4">
+              <label for="criar-faturamento" class="form-label">Faturamento Anual</label>
+              <input type="text" id="criar-faturamento" name="faturamento_anual" class="form-control moeda" placeholder="0">
+            </div>
+            <div class="col-md-4">
+              <label for="criar-ano" class="form-label">Ano Referência</label>
+              <input type="number" id="criar-ano" name="ano_referencia" class="form-control" min="2000" max="2100">
+            </div>
+            <div class="col-12">
+              <button type="submit" id="btn-criar" class="btn btn-primary">Criar Projeto</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card mb-4">
+      <div class="card-header">Configuração Financeira</div>
+      <div class="card-body">
+        <p class="text-muted small mb-3" id="financeiro-dica">Selecione um projeto para carregar os dados.</p>
+        <div id="painel-financeiro" class="d-none">
+          <h6 class="mb-2">Custos fixos mensais</h6>
+          <div class="row g-2 mb-3">
+            <div class="col-md-4"><label class="form-label small">Luz</label><input type="text" id="fin-luz" class="form-control form-control-sm moeda"></div>
+            <div class="col-md-4"><label class="form-label small">Água</label><input type="text" id="fin-agua" class="form-control form-control-sm moeda"></div>
+            <div class="col-md-4"><label class="form-label small">Internet</label><input type="text" id="fin-internet" class="form-control form-control-sm moeda"></div>
+            <div class="col-md-4"><label class="form-label small">IPTU</label><input type="text" id="fin-iptu" class="form-control form-control-sm moeda"></div>
+            <div class="col-md-4"><label class="form-label small">Contabilidade</label><input type="text" id="fin-contabilidade" class="form-control form-control-sm moeda"></div>
+            <div class="col-md-4"><label class="form-label small">Seguros</label><input type="text" id="fin-seguros" class="form-control form-control-sm moeda"></div>
+            <div class="col-md-4"><label class="form-label small">Outros</label><input type="text" id="fin-outros-fixos" class="form-control form-control-sm moeda"></div>
+          </div>
+          <h6 class="mb-2">Custos variáveis por noite</h6>
+          <div class="row g-2 mb-3">
+            <div class="col-md-3"><label class="form-label small">Café da manhã</label><input type="text" id="fin-cafe" class="form-control form-control-sm moeda"></div>
+            <div class="col-md-3"><label class="form-label small">Amenities</label><input type="text" id="fin-amenities" class="form-control form-control-sm moeda"></div>
+            <div class="col-md-3"><label class="form-label small">Lavanderia</label><input type="text" id="fin-lavanderia" class="form-control form-control-sm moeda"></div>
+            <div class="col-md-3"><label class="form-label small">Outros</label><input type="text" id="fin-outros-var" class="form-control form-control-sm moeda"></div>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-3"><label class="form-label small">Alíquota impostos (0–1)</label><input type="number" id="fin-aliquota" class="form-control form-control-sm" step="0.01" min="0" max="1"></div>
+            <div class="col-md-3"><label class="form-label small">% Contingência (0–1)</label><input type="number" id="fin-contingencia" class="form-control form-control-sm" step="0.01" min="0" max="1"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/static/js/main.js"></script>
+</body>
+</html>
