@@ -112,11 +112,21 @@
 
     document.getElementById('financeiro-dica').classList.add('d-none');
     document.getElementById('painel-financeiro').classList.remove('d-none');
+    var linkDash = document.getElementById('link-dashboard');
+    if (linkDash) {
+      linkDash.href = '/projeto/' + encodeURIComponent(projeto.id) + '/dashboard';
+      linkDash.style.display = '';
+    }
   }
 
   function limparSelecao() {
     document.getElementById('financeiro-dica').classList.remove('d-none');
     document.getElementById('painel-financeiro').classList.add('d-none');
+    var linkDash = document.getElementById('link-dashboard');
+    if (linkDash) {
+      linkDash.href = '#';
+      linkDash.style.display = 'none';
+    }
   }
 
   function enviarCriarProjeto(e) {
@@ -181,7 +191,11 @@
         return;
       }
       var p = projetos.find(function (x) { return x.id === id; });
-      if (p) preencherFormulario(p);
+      if (p) {
+        preencherFormulario(p);
+      } else {
+        limparSelecao();
+      }
     });
 
     document.getElementById('form-criar-projeto').addEventListener('submit', enviarCriarProjeto);

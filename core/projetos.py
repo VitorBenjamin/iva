@@ -35,7 +35,7 @@ class Projeto(BaseModel):
     dados_mercado: Optional[Any] = None
 
 
-PROJECTS_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "projects"
+PROJECTS_DIR = Path(__file__).resolve().parent.parent / "data" / "projects"
 
 
 def _assegurar_dir_projetos() -> None:
