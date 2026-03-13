@@ -22,6 +22,7 @@ from core.projetos import (
     salvar_projeto,
 )
 from core.analise.engenharia_reversa import (
+    gerar_analise_curado,
     gerar_relatorio_engenharia_reversa,
     gerar_relatorio_engenharia_reversa_registros,
 )
@@ -29,6 +30,24 @@ from core.scraper.modelos import DadosMercado, MarketBruto, MarketCurado, Market
 from core.scraper.scrapers import coletar_dados_mercado, coletar_dados_mercado_expandido
 
 app = Flask(__name__)
+
+
+def _format_moeda_br(val: float | int | None) -> str:
+    """Formata número como moeda pt-BR (R$ 1.234,56)."""
+    if val is None:
+        return "—"
+    try:
+        n = float(val)
+    except (TypeError, ValueError):
+        return "—"
+    s = f"{n:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"R$ {s}"
+
+
+@app.template_filter("format_moeda")
+def format_moeda_filter(val):
+    """Filtro Jinja: formata número como R$ 1.234,56 (pt-BR)."""
+    return _format_moeda_br(val)
 
 
 class CriarProjetoBody(BaseModel):
@@ -187,7 +206,12 @@ def _carregar_registros_com_valor_efetivo(id_projeto: str) -> list[dict] | None:
         valor_efetivo = curado_por_checkin.get(r.checkin)
         if valor_efetivo is None:
             valor_efetivo = r.preco_direto
-        registros.append({"valor_efetivo": valor_efetivo, "checkin": r.checkin})
+        registros.append({
+            "valor_efetivo": valor_efetivo,
+            "checkin": r.checkin,
+            "mes_ano": r.mes_ano,
+            "tipo_dia": r.tipo_dia,
+        })
     return registros
 
 
@@ -380,8 +404,8 @@ def api_salvar_curadoria(id: str):
     data_response = {"registros_salvos": len(curado_registros)}
     regs_efetivo = _carregar_registros_com_valor_efetivo(id)
     if regs_efetivo:
-        resultado_analise = gerar_relatorio_engenharia_reversa_registros(projeto, regs_efetivo)
-        data_response["analise"] = resultado_analise.model_dump(mode="json")
+        analise = gerar_analise_curado(projeto, regs_efetivo)
+        data_response["analise"] = analise.model_dump(mode="json")
     return jsonify({
         "success": True,
         "message": "Ajustes salvos.",
@@ -404,11 +428,11 @@ def api_analise_engenharia_reversa(id: str):
 
     registros = _carregar_registros_com_valor_efetivo(id)
     if registros:
-        resultado = gerar_relatorio_engenharia_reversa_registros(projeto, registros)
+        analise = gerar_analise_curado(projeto, registros)
         return jsonify({
             "success": True,
-            "message": "Análise de engenharia reversa concluída (dados curado/bruto).",
-            "data": resultado.model_dump(mode="json"),
+            "message": "Análise de engenharia reversa concluída (preços curados/direto).",
+            "data": {"analise": analise.model_dump(mode="json")},
         })
 
     path_market = PROJECTS_DIR / f"market_{id}.json"
@@ -440,3 +464,27 @@ def api_analise_engenharia_reversa(id: str):
         "message": "Análise de engenharia reversa concluída.",
         "data": resultado.model_dump(mode="json"),
     })
+
+
+@app.get("/projeto/<id_projeto>/relatorio")
+def relatorio_viabilidade(id_projeto: str):
+    """Renderiza a página de Relatório de Viabilidade (engenharia reversa) com análise curada."""
+    try:
+        projeto = carregar_projeto(id_projeto)
+    except ArquivoProjetoNaoEncontrado:
+        return "Projeto não encontrado", 404
+    registros = _carregar_registros_com_valor_efetivo(id_projeto)
+    if not registros:
+        return render_template(
+            "relatorio.html",
+            projeto=projeto.model_dump(mode="json"),
+            analise=None,
+            sem_dados=True,
+        )
+    analise = gerar_analise_curado(projeto, registros)
+    return render_template(
+        "relatorio.html",
+        projeto=projeto.model_dump(mode="json"),
+        analise=analise.model_dump(mode="json"),
+        sem_dados=False,
+    )

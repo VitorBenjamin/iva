@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório de Viabilidade — {{ projeto.nome }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .relatorio-header { border-bottom: 2px solid #0d6efd; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+    .card-metric { min-height: 100px; }
+    .card-metric .card-body { display: flex; flex-direction: column; justify-content: center; }
+    .card-metric .valor { font-size: 1.5rem; font-weight: 700; }
+    @media print {
+      .no-print { display: none !important; }
+      body { font-size: 11pt; }
+      .card { break-inside: avoid; }
+      .table-responsive { overflow: visible; }
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <div class="container py-4 no-print">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <a href="/projeto/{{ projeto.id }}/dashboard" class="btn btn-outline-secondary btn-sm">← Voltar ao Dashboard</a>
+      <button type="button" class="btn btn-success" onclick="window.print();">🖨️ Imprimir Relatório</button>
+    </div>
+  </div>
+
+  <div class="container py-4" id="conteudo-relatorio">
+    <div class="relatorio-header d-flex flex-wrap align-items-center gap-2">
+      <h1 class="h4 mb-0">{{ projeto.nome }}</h1>
+      <span class="badge bg-primary fs-6">Relatório de Viabilidade Financeira</span>
+    </div>
+
+    {% if sem_dados %}
+    <div class="alert alert-warning">
+      <strong>Dados insuficientes.</strong> Execute a coleta expandida e preencha o Dashboard de curadoria para gerar o relatório.
+    </div>
+    {% else %}
+    <div class="row g-3 mb-4">
+      <div class="col-md-3 col-6">
+        <div class="card card-metric h-100 border-primary">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase">Faturamento Anual</div>
+            <div class="valor text-primary" id="val-faturamento">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="card card-metric h-100 border-success">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase">Ocupação Média Anual</div>
+            <div class="valor text-success" id="val-ocupacao">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="card card-metric h-100 border-info">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase">Diária Média Real (ADR)</div>
+            <div class="valor text-info" id="val-adr">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="card card-metric h-100 border-warning">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase">RDM</div>
+            <div class="valor text-warning" id="val-rdm">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header bg-white fw-bold">Detalhamento mensal</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover table-striped mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Mês</th>
+                <th class="text-end">Faturamento</th>
+                <th class="text-end">Preço Médio</th>
+                <th class="text-end">Noites Vendidas</th>
+                <th class="text-end">Ocupação %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in analise.detalhamento_mensal %}
+              <tr>
+                <td>{{ d.mes_label }}</td>
+                <td class="text-end">{{ d.faturamento_mensal | format_moeda }}</td>
+                <td class="text-end">{{ d.preco_medio_mes | format_moeda }}</td>
+                <td class="text-end">{{ "%.1f"|format(d.noites_vendidas)|replace(".", ",") }}</td>
+                <td class="text-end">{{ "%.2f"|format(d.ocupacao_pct * 100)|replace(".", ",") }}%</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4 no-print">
+      <div class="card-header bg-white fw-bold">Ocupação ao longo dos meses</div>
+      <div class="card-body">
+        <canvas id="chart-ocupacao" height="120"></canvas>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  {% if not sem_dados %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    (function () {
+      var analise = {{ analise | tojson | safe }};
+      if (!analise) return;
+
+      function formatMoeda(val) {
+        if (val == null) return '—';
+        var n = Number(val);
+        if (isNaN(n)) return '—';
+        return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      function formatPct(val) {
+        if (val == null) return '—';
+        var n = Number(val) * 100;
+        if (isNaN(n)) return '—';
+        return n.toFixed(2).replace('.', ',') + '%';
+      }
+
+      document.getElementById('val-faturamento').textContent = formatMoeda(analise.faturamento_anual_total);
+      document.getElementById('val-ocupacao').textContent = formatPct(analise.ocupacao_anual_media);
+      document.getElementById('val-adr').textContent = formatMoeda(analise.diaria_media_anual_estimada);
+      document.getElementById('val-rdm').textContent = analise.rdm_anual_medio != null ? Number(analise.rdm_anual_medio).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+
+      var detalhe = analise.detalhamento_mensal || [];
+      var labels = detalhe.map(function (d) { return d.mes_label; });
+      var ocupacao = detalhe.map(function (d) { return (d.ocupacao_pct * 100); });
+      var ctx = document.getElementById('chart-ocupacao');
+      if (ctx && typeof Chart !== 'undefined') {
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Ocupação %',
+              data: ocupacao,
+              borderColor: '#198754',
+              backgroundColor: 'rgba(25, 135, 84, 0.1)',
+              fill: true,
+              tension: 0.2
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true, max: 100, ticks: { callback: function (v) { return v + '%'; } } }
+            }
+          }
+        });
+      }
+    })();
+  </script>
+  {% endif %}
+</body>
+</html>

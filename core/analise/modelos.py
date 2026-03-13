@@ -5,6 +5,28 @@ Responsabilidade: schema ResultadoEngReversa para auditoria e API.
 from pydantic import BaseModel, Field
 
 
+class DetalheMensal(BaseModel):
+    """Uma linha do detalhamento mensal da análise."""
+
+    mes_ano: str = Field(description="Ex: 2026-03")
+    mes_label: str = Field(description="Ex: Março/2026")
+    faturamento_mensal: float
+    preco_medio_mes: float
+    noites_vendidas: float
+    ocupacao_pct: float = Field(description="Ex: 0.45 para 45%")
+    dias_no_mes: int
+
+
+class ResultadoAnaliseCurado(BaseModel):
+    """Resultado da análise de engenharia reversa com preços curados e detalhamento mensal."""
+
+    faturamento_anual_total: float
+    diaria_media_anual_estimada: float = Field(description="ADR estimado")
+    ocupacao_anual_media: float = Field(description="Ex: 0.35 para 35%")
+    rdm_anual_medio: float = Field(description="Reservas Diárias Médias")
+    detalhamento_mensal: list[DetalheMensal] = Field(default_factory=list)
+
+
 class ResultadoEngReversa(BaseModel):
     """Resultado da análise de engenharia reversa (faturamento + mercado → métricas)."""
 
