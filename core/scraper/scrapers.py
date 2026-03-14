@@ -4,15 +4,15 @@ Responsabilidade: execução do scraping e captura de evidências em artifacts/.
 """
 import json
 import os
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from pathlib import Path
 from urllib.parse import urlencode, urlparse, urlunparse
 
 from loguru import logger
 from playwright.sync_api import sync_playwright
 
-from core.config import definir_periodos_sazonais, definir_periodos_12meses
-from core.projetos import PROJECTS_DIR
+from core.config import carregar_config_scraper, definir_periodos_sazonais, definir_periodos_12meses
+from core.projetos import get_market_bruto_path
 from core.scraper.modelos import DadosMercado, DiariaPeriodo, MarketBruto, MarketBrutoRegistro
 from core.scraper.parsing import detectar_tipo_tarifa, parsear_valor_preco
 
@@ -259,13 +259,40 @@ def coletar_dados_mercado(url_booking: str, ano: int, id_projeto: str) -> DadosM
     )
 
 
+def _sequencia_noites_tentativas(preferencial: int, max_tentativas: int) -> list[int]:
+    """Retorna [N, N+1, N-1, N+2, ...] até max_tentativas valores, todos >= 1."""
+    out: list[int] = []
+    if preferencial >= 1:
+        out.append(preferencial)
+    n = preferencial
+    for delta in [1, -1, 2, -2, 3, -3]:
+        if len(out) >= max_tentativas:
+            break
+        k = n + delta
+        if k >= 1 and k not in out:
+            out.append(k)
+    return out[:max_tentativas]
+
+
 def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> MarketBruto:
-    """Coleta 4 datas/mês × 12 meses; salva em market_bruto_<id>.json."""
+    """Coleta 4 datas/mês × 12 meses; salva em projects/<id>/market_bruto.json. Scraper puro: preco_direto = preco_booking/1.20."""
     ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
     headless = os.environ.get("HEADLESS", "false").lower() == "true"
-    periodos = definir_periodos_12meses(noites=2)
+    cfg = carregar_config_scraper(id_projeto) or {}
+    noites_cfg = cfg.get("noites") or {}
+    noites_preferencial = int(noites_cfg.get("preferencial", 2))
+    max_tentativas = int(noites_cfg.get("max_tentativas", 4))
+    noites_preferencial = max(1, noites_preferencial)
+    max_tentativas = max(1, max_tentativas)
+
+    periodos = definir_periodos_12meses(noites=noites_preferencial)
     registros: list[MarketBrutoRegistro] = []
-    logger.info("Coleta expandida: {} períodos (12 meses × 4 datas/mês)", len(periodos))
+    logger.info(
+        "Coleta expandida: {} períodos (noites preferencial={}, max_tentativas={})",
+        len(periodos),
+        noites_preferencial,
+        max_tentativas,
+    )
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
@@ -277,48 +304,83 @@ def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> Market
         page = context.new_page()
 
         for i, periodo in enumerate(periodos):
-            checkin = periodo["checkin"]
-            checkout = periodo["checkout"]
+            checkin_str = periodo["checkin"]
             mes_ano = periodo["mes_ano"]
             tipo_dia = periodo["tipo_dia"]
-            noites = periodo["noites"]
-            try:
-                logger.info(">>> [{}/{}] {} ({})", i + 1, len(periodos), checkin, tipo_dia)
-                url = _url_com_datas(url_booking, checkin, checkout)
-                page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                page.wait_for_load_state("networkidle", timeout=15000)
-                _aceitar_cookies(page)
-                page.wait_for_timeout(2000)
-                quartos = _extrair_quartos_pagina(page)
-                if not quartos:
-                    raise ValueError("Nenhum preço")
-                menor = min(quartos, key=lambda x: x["total"])
-                total = menor["total"]
-                preco_booking = round(total / noites, 2)
-                preco_direto = round(preco_booking / 1.20, 2)
-                registros.append(MarketBrutoRegistro(
-                    checkin=checkin,
-                    checkout=checkout,
-                    mes_ano=mes_ano,
-                    tipo_dia=tipo_dia,
-                    preco_booking=preco_booking,
-                    preco_direto=preco_direto,
-                    nome_quarto=menor.get("nome", ""),
-                    tipo_tarifa=menor.get("tarifa", "Padrão"),
-                    noites=noites,
-                ))
-            except Exception as e:
-                logger.warning("Falha {} {}: {}", checkin, tipo_dia, e)
+            categoria_dia = periodo.get("categoria_dia", "normal")
+            noites_seq = _sequencia_noites_tentativas(noites_preferencial, max_tentativas)
+            checkin_date = date.fromisoformat(checkin_str)
+            sucesso = False
+            for noites_reais in noites_seq:
+                checkout_date = checkin_date + timedelta(days=noites_reais)
+                checkout_str = checkout_date.strftime("%Y-%m-%d")
+                try:
+                    logger.info(">>> [{}/{}] {} ({} noites) {}", i + 1, len(periodos), checkin_str, noites_reais, tipo_dia)
+                    url = _url_com_datas(url_booking, checkin_str, checkout_str)
+                    page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                    page.wait_for_load_state("networkidle", timeout=15000)
+                    _aceitar_cookies(page)
+                    page.wait_for_timeout(2000)
+                    quartos = _extrair_quartos_pagina(page)
+                    if not quartos:
+                        raise ValueError("Nenhum preço")
+                    menor = min(quartos, key=lambda x: x["total"])
+                    total = menor["total"]
+                    preco_booking = round(total / noites_reais, 2)
+                    preco_direto = round(preco_booking / 1.20, 2)
+                    nome_quarto = (menor.get("nome") or "").strip() or "Indefinido"
+                    registros.append(
+                        MarketBrutoRegistro(
+                            checkin=checkin_str,
+                            checkout=checkout_str,
+                            mes_ano=mes_ano,
+                            tipo_dia=tipo_dia,
+                            preco_booking=preco_booking,
+                            preco_direto=preco_direto,
+                            nome_quarto=nome_quarto,
+                            tipo_tarifa=menor.get("tarifa", "Padrão") or "Padrão",
+                            noites=noites_reais,
+                            status="OK",
+                            categoria_dia=categoria_dia,
+                        )
+                    )
+                    sucesso = True
+                    break
+                except Exception as e:
+                    logger.warning("Tentativa {} noites para {}: {}", noites_reais, checkin_str, e)
+                    continue
+            if not sucesso:
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                path_scr = ARTIFACTS_DIR / f"falha_{id_projeto}_{checkin}_{ts}.png"
+                path_scr = ARTIFACTS_DIR / f"falha_{id_projeto}_{checkin_str}_{ts}.png"
                 try:
                     page.screenshot(path=str(path_scr))
                 except Exception:
                     pass
+                checkout_fallback = (checkin_date + timedelta(days=noites_preferencial)).strftime("%Y-%m-%d")
+                registros.append(
+                    MarketBrutoRegistro(
+                        checkin=checkin_str,
+                        checkout=checkout_fallback,
+                        mes_ano=mes_ano,
+                        tipo_dia=tipo_dia,
+                        preco_booking=None,
+                        preco_direto=None,
+                        nome_quarto="",
+                        tipo_tarifa="Padrão",
+                        noites=noites_preferencial,
+                        status="FALHA",
+                        categoria_dia=categoria_dia,
+                    )
+                )
 
         context.close()
         browser.close()
 
+    tem_valido = any(
+        (r.preco_booking is not None and r.preco_booking > 0)
+        or (r.preco_direto is not None and r.preco_direto > 0)
+        for r in registros
+    )
     market = MarketBruto(
         id_projeto=id_projeto,
         url=url_booking,
@@ -326,9 +388,20 @@ def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> Market
         criado_em=datetime.utcnow(),
         registros=registros,
     )
-    path_bruto = PROJECTS_DIR / f"market_bruto_{id_projeto}.json"
-    path_bruto.parent.mkdir(parents=True, exist_ok=True)
-    with open(path_bruto, "w", encoding="utf-8") as f:
-        json.dump(market.model_dump(mode="json"), f, ensure_ascii=False, indent=2)
-    logger.info("Market bruto salvo: {} ({} registros)", path_bruto, len(registros))
+    path_bruto = get_market_bruto_path(id_projeto)
+    if tem_valido or not path_bruto.exists():
+        path_bruto.parent.mkdir(parents=True, exist_ok=True)
+        with open(path_bruto, "w", encoding="utf-8") as f:
+            json.dump(market.model_dump(mode="json"), f, ensure_ascii=False, indent=2)
+        logger.info(
+            "Market bruto salvo: {} ({} registros; possui válidos: {})",
+            path_bruto,
+            len(registros),
+            tem_valido,
+        )
+    else:
+        logger.warning(
+            "Coleta expandida não gerou registros válidos; mantendo arquivo anterior: {}",
+            path_bruto,
+        )
     return market

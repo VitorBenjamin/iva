@@ -3,6 +3,7 @@ modelos - Modelos Pydantic para dados de mercado (scraping).
 Responsabilidade: schemas DadosMercado e DiariaPeriodo.
 """
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -36,11 +37,13 @@ class MarketBrutoRegistro(BaseModel):
     checkout: str
     mes_ano: str
     tipo_dia: str
-    preco_booking: float
-    preco_direto: float
+    preco_booking: float | None = None
+    preco_direto: float | None = None
     nome_quarto: str = ""
     tipo_tarifa: str = "Padrão"
     noites: int = 2
+    status: str | None = None
+    categoria_dia: Literal["normal", "especial"] = "normal"
 
 
 class MarketBruto(BaseModel):
@@ -54,19 +57,25 @@ class MarketBruto(BaseModel):
 
 
 class MarketCuradoRegistro(BaseModel):
-    """Registro com preço curado (manual); preco_curado None = usa bruto."""
+    """Registro com preço curado (manual).
+
+    Observações:
+    - preco_booking e preco_direto podem ser None quando o bruto veio de período com FALHA.
+    - preco_curado None indica que o valor efetivo deve usar o preço direto/bruto.
+    """
 
     checkin: str
     checkout: str
     mes_ano: str
     tipo_dia: str
-    preco_booking: float
-    preco_direto: float
+    preco_booking: float | None = None
+    preco_direto: float | None = None
     preco_curado: float | None = None
     status: str = "coletado"
     nome_quarto: str = ""
     tipo_tarifa: str = "Padrão"
     noites: int = 2
+    categoria_dia: Literal["normal", "especial"] = "normal"
 
 
 class MarketCurado(BaseModel):
