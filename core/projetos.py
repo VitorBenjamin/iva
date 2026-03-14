@@ -38,6 +38,31 @@ class Projeto(BaseModel):
 PROJECTS_DIR = Path(__file__).resolve().parent.parent / "data" / "projects"
 
 
+def get_projeto_dir(id_projeto: str) -> Path:
+    """Retorna o diretório do projeto: data/projects/<id>/."""
+    return PROJECTS_DIR / id_projeto
+
+
+def get_projeto_json_path(id_projeto: str) -> Path:
+    """Retorna o path do arquivo principal do projeto: data/projects/<id>/projeto.json."""
+    return get_projeto_dir(id_projeto) / "projeto.json"
+
+
+def get_market_bruto_path(id_projeto: str) -> Path:
+    """Retorna o path do market bruto: data/projects/<id>/market_bruto.json."""
+    return get_projeto_dir(id_projeto) / "market_bruto.json"
+
+
+def get_market_curado_path(id_projeto: str) -> Path:
+    """Retorna o path do market curado: data/projects/<id>/market_curado.json."""
+    return get_projeto_dir(id_projeto) / "market_curado.json"
+
+
+def get_scraper_config_path(id_projeto: str) -> Path:
+    """Retorna o path da config do scraper: data/projects/<id>/scraper_config.json."""
+    return get_projeto_dir(id_projeto) / "scraper_config.json"
+
+
 def _assegurar_dir_projetos() -> None:
     """Garante que data/projects existe."""
     PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -54,19 +79,24 @@ def gerar_id_projeto(nome: str) -> str:
 
 
 def salvar_projeto(projeto: Projeto) -> None:
-    """Persiste projeto em data/projects/<id>.json."""
+    """Persiste projeto em data/projects/<id>/projeto.json."""
     _assegurar_dir_projetos()
-    caminho = PROJECTS_DIR / f"{projeto.id}.json"
+    caminho = get_projeto_json_path(projeto.id)
+    caminho.parent.mkdir(parents=True, exist_ok=True)
     with open(caminho, "w", encoding="utf-8") as f:
         json.dump(projeto.model_dump(mode="json"), f, ensure_ascii=False, indent=2)
     logger.info("Projeto salvo: {}", projeto.id)
 
 
 def carregar_projeto(id_projeto: str) -> Projeto:
-    """Carrega projeto de data/projects/<id>.json."""
-    caminho = PROJECTS_DIR / f"{id_projeto}.json"
+    """Carrega projeto: tenta data/projects/<id>/projeto.json, depois data/projects/<id>.json (legado)."""
+    caminho = get_projeto_json_path(id_projeto)
     if not caminho.exists() or not caminho.is_file():
-        raise ArquivoProjetoNaoEncontrado(f"Projeto '{id_projeto}' não encontrado.")
+        caminho_legado = PROJECTS_DIR / f"{id_projeto}.json"
+        if caminho_legado.exists() and caminho_legado.is_file():
+            caminho = caminho_legado
+        else:
+            raise ArquivoProjetoNaoEncontrado(f"Projeto '{id_projeto}' não encontrado.")
     try:
         with open(caminho, "r", encoding="utf-8") as f:
             dados = json.load(f)
@@ -77,17 +107,93 @@ def carregar_projeto(id_projeto: str) -> Projeto:
 
 
 def listar_projetos() -> List[Projeto]:
-    """Lista projetos em data/projects/, ignorando market_*.json e subpastas."""
+    """Lista projetos: subpastas com projeto.json e arquivos <id>.json na raiz (legado), sem duplicar IDs."""
     if not PROJECTS_DIR.exists():
         return []
+    ids_vistos: set[str] = set()
     projetos: List[Projeto] = []
+    # Novos: subpastas com projeto.json
+    for p in PROJECTS_DIR.iterdir():
+        if not p.is_dir():
+            continue
+        proj_json = p / "projeto.json"
+        if proj_json.exists() and proj_json.is_file() and p.name not in ids_vistos:
+            try:
+                projetos.append(carregar_projeto(p.name))
+                ids_vistos.add(p.name)
+            except ArquivoProjetoNaoEncontrado:
+                continue
+    # Legado: arquivos .json na raiz (exceto market_*, scraper_config_*)
     for p in PROJECTS_DIR.iterdir():
         if p.is_dir() or p.suffix != ".json":
             continue
-        if p.name.startswith("market_") or p.name == "market_.json":
+        if p.name.startswith("market_") or p.name.startswith("scraper_config_"):
+            continue
+        if p.stem in ids_vistos:
             continue
         try:
             projetos.append(carregar_projeto(p.stem))
+            ids_vistos.add(p.stem)
         except ArquivoProjetoNaoEncontrado:
             continue
     return sorted(projetos, key=lambda x: x.nome)
+
+
+def migrar_estrutura_legada() -> None:
+    """Migra arquivos do formato legado para projects/<id>/projeto.json, market_bruto.json, etc."""
+    _assegurar_dir_projetos()
+    if not PROJECTS_DIR.exists():
+        return
+    import shutil
+    for p in PROJECTS_DIR.iterdir():
+        if p.is_file() and p.suffix == ".json" and not p.name.startswith("market_") and not p.name.startswith("scraper_config_"):
+            id_projeto = p.stem
+            dir_projeto = get_projeto_dir(id_projeto)
+            destino_projeto = get_projeto_json_path(id_projeto)
+            if destino_projeto.exists():
+                continue
+            try:
+                dir_projeto.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(p), str(destino_projeto))
+                logger.info("Migrado projeto: {} -> {}", p.name, destino_projeto)
+            except Exception as e:
+                logger.warning("Falha ao migrar {}: {}", p.name, e)
+    for p in PROJECTS_DIR.iterdir():
+        if p.is_file() and p.name.startswith("market_bruto_") and p.suffix == ".json":
+            id_projeto = p.name.replace("market_bruto_", "").replace(".json", "")
+            dir_projeto = get_projeto_dir(id_projeto)
+            destino = get_market_bruto_path(id_projeto)
+            if destino.exists():
+                continue
+            try:
+                dir_projeto.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(p), str(destino))
+                logger.info("Migrado market bruto: {} -> {}", p.name, destino)
+            except Exception as e:
+                logger.warning("Falha ao migrar {}: {}", p.name, e)
+    for p in PROJECTS_DIR.iterdir():
+        if p.is_file() and p.name.startswith("market_curado_") and p.suffix == ".json":
+            id_projeto = p.name.replace("market_curado_", "").replace(".json", "")
+            dir_projeto = get_projeto_dir(id_projeto)
+            destino = get_market_curado_path(id_projeto)
+            if destino.exists():
+                continue
+            try:
+                dir_projeto.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(p), str(destino))
+                logger.info("Migrado market curado: {} -> {}", p.name, destino)
+            except Exception as e:
+                logger.warning("Falha ao migrar {}: {}", p.name, e)
+    for p in PROJECTS_DIR.iterdir():
+        if p.is_file() and p.name.startswith("scraper_config_") and p.suffix == ".json":
+            id_projeto = p.name.replace("scraper_config_", "").replace(".json", "")
+            dir_projeto = get_projeto_dir(id_projeto)
+            destino = get_scraper_config_path(id_projeto)
+            if destino.exists():
+                continue
+            try:
+                dir_projeto.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(p), str(destino))
+                logger.info("Migrado scraper config: {} -> {}", p.name, destino)
+            except Exception as e:
+                logger.warning("Falha ao migrar {}: {}", p.name, e)
