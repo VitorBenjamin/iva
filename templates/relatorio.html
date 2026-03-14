@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Relatório de Viabilidade — {{ projeto.nome }}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <style>
     .relatorio-header { border-bottom: 2px solid #0d6efd; padding-bottom: 1rem; margin-bottom: 1.5rem; }
     .card-metric { min-height: 100px; }
@@ -21,7 +22,10 @@
 <body class="bg-light">
   <div class="container py-4 no-print">
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <a href="/projeto/{{ projeto.id }}/dashboard" class="btn btn-outline-secondary btn-sm">← Voltar ao Dashboard</a>
+      <div class="d-flex gap-2">
+        <a href="/projeto/{{ projeto.id }}/curadoria" class="btn btn-outline-secondary btn-sm">← Voltar à Curadoria</a>
+        <a href="/projeto/{{ projeto.id }}/simulacao" class="btn btn-outline-info btn-sm">Simulação Futura</a>
+      </div>
       <button type="button" class="btn btn-success" onclick="window.print();">🖨️ Imprimir Relatório</button>
     </div>
   </div>
@@ -29,7 +33,7 @@
   <div class="container py-4" id="conteudo-relatorio">
     <div class="relatorio-header d-flex flex-wrap align-items-center gap-2">
       <h1 class="h4 mb-0">{{ projeto.nome }}</h1>
-      <span class="badge bg-primary fs-6">Relatório de Viabilidade Financeira</span>
+      <span class="badge bg-primary fs-6">Estudo de Viabilidade Financeira</span>
     </div>
 
     {% if sem_dados %}
@@ -37,77 +41,453 @@
       <strong>Dados insuficientes.</strong> Execute a coleta expandida e preencha o Dashboard de curadoria para gerar o relatório.
     </div>
     {% else %}
-    <div class="row g-3 mb-4">
-      <div class="col-md-3 col-6">
-        <div class="card card-metric h-100 border-primary">
-          <div class="card-body">
-            <div class="card-title text-muted small text-uppercase">Faturamento Anual</div>
-            <div class="valor text-primary" id="val-faturamento">—</div>
+
+    <!-- Abas principais -->
+    <ul class="nav nav-tabs mb-3 no-print" id="aba-relatorio" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-dados-proprietario" data-bs-toggle="tab" data-bs-target="#pane-dados-proprietario" type="button" role="tab">
+          <i class="bi bi-house me-1"></i>Dados do Proprietário
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-engenharia" data-bs-toggle="tab" data-bs-target="#pane-engenharia" type="button" role="tab">
+          <i class="bi bi-graph-up me-1"></i>Engenharia Reversa
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-custos" data-bs-toggle="tab" data-bs-target="#pane-custos" type="button" role="tab">
+          <i class="bi bi-calculator me-1"></i>Custos & Operação
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-cenarios" data-bs-toggle="tab" data-bs-target="#pane-cenarios" type="button" role="tab">
+          <i class="bi bi-bar-chart-line me-1"></i>Cenários & Viabilidade
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-resumo" data-bs-toggle="tab" data-bs-target="#pane-resumo" type="button" role="tab">
+          <i class="bi bi-file-earmark-text me-1"></i>Relatório Resumido
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <!-- ABA 1: Dados do Proprietário -->
+      <div class="tab-pane fade show active" id="pane-dados-proprietario" role="tabpanel">
+        <div class="row g-3 mb-4">
+          <div class="col-md-4 col-6">
+            <div class="card card-metric h-100 border-primary shadow-sm">
+              <div class="card-body">
+                <div class="card-title text-muted small text-uppercase">
+                  Faturamento Anual Declarado
+                </div>
+                <div class="valor text-primary">{{ analise.faturamento_anual_total | format_moeda }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div class="card card-metric h-100 border-secondary shadow-sm">
+              <div class="card-body">
+                <div class="card-title text-muted small text-uppercase">Número de Quartos</div>
+                <div class="valor text-secondary">{{ projeto.numero_quartos }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div class="card card-metric h-100 border-info shadow-sm">
+              <div class="card-body">
+                <div class="card-title text-muted small text-uppercase">Ano de Referência</div>
+                <div class="valor text-info">{{ projeto.ano_referencia }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+          <div class="card-header bg-white fw-bold">Custos Fixos Declarados</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-striped mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Item</th>
+                    <th class="text-end">Valor Mensal</th>
+                    <th class="text-end">Valor Anual</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% set cf = projeto.financeiro.custos_fixos %}
+                  {% set folha = projeto.financeiro.folha_pagamento_mensal %}
+                  {% for label, val in {
+                    'Luz': cf.luz,
+                    'Água': cf.agua,
+                    'Internet': cf.internet,
+                    'IPTU': cf.iptu,
+                    'Contabilidade': cf.contabilidade,
+                    'Seguros': cf.seguros,
+                    'Outros': cf.outros,
+                    'Aluguel/Arrendamento': cf.aluguel,
+                    'Folha de Pagamento': folha
+                  }.items() %}
+                  <tr>
+                    <td>{{ label }}</td>
+                    <td class="text-end">{{ val | format_moeda }}</td>
+                    <td class="text-end">{{ (val * 12) | format_moeda }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
-      <div class="col-md-3 col-6">
-        <div class="card card-metric h-100 border-success">
+
+      <!-- ABA 2: Engenharia Reversa -->
+      <div class="tab-pane fade" id="pane-engenharia" role="tabpanel">
+        <div class="row g-3 mb-4">
+          <div class="col-md-3 col-6">
+            <div class="card card-metric h-100 border-info shadow-sm">
+              <div class="card-body">
+                <div class="card-title text-muted small text-uppercase">
+                  ADR Normal
+                  <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Average Daily Rate (Diária Média). Calculada apenas sobre dias sem feriados ou eventos."></i>
+                </div>
+                <div class="valor text-info" id="val-adr-normal">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div class="card card-metric h-100 border-warning shadow-sm">
+              <div class="card-body">
+                <div class="card-title text-muted small text-uppercase">
+                  ADR Especial
+                  <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Diária Média praticada em feriados, Réveillon, Carnaval e datas de pico."></i>
+                </div>
+                <div class="valor text-warning" id="val-adr-especial">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div class="card card-metric h-100 border-success shadow-sm">
+              <div class="card-body">
+                <div class="card-title text-muted small text-uppercase">
+                  Ocupação Média Anual
+                  <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Percentual de noites vendidas em relação à capacidade total da pousada."></i>
+                </div>
+                <div class="valor text-success" id="val-ocupacao-engenharia">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div class="card card-metric h-100 border-primary shadow-sm">
+              <div class="card-body">
+                <div class="card-title text-muted small text-uppercase">
+                  RDM Médio
+                  <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Receita Diária Média. Quanto cada quarto rende por dia, considerando os dias que ficou vazio."></i>
+                </div>
+                <div class="valor text-primary" id="val-rdm-engenharia">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+          <div class="card-header bg-white fw-bold">Detalhamento mensal (Engenharia Reversa)</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover table-striped mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Mês</th>
+                    <th class="text-end">ADR Normal</th>
+                    <th class="text-end">Faturamento Estimado</th>
+                    <th class="text-end">Noites Vendidas</th>
+                    <th class="text-end">Ocupação %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for d in analise.detalhamento_mensal %}
+                  <tr>
+                    <td>{{ d.mes_label }}</td>
+                    <td class="text-end">{{ d.preco_medio_mes | format_moeda }}</td>
+                    <td class="text-end">{{ d.faturamento_mensal | format_moeda }}</td>
+                    <td class="text-end">{{ "%.1f"|format(d.noites_vendidas)|replace(".", ",") }}</td>
+                    <td class="text-end">{{ "%.2f"|format(d.ocupacao_pct * 100)|replace(".", ",") }}%</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-4 no-print shadow-sm">
+          <div class="card-header bg-white fw-bold">Ocupação e Faturamento ao longo dos meses</div>
           <div class="card-body">
-            <div class="card-title text-muted small text-uppercase">Ocupação Média Anual</div>
-            <div class="valor text-success" id="val-ocupacao">—</div>
+            <canvas id="chart-ocupacao" height="120"></canvas>
           </div>
         </div>
       </div>
-      <div class="col-md-3 col-6">
-        <div class="card card-metric h-100 border-info">
-          <div class="card-body">
-            <div class="card-title text-muted small text-uppercase">Diária Média Real (ADR)</div>
-            <div class="valor text-info" id="val-adr">—</div>
+
+      <!-- ABA 3: Custos & Operação -->
+      <div class="tab-pane fade" id="pane-custos" role="tabpanel">
+        <div class="card mb-4 shadow-sm">
+          <div class="card-header bg-white fw-bold">Custos Fixos Anuais</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-striped mb-0">
+                <tbody>
+                  <tr>
+                    <th>Custos Fixos (sem aluguel)</th>
+                    <td class="text-end">{{ analise.custos_fixos_anuais_sem_aluguel | format_moeda }}</td>
+                  </tr>
+                  <tr>
+                    <th>Aluguel / Arrendamento</th>
+                    <td class="text-end">{{ analise.custo_anual_aluguel | format_moeda }}</td>
+                  </tr>
+                  <tr>
+                    <th>Folha de Pagamento</th>
+                    <td class="text-end">{{ analise.folha_pagamento_anual | format_moeda }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+          <div class="card-header bg-white fw-bold">
+            Custos Variáveis por Mês
+            <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Custos que mudam conforme a ocupação (lavanderia, amenities, energia dos quartos)."></i>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover table-striped mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Mês</th>
+                    <th class="text-end">Noites Vendidas</th>
+                    <th class="text-end">Custo Variável / Noite</th>
+                    <th class="text-end">Custo Variável Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for d in analise.detalhamento_mensal %}
+                  {% set custo_noite = 0 %}
+                  {% if d.noites_vendidas > 0 %}
+                    {% set custo_noite = d.custo_variavel_mensal / d.noites_vendidas %}
+                  {% endif %}
+                  <tr>
+                    <td>{{ d.mes_label }}</td>
+                    <td class="text-end">{{ "%.1f"|format(d.noites_vendidas)|replace(".", ",") }}</td>
+                    <td class="text-end">{{ custo_noite | format_moeda }}</td>
+                    <td class="text-end">{{ d.custo_variavel_mensal | format_moeda }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+          <div class="card-header bg-white fw-bold">
+            Impostos por Mês
+            <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Soma do Simples Nacional/ISS e outras taxas sobre o faturamento bruto."></i>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover table-striped mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Mês</th>
+                    <th class="text-end">Faturamento</th>
+                    <th class="text-end">Impostos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for d in analise.detalhamento_mensal %}
+                  <tr>
+                    <td>{{ d.mes_label }}</td>
+                    <td class="text-end">{{ d.faturamento_mensal | format_moeda }}</td>
+                    <td class="text-end">{{ d.impostos_mensais | format_moeda }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+          <div class="card-header bg-white fw-bold">Resumo Anual de Custos</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-striped mb-0">
+                <tbody>
+                  <tr>
+                    <th>Custos Variáveis Estimados</th>
+                    <td class="text-end">{{ analise.custos_variaveis_anuais | format_moeda }}</td>
+                  </tr>
+                  <tr>
+                    <th>Impostos</th>
+                    <td class="text-end">{{ analise.impostos_anuais | format_moeda }}</td>
+                  </tr>
+                  <tr class="table-secondary fw-bold">
+                    <th>TOTAL DE CUSTOS</th>
+                    <td class="text-end">{{ analise.custos_totais_anuais | format_moeda }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
-      <div class="col-md-3 col-6">
-        <div class="card card-metric h-100 border-warning">
+
+      <!-- ABA 4: Cenários & Viabilidade -->
+      <div class="tab-pane fade" id="pane-cenarios" role="tabpanel">
+        <!-- Veredito automático -->
+        <div class="card mb-3 shadow-sm" id="card-veredito">
+          <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+              <h5 class="card-title mb-1">Veredito Financeiro</h5>
+              <p class="mb-0" id="texto-veredito">—</p>
+            </div>
+            <span class="badge bg-warning text-dark d-none" id="badge-simulacao">SIMULAÇÃO ATIVA</span>
+          </div>
+        </div>
+
+        <!-- Cards principais (cenário/base ou simulado) -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-3 col-6">
+            <div class="card card-metric h-100 border-success shadow-sm">
+              <div class="card-body">
+                <div class="card-title text-muted small text-uppercase">
+                  Lucro Líquido Anual
+                  <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="O que sobra no bolso após pagar TODOS os custos, impostos e aluguel."></i>
+                </div>
+                <div class="valor" id="val-lucro-liquido">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div class="card card-metric h-100 border-info shadow-sm">
+              <div class="card-body">
+                <div class="card-title text-muted small text-uppercase">
+                  EBITDA Anual
+                  <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Lucro antes de juros, impostos, depreciação e amortização. Indica a saúde operacional."></i>
+                </div>
+                <div class="valor text-info" id="val-ebitda">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div class="card card-metric h-100 border-secondary shadow-sm">
+              <div class="card-body">
+                <div class="card-title text-muted small text-uppercase">
+                  Break-even (noites/mês)
+                  <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Quantidade de noites que precisam ser vendidas por mês para cobrir todos os custos (lucro zero)."></i>
+                </div>
+                <div class="valor" id="val-break-even">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div class="card card-metric h-100 border-primary shadow-sm">
+              <div class="card-body">
+                <div class="card-title text-muted small text-uppercase">
+                  ROA (Retorno sobre Arrendamento)
+                  <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Percentual de lucro em relação ao custo total do arrendamento (Aluguel + Operação)."></i>
+                </div>
+                <div class="valor text-primary" id="val-roa">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ajustes rápidos de simulação -->
+        <div class="card mb-4 shadow-sm">
+          <div class="card-header bg-white fw-bold">Ajustes Rápidos de Simulação</div>
           <div class="card-body">
-            <div class="card-title text-muted small text-uppercase">RDM</div>
-            <div class="valor text-warning" id="val-rdm">—</div>
+            <div class="row g-3 align-items-center">
+              <div class="col-md-6">
+                <label for="slider-fixos" class="form-label mb-1">
+                  Ajuste Custos Fixos (%)
+                </label>
+                <input type="range" class="form-range" id="slider-fixos" min="-50" max="50" value="0">
+                <div class="small text-muted">
+                  Valor atual: <span id="label-fixos">0%</span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label for="slider-variaveis" class="form-label mb-1">
+                  Ajuste Custos Variáveis (%)
+                </label>
+                <input type="range" class="form-range" id="slider-variaveis" min="-50" max="50" value="0">
+                <div class="small text-muted">
+                  Valor atual: <span id="label-variaveis">0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabela de cenários -->
+        <div class="card mb-4 shadow-sm">
+          <div class="card-header bg-white fw-bold">Cenários de Ocupação e Resultado</div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Cenário</th>
+                    <th class="text-end">Ocupação Anual</th>
+                    <th class="text-end">Faturamento Anual</th>
+                    <th class="text-end">Custos Totais</th>
+                    <th class="text-end">EBITDA</th>
+                    <th class="text-end">Lucro Líquido</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-cenarios">
+                  {% for c in analise.cenarios %}
+                  {% set classe = '' %}
+                  {% if c.nome == 'Pessimista' %}{% set classe = 'table-danger' %}
+                  {% elif c.nome == 'Provável' %}{% set classe = 'table-primary' %}
+                  {% elif c.nome == 'Otimista' %}{% set classe = 'table-success' %}
+                  {% endif %}
+                  <tr class="{{ classe }}">
+                    <td>{{ c.nome }}</td>
+                    <td class="text-end">{{ "%.2f"|format(c.ocupacao_anual_media * 100)|replace(".", ",") }}%</td>
+                    <td class="text-end">{{ c.faturamento_anual | format_moeda }}</td>
+                    <td class="text-end">{{ c.custos_totais_anuais | format_moeda }}</td>
+                    <td class="text-end">{{ c.ebitda_anual | format_moeda }}</td>
+                    <td class="text-end">{{ c.lucro_liquido_anual | format_moeda }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 5: Relatório Resumido -->
+      <div class="tab-pane fade" id="pane-resumo" role="tabpanel">
+        <div class="card mb-3 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title mb-2">Veredito Final</h5>
+            <p class="mb-2" id="texto-veredito-resumo">—</p>
+            <ul class="mb-0">
+              <li><strong>ADR Normal:</strong> <span id="resumo-adr-normal">—</span></li>
+              <li><strong>Ocupação Média:</strong> <span id="resumo-ocupacao">—</span></li>
+              <li><strong>Lucro Líquido Anual:</strong> <span id="resumo-lucro">—</span></li>
+              <li><strong>ROA:</strong> <span id="resumo-roa">—</span></li>
+            </ul>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="card mb-4">
-      <div class="card-header bg-white fw-bold">Detalhamento mensal</div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover table-striped mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Mês</th>
-                <th class="text-end">Faturamento</th>
-                <th class="text-end">Preço Médio</th>
-                <th class="text-end">Noites Vendidas</th>
-                <th class="text-end">Ocupação %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for d in analise.detalhamento_mensal %}
-              <tr>
-                <td>{{ d.mes_label }}</td>
-                <td class="text-end">{{ d.faturamento_mensal | format_moeda }}</td>
-                <td class="text-end">{{ d.preco_medio_mes | format_moeda }}</td>
-                <td class="text-end">{{ "%.1f"|format(d.noites_vendidas)|replace(".", ",") }}</td>
-                <td class="text-end">{{ "%.2f"|format(d.ocupacao_pct * 100)|replace(".", ",") }}%</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="card mb-4 no-print">
-      <div class="card-header bg-white fw-bold">Ocupação ao longo dos meses</div>
-      <div class="card-body">
-        <canvas id="chart-ocupacao" height="120"></canvas>
-      </div>
-    </div>
     {% endif %}
   </div>
 
@@ -132,11 +512,171 @@
         return n.toFixed(2).replace('.', ',') + '%';
       }
 
-      document.getElementById('val-faturamento').textContent = formatMoeda(analise.faturamento_anual_total);
-      document.getElementById('val-ocupacao').textContent = formatPct(analise.ocupacao_anual_media);
-      document.getElementById('val-adr').textContent = formatMoeda(analise.diaria_media_anual_estimada);
-      document.getElementById('val-rdm').textContent = analise.rdm_anual_medio != null ? Number(analise.rdm_anual_medio).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+      // Ativa tooltips Bootstrap
+      var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+      tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+        new bootstrap.Tooltip(tooltipTriggerEl);
+      });
 
+      // Persistência da aba ativa
+      var abas = document.querySelectorAll('#aba-relatorio button[data-bs-toggle="tab"]');
+      var chaveTab = 'iva_tab_ativa';
+      var abaAtivaSalva = localStorage.getItem(chaveTab);
+      if (abaAtivaSalva) {
+        var alvo = document.querySelector('#aba-relatorio button#' + abaAtivaSalva);
+        if (alvo) {
+          var tab = new bootstrap.Tab(alvo);
+          tab.show();
+        }
+      }
+      abas.forEach(function (btn) {
+        btn.addEventListener('shown.bs.tab', function (ev) {
+          localStorage.setItem(chaveTab, ev.target.id);
+        });
+      });
+
+      // ABA 2 – Engenharia Reversa (cards)
+      var elAdrNormal = document.getElementById('val-adr-normal');
+      var elAdrEspecial = document.getElementById('val-adr-especial');
+      var elOcupEng = document.getElementById('val-ocupacao-engenharia');
+      var elRdmEng = document.getElementById('val-rdm-engenharia');
+      if (elAdrNormal) elAdrNormal.textContent = formatMoeda(analise.adr_normal_anual || analise.diaria_media_anual_estimada);
+      if (elAdrEspecial) elAdrEspecial.textContent = formatMoeda(analise.adr_especial_media);
+      if (elOcupEng) elOcupEng.textContent = formatPct(analise.ocupacao_anual_media);
+      if (elRdmEng) elRdmEng.textContent = analise.rdm_anual_medio != null
+        ? Number(analise.rdm_anual_medio).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : '—';
+
+      // ABA 4 – Cenários & Viabilidade (cards base)
+      var elLucro = document.getElementById('val-lucro-liquido');
+      var elEbitda = document.getElementById('val-ebitda');
+      var elBreakEven = document.getElementById('val-break-even');
+      var elRoa = document.getElementById('val-roa');
+      if (elLucro) elLucro.textContent = formatMoeda(analise.lucro_liquido_anual);
+      if (elEbitda) elEbitda.textContent = formatMoeda(analise.ebitda_anual);
+      if (elBreakEven) elBreakEven.textContent = analise.noites_break_even != null
+        ? Number(analise.noites_break_even).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+        : '—';
+      if (elRoa) elRoa.textContent = (analise.retorno_arrendamento_percentual != null && analise.retorno_arrendamento_percentual !== 0)
+        ? Number(analise.retorno_arrendamento_percentual).toFixed(2).replace('.', ',') + '%'
+        : '—';
+
+      // Veredito automático (base) para Cenários & Resumo
+      var vereditoEl = document.getElementById('card-veredito');
+      var textoVereditoEl = document.getElementById('texto-veredito');
+      var textoVereditoResumo = document.getElementById('texto-veredito-resumo');
+      var lucroBase = Number(analise.lucro_liquido_anual || 0);
+      function aplicarVeredito(targetCard, targetTexto, lucro) {
+        if (!targetCard || !targetTexto) return;
+        targetCard.classList.remove('border-success', 'border-warning', 'border-danger', 'bg-success-subtle', 'bg-warning-subtle', 'bg-danger-subtle');
+        if (lucro > 0) {
+          targetCard.classList.add('border', 'border-success', 'bg-success-subtle');
+          targetTexto.textContent = '✅ Viável — O ativo gera lucro estimado de ' + formatMoeda(lucro) + ' por ano.';
+        } else if (lucro === 0) {
+          targetCard.classList.add('border', 'border-warning', 'bg-warning-subtle');
+          targetTexto.textContent = '⚠️ Neutro — O ativo cobre os custos mas não gera lucro.';
+        } else {
+          targetCard.classList.add('border', 'border-danger', 'bg-danger-subtle');
+          targetTexto.textContent = '❌ Inviável — O ativo gera prejuízo estimado de ' + formatMoeda(lucro) + ' por ano.';
+        }
+      }
+      if (!isNaN(lucroBase)) {
+        aplicarVeredito(vereditoEl, textoVereditoEl, lucroBase);
+      }
+
+      // Relatório Resumido (ABA 5)
+      var resumoAdrNormal = document.getElementById('resumo-adr-normal');
+      var resumoOcupacao = document.getElementById('resumo-ocupacao');
+      var resumoLucro = document.getElementById('resumo-lucro');
+      var resumoRoa = document.getElementById('resumo-roa');
+      if (resumoAdrNormal) resumoAdrNormal.textContent = formatMoeda(analise.adr_normal_anual || analise.diaria_media_anual_estimada);
+      if (resumoOcupacao) resumoOcupacao.textContent = formatPct(analise.ocupacao_anual_media);
+      if (resumoLucro) resumoLucro.textContent = formatMoeda(analise.lucro_liquido_anual);
+      if (resumoRoa) resumoRoa.textContent = (analise.retorno_arrendamento_percentual != null && analise.retorno_arrendamento_percentual !== 0)
+        ? Number(analise.retorno_arrendamento_percentual).toFixed(2).replace('.', ',') + '%'
+        : '—';
+      if (textoVereditoResumo && !isNaN(lucroBase)) {
+        aplicarVeredito(vereditoEl, textoVereditoResumo, lucroBase);
+      }
+
+      // Simulação client-side (Cenários & Viabilidade)
+      var sliderFixos = document.getElementById('slider-fixos');
+      var sliderVar = document.getElementById('slider-variaveis');
+      var labelFixos = document.getElementById('label-fixos');
+      var labelVar = document.getElementById('label-variaveis');
+      var badgeSimulacao = document.getElementById('badge-simulacao');
+
+      var base = {
+        faturamento: Number(analise.faturamento_anual_total || 0),
+        custosFixosSemAluguel: Number(analise.custos_fixos_anuais_sem_aluguel || 0),
+        custoAluguel: Number(analise.custo_anual_aluguel || 0),
+        folha: Number(analise.folha_pagamento_anual || 0),
+        custosVariaveis: Number(analise.custos_variaveis_anuais || 0),
+        impostos: Number(analise.impostos_anuais || 0),
+        lucro: Number(analise.lucro_liquido_anual || 0),
+        ebitda: Number(analise.ebitda_anual || 0),
+        roa: Number(analise.retorno_arrendamento_percentual || 0),
+      };
+
+      function atualizarSimulacao() {
+        if (!sliderFixos || !sliderVar) return;
+        var ajusteFixos = Number(sliderFixos.value || 0);
+        var ajusteVar = Number(sliderVar.value || 0);
+        if (labelFixos) labelFixos.textContent = ajusteFixos + '%';
+        if (labelVar) labelVar.textContent = ajusteVar + '%';
+
+        var temSim = ajusteFixos !== 0 || ajusteVar !== 0;
+        if (badgeSimulacao) {
+          badgeSimulacao.classList.toggle('d-none', !temSim);
+        }
+
+        var fatorFixos = 1 + (ajusteFixos / 100);
+        var fatorVar = 1 + (ajusteVar / 100);
+
+        var custosFixosTotalBase = base.custosFixosSemAluguel + base.custoAluguel + base.folha;
+        var custosFixosTotalSim = custosFixosTotalBase * fatorFixos;
+        var custosVarSim = base.custosVariaveis * fatorVar;
+        var impostosSim = base.impostos; // mantemos impostos constantes na simulação simples
+        var custosTotaisSim = custosFixosTotalSim + custosVarSim + impostosSim;
+        var ebitdaSim = base.faturamento - (custosVarSim + impostosSim);
+        var lucroSim = ebitdaSim - custosFixosTotalSim;
+
+        var aluguelMensal = base.custoAluguel / 12.0;
+        var roaSim = 0;
+        if (aluguelMensal > 0) {
+          var baseArrendamento = aluguelMensal * 12.0;
+          if (baseArrendamento > 0) {
+            roaSim = (lucroSim / baseArrendamento) * 100.0;
+          }
+        }
+
+        var lucroParaCards = temSim ? lucroSim : base.lucro;
+        var ebitdaParaCards = temSim ? ebitdaSim : base.ebitda;
+        var roaParaCards = temSim ? roaSim : base.roa;
+
+        if (elLucro) elLucro.textContent = formatMoeda(lucroParaCards);
+        if (elEbitda) elEbitda.textContent = formatMoeda(ebitdaParaCards);
+        if (elRoa) elRoa.textContent = roaParaCards
+          ? roaParaCards.toFixed(2).replace('.', ',') + '%'
+          : '—';
+
+        if (!isNaN(lucroParaCards)) {
+          aplicarVeredito(vereditoEl, textoVereditoEl, lucroParaCards);
+          if (textoVereditoResumo) {
+            aplicarVeredito(vereditoEl, textoVereditoResumo, lucroParaCards);
+          }
+        }
+      }
+
+      if (sliderFixos) {
+        sliderFixos.addEventListener('input', atualizarSimulacao);
+      }
+      if (sliderVar) {
+        sliderVar.addEventListener('input', atualizarSimulacao);
+      }
+      atualizarSimulacao();
+
+      // Gráfico de ocupação (Engenharia Reversa)
       var detalhe = analise.detalhamento_mensal || [];
       var labels = detalhe.map(function (d) { return d.mes_label; });
       var ocupacao = detalhe.map(function (d) { return (d.ocupacao_pct * 100); });

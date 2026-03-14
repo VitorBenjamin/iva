@@ -1,19 +1,24 @@
 """
-engenharia_reversa - Cálculo de diária média ponderada, ocupação e RDM.
-Responsabilidade: transformar faturamento + dados de mercado em relatório estruturado.
+engenharia_reversa - Cálculo de diária média ponderada, ocupação, RDM e viabilidade financeira.
+Responsabilidade: transformar faturamento + dados de mercado + custos em relatório estruturado.
 """
 import calendar
 from collections import defaultdict
+
 from loguru import logger
 
-from core.analise.modelos import DetalheMensal, ResultadoAnaliseCurado, ResultadoEngReversa
-from core.scraper.modelos import DadosMercado
+from core.analise.modelos import (
+    CenarioFinanceiro,
+    DetalheMensal,
+    ResultadoAnaliseCurado,
+    ResultadoEngReversa,
+)
 from core.projetos import Projeto
+from core.scraper.modelos import DadosMercado
 
 PERMANENCIA_MEDIA_DEFAULT = 3.0
 
-# Pesos de sazonalidade por mês (1-12): Alta ~70-80%, Média ~40-50%, Baixa ~20-30%
-# Usados para calcular a Diária Média Ponderada Anual (ADR).
+# Pesos de sazonalidade por mês (1-12) para ADR.
 PESO_MES_SAZONALIDADE = {
     1: 3,   # Janeiro - alta
     2: 2,   # Fevereiro - média (Carnaval)
@@ -29,10 +34,35 @@ PESO_MES_SAZONALIDADE = {
     12: 3,  # Dezembro - alta (Réveillon)
 }
 
+# Pesos sazonais específicos para distribuição de faturamento (Arraial d'Ajuda - BA).
+PESOS_SAZONALIDADE_ARRAIAL = {
+    1: 1.35,  # Janeiro
+    2: 1.25,  # Fevereiro
+    3: 0.90,  # Março
+    4: 1.05,  # Abril
+    5: 0.60,  # Maio
+    6: 0.65,  # Junho
+    7: 1.20,  # Julho
+    8: 0.85,  # Agosto
+    9: 0.75,  # Setembro
+    10: 0.80, # Outubro
+    11: 0.70, # Novembro
+    12: 1.10, # Dezembro
+}
+
 MESES_PT = {
-    "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril",
-    "05": "Maio", "06": "Junho", "07": "Julho", "08": "Agosto",
-    "09": "Setembro", "10": "Outubro", "11": "Novembro", "12": "Dezembro",
+    "01": "Janeiro",
+    "02": "Fevereiro",
+    "03": "Março",
+    "04": "Abril",
+    "05": "Maio",
+    "06": "Junho",
+    "07": "Julho",
+    "08": "Agosto",
+    "09": "Setembro",
+    "10": "Outubro",
+    "11": "Novembro",
+    "12": "Dezembro",
 }
 
 PESOS_PERIODO = {
@@ -48,6 +78,126 @@ PESOS_PERIODO = {
 def _peso(codigo: str) -> int:
     """Retorna peso do período; não mapeado → 1."""
     return PESOS_PERIODO.get(codigo, 1)
+
+
+def _custo_fixo_mensal_total(projeto: Projeto) -> float:
+    """Soma todos os custos fixos mensais (incluindo aluguel) + folha de pagamento."""
+    fin = getattr(projeto, "financeiro", None)
+    if not fin or not getattr(fin, "custos_fixos", None):
+        return 0.0
+    cf = fin.custos_fixos
+    base = (
+        float(cf.luz)
+        + float(cf.agua)
+        + float(cf.internet)
+        + float(cf.iptu)
+        + float(cf.contabilidade)
+        + float(cf.seguros)
+        + float(cf.outros)
+    )
+    aluguel = float(getattr(cf, "aluguel", 0.0) or 0.0)
+    folha = float(getattr(fin, "folha_pagamento_mensal", 0.0) or 0.0)
+    total = base + aluguel + folha
+    return max(total, 0.0)
+
+
+def _custo_variavel_por_noite(projeto: Projeto, ocupacao_media_pessoas: float = 2.0) -> float:
+    """Retorna o custo variável estimado por noite (por quarto), considerando pessoas."""
+    fin = getattr(projeto, "financeiro", None)
+    if not fin or not getattr(fin, "custos_variaveis", None):
+        return 0.0
+    cv = fin.custos_variaveis
+    por_pessoa = float(cv.cafe_manha) + float(cv.amenities) + float(cv.lavanderia) + float(cv.outros)
+    total = por_pessoa * ocupacao_media_pessoas
+    return max(total, 0.0)
+
+
+def _impostos_sobre_faturamento(faturamento: float, projeto: Projeto) -> float:
+    """Calcula impostos (aliquota principal + outros impostos/taxas) sobre um faturamento."""
+    fin = getattr(projeto, "financeiro", None)
+    if not fin:
+        return 0.0
+    aliquota = float(getattr(fin, "aliquota_impostos", 0.0) or 0.0)
+    outros = float(getattr(fin, "outros_impostos_taxas_percentual", 0.0) or 0.0)
+    total_aliquota = max(aliquota + outros, 0.0)
+    return max(faturamento, 0.0) * total_aliquota
+
+
+def _calcular_break_even(
+    adr_anual: float,
+    projeto: Projeto,
+    custo_var_noite: float,
+    faturamento_anual_total: float,
+) -> float:
+    """
+    Calcula o ponto de equilíbrio em noites/mês.
+    Fórmula aproximada: (custo_fixo_mensal_total + impostos_mensais_est) / (adr - custo_var_noite)
+    """
+    if adr_anual <= 0:
+        return 0.0
+    custo_fixo_mensal = _custo_fixo_mensal_total(projeto)
+    if custo_fixo_mensal <= 0:
+        return 0.0
+    fin = getattr(projeto, "financeiro", None)
+    aliquota = float(getattr(fin, "aliquota_impostos", 0.0) or 0.0) if fin else 0.0
+    outros = float(getattr(fin, "outros_impostos_taxas_percentual", 0.0) or 0.0) if fin else 0.0
+    total_aliquota = max(aliquota + outros, 0.0)
+    faturamento_medio_mensal = max(faturamento_anual_total, 0.0) / 12.0
+    impostos_mensais_estimados = faturamento_medio_mensal * total_aliquota
+    denominador = adr_anual - max(custo_var_noite, 0.0)
+    if denominador <= 0:
+        return 0.0
+    noites = (custo_fixo_mensal + impostos_mensais_estimados) / denominador
+    return max(noites, 0.0)
+
+
+def _calcular_cenarios(
+    faturamento_anual_total: float,
+    ocupacao_anual_media: float,
+    custos_fixos_anuais_sem_aluguel: float,
+    custo_anual_aluguel: float,
+    folha_pagamento_anual: float,
+    custos_variaveis_anuais: float,
+    impostos_anuais: float,
+) -> list[CenarioFinanceiro]:
+    """
+    Gera cenários Pessimista / Provável / Otimista escalando ocupação e componentes proporcionais
+    (faturamento, custos variáveis, impostos).
+    """
+    cenarios: list[CenarioFinanceiro] = []
+    base_fixos = max(custos_fixos_anuais_sem_aluguel, 0.0) + max(custo_anual_aluguel, 0.0) + max(
+        folha_pagamento_anual, 0.0
+    )
+
+    definicoes = [
+        ("Pessimista", 0.75),
+        ("Provável", 1.0),
+        ("Otimista", 1.25),
+    ]
+
+    for nome, fator in definicoes:
+        ocupacao_cenario = max(ocupacao_anual_media * fator, 0.0)
+        faturamento_cenario = max(faturamento_anual_total * fator, 0.0)
+        custos_variaveis_cenario = max(custos_variaveis_anuais * fator, 0.0)
+        impostos_cenario = max(impostos_anuais * fator, 0.0)
+        custos_totais_proporcionais = custos_variaveis_cenario + impostos_cenario
+        custos_totais = custos_totais_proporcionais + base_fixos
+        ebitda_cenario = faturamento_cenario - custos_totais_proporcionais
+        lucro_liquido_cenario = ebitda_cenario - base_fixos
+
+        cenarios.append(
+            CenarioFinanceiro(
+                nome=nome,
+                fator_ocupacao=fator,
+                ocupacao_anual_media=ocupacao_cenario,
+                faturamento_anual=round(faturamento_cenario, 2),
+                custos_totais_anuais=round(custos_totais, 2),
+                ebitda_anual=round(ebitda_cenario, 2),
+                lucro_liquido_anual=round(lucro_liquido_cenario, 2),
+            )
+        )
+
+    return cenarios
 
 
 def gerar_relatorio_engenharia_reversa(projeto: Projeto, dados_mercado: DadosMercado) -> ResultadoEngReversa:
@@ -184,35 +334,69 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
         return ResultadoAnaliseCurado(
             faturamento_anual_total=projeto.faturamento_anual,
             diaria_media_anual_estimada=0.0,
+            adr_normal_anual=0.0,
+            adr_especial_media=0.0,
             ocupacao_anual_media=0.0,
             rdm_anual_medio=0.0,
             detalhamento_mensal=[],
         )
 
-    # Valor efetivo por registro (já vem preco_curado ou preco_direto)
-    valores_com_peso = [
+    # Separa registros normais x especiais (categoria_dia pode não existir em dados legados)
+    registros_normais: list[dict] = []
+    registros_especiais: list[dict] = []
+    for r in registros:
+        categoria = r.get("categoria_dia") or "normal"
+        if categoria == "especial":
+            registros_especiais.append(r)
+        else:
+            registros_normais.append(r)
+
+    # Valor efetivo ponderado apenas com dias normais
+    valores_normais = [
         (r["valor_efetivo"], _mes_ano_para_peso(r.get("mes_ano", "")))
-        for r in registros
+        for r in registros_normais
         if isinstance(r.get("valor_efetivo"), (int, float))
     ]
-    if not valores_com_peso:
-        logger.warning("Nenhum valor_efetivo numérico nos registros")
+    if not valores_normais:
+        # Se não houver dias normais, cai para comportamento antigo usando todos
+        valores_normais = [
+            (r["valor_efetivo"], _mes_ano_para_peso(r.get("mes_ano", "")))
+            for r in registros
+            if isinstance(r.get("valor_efetivo"), (int, float))
+        ]
+
+    if not valores_normais:
+        logger.warning("Nenhum valor_efetivo numérico nos registros (nem normais nem especiais)")
         return ResultadoAnaliseCurado(
             faturamento_anual_total=projeto.faturamento_anual,
             diaria_media_anual_estimada=0.0,
+            adr_normal_anual=0.0,
+            adr_especial_media=0.0,
             ocupacao_anual_media=0.0,
             rdm_anual_medio=0.0,
             detalhamento_mensal=[],
         )
 
-    # Diária Média Ponderada Anual (ADR) por sazonalidade
-    soma_ponderada = sum(v * p for v, p in valores_com_peso)
-    soma_pesos = sum(p for _, p in valores_com_peso)
-    adr_anual = soma_ponderada / soma_pesos if soma_pesos else (sum(v for v, _ in valores_com_peso) / len(valores_com_peso))
+    soma_ponderada = sum(v * p for v, p in valores_normais)
+    soma_pesos = sum(p for _, p in valores_normais)
+    adr_normal_anual = soma_ponderada / soma_pesos if soma_pesos else (
+        sum(v for v, _ in valores_normais) / len(valores_normais)
+    )
 
-    # Preço médio por mês (apenas meses que têm coleta)
+    # ADR "geral" para compatibilidade (pode ser igual à normal em dados novos)
+    adr_anual = adr_normal_anual
+
+    # ADR média em datas especiais (apenas para referência)
+    valores_especiais = [
+        r["valor_efetivo"]
+        for r in registros_especiais
+        if isinstance(r.get("valor_efetivo"), (int, float))
+    ]
+    adr_especial_media = sum(valores_especiais) / len(valores_especiais) if valores_especiais else 0.0
+
+    # Preço médio por mês (apenas meses que têm coleta, usando somente dias normais)
     preco_por_mes: dict[str, list[float]] = defaultdict(list)
-    for r in registros:
+    for r in registros_normais:
         if isinstance(r.get("valor_efetivo"), (int, float)) and r.get("mes_ano"):
             preco_por_mes[r["mes_ano"]].append(float(r["valor_efetivo"]))
     preco_medio_mes: dict[str, float] = {
@@ -226,40 +410,131 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
 
     detalhamento_mensal: list[DetalheMensal] = []
     total_noites_vendidas = 0.0
+    custos_variaveis_anuais = 0.0
+    impostos_anuais = 0.0
+    custo_var_noite = _custo_variavel_por_noite(projeto, ocupacao_media_pessoas=2.0)
+    custo_fixo_mensal_total = _custo_fixo_mensal_total(projeto)
+
+    soma_pesos_sazonalidade = sum(PESOS_SAZONALIDADE_ARRAIAL.values())
+    if soma_pesos_sazonalidade <= 0:
+        soma_pesos_sazonalidade = 12.0
 
     for mes in range(1, 13):
         mes_ano = f"{ano_ref}-{mes:02d}"
         dias_mes = calendar.monthrange(ano_ref, mes)[1]
-        faturamento_mensal = faturamento_anual * (dias_mes / 365.0)
+        peso_mes = PESOS_SAZONALIDADE_ARRAIAL.get(mes, 1.0)
+        faturamento_mensal = faturamento_anual * (peso_mes / soma_pesos_sazonalidade)
         preco_medio = preco_medio_mes.get(mes_ano) or adr_anual  # Meses sem coleta: usa ADR como proxy
         noites_vendidas = faturamento_mensal / preco_medio if preco_medio else 0.0
         capacidade_mes = numero_quartos * dias_mes
         ocupacao_pct = noites_vendidas / capacidade_mes if capacidade_mes else 0.0
         total_noites_vendidas += noites_vendidas
-        detalhamento_mensal.append(DetalheMensal(
-            mes_ano=mes_ano,
-            mes_label=_mes_label(mes_ano),
-            faturamento_mensal=round(faturamento_mensal, 2),
-            preco_medio_mes=round(preco_medio, 2),
-            noites_vendidas=round(noites_vendidas, 2),
-            ocupacao_pct=round(ocupacao_pct, 4),
-            dias_no_mes=dias_mes,
-        ))
+        custo_variavel_mensal = noites_vendidas * custo_var_noite
+        impostos_mensais = _impostos_sobre_faturamento(faturamento_mensal, projeto)
+        custos_variaveis_anuais += custo_variavel_mensal
+        impostos_anuais += impostos_mensais
+        detalhamento_mensal.append(
+            DetalheMensal(
+                mes_ano=mes_ano,
+                mes_label=_mes_label(mes_ano),
+                faturamento_mensal=round(faturamento_mensal, 2),
+                preco_medio_mes=round(preco_medio, 2),
+                noites_vendidas=round(noites_vendidas, 2),
+                ocupacao_pct=round(ocupacao_pct, 4),
+                dias_no_mes=dias_mes,
+                custo_variavel_mensal=round(custo_variavel_mensal, 2),
+                impostos_mensais=round(impostos_mensais, 2),
+            )
+        )
 
     capacidade_anual = numero_quartos * 365
     ocupacao_anual_media = total_noites_vendidas / capacidade_anual if capacidade_anual else 0.0
     denom_rdm = 365.0 * permanencia
     rdm_anual_medio = total_noites_vendidas / denom_rdm if denom_rdm else 0.0
+    custos_variaveis_anuais = max(custos_variaveis_anuais, 0.0)
+    impostos_anuais = max(impostos_anuais, 0.0)
+
+    # Quebra dos custos fixos anuais
+    fin = getattr(projeto, "financeiro", None)
+    cf = getattr(fin, "custos_fixos", None) if fin else None
+    aluguel_mensal = float(getattr(cf, "aluguel", 0.0) or 0.0) if cf else 0.0
+    folha_mensal = float(getattr(fin, "folha_pagamento_mensal", 0.0) or 0.0) if fin else 0.0
+
+    # Custos fixos sem aluguel: demais fixos + folha
+    outros_fixos_mensais = 0.0
+    if cf:
+        outros_fixos_mensais = (
+            float(cf.luz)
+            + float(cf.agua)
+            + float(cf.internet)
+            + float(cf.iptu)
+            + float(cf.contabilidade)
+            + float(cf.seguros)
+            + float(cf.outros)
+        )
+
+    # Custos fixos anuais sem aluguel e sem folha (folha separada)
+    custos_fixos_anuais_sem_aluguel = max(outros_fixos_mensais, 0.0) * 12.0
+    custo_anual_aluguel = max(aluguel_mensal, 0.0) * 12.0
+    folha_pagamento_anual = max(folha_mensal, 0.0) * 12.0
+
+    custos_totais_anuais = (
+        custos_fixos_anuais_sem_aluguel + custo_anual_aluguel + folha_pagamento_anual +
+        custos_variaveis_anuais + impostos_anuais
+    )
+
+    ebitda_anual = faturamento_anual - (custos_variaveis_anuais + impostos_anuais)
+    lucro_liquido_anual = ebitda_anual - (custos_fixos_anuais_sem_aluguel + custo_anual_aluguel + folha_pagamento_anual)
+
+    noites_break_even = _calcular_break_even(
+        adr_anual=adr_anual,
+        projeto=projeto,
+        custo_var_noite=custo_var_noite,
+        faturamento_anual_total=faturamento_anual,
+    )
+
+    retorno_arrendamento_percentual = 0.0
+    if aluguel_mensal > 0:
+        base_arrendamento_anual = aluguel_mensal * 12.0
+        if base_arrendamento_anual > 0:
+            retorno_arrendamento_percentual = (lucro_liquido_anual / base_arrendamento_anual) * 100.0
+
+    cenarios = _calcular_cenarios(
+        faturamento_anual_total=faturamento_anual,
+        ocupacao_anual_media=ocupacao_anual_media,
+        custos_fixos_anuais_sem_aluguel=custos_fixos_anuais_sem_aluguel,
+        custo_anual_aluguel=custo_anual_aluguel,
+        folha_pagamento_anual=folha_pagamento_anual,
+        custos_variaveis_anuais=custos_variaveis_anuais,
+        impostos_anuais=impostos_anuais,
+    )
 
     resultado = ResultadoAnaliseCurado(
         faturamento_anual_total=round(faturamento_anual, 2),
         diaria_media_anual_estimada=round(adr_anual, 2),
+        adr_normal_anual=round(adr_normal_anual, 2),
+        adr_especial_media=round(adr_especial_media, 2),
         ocupacao_anual_media=round(ocupacao_anual_media, 4),
         rdm_anual_medio=round(rdm_anual_medio, 2),
         detalhamento_mensal=detalhamento_mensal,
+        custo_fixo_mensal_total=round(custo_fixo_mensal_total, 2),
+        custos_fixos_anuais_sem_aluguel=round(custos_fixos_anuais_sem_aluguel, 2),
+        custo_anual_aluguel=round(custo_anual_aluguel, 2),
+        folha_pagamento_anual=round(folha_pagamento_anual, 2),
+        custos_variaveis_anuais=round(custos_variaveis_anuais, 2),
+        impostos_anuais=round(impostos_anuais, 2),
+        custos_totais_anuais=round(custos_totais_anuais, 2),
+        ebitda_anual=round(ebitda_anual, 2),
+        lucro_liquido_anual=round(lucro_liquido_anual, 2),
+        noites_break_even=round(noites_break_even, 2),
+        retorno_arrendamento_percentual=round(retorno_arrendamento_percentual, 2),
+        cenarios=cenarios,
     )
     logger.info(
-        "Análise curado concluída: ADR {:.2f}, ocupação anual {:.2%}, RDM {:.2f}",
-        adr_anual, ocupacao_anual_media, rdm_anual_medio,
+        "Análise curado concluída: ADR {:.2f}, ocupação anual {:.2%}, RDM {:.2f}, lucro líquido anual {:.2f}",
+        adr_anual,
+        ocupacao_anual_media,
+        rdm_anual_medio,
+        lucro_liquido_anual,
     )
     return resultado

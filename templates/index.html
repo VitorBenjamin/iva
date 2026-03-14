@@ -3,24 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IVA - Inteligência de Viabilidade de Arrendamento</title>
+  <title>Gestão de Ativos — IVA</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 </head>
 <body>
   <div class="container py-4">
     <header class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom pb-3 mb-4">
-      <h1 class="h4 mb-0">IVA - Inteligência de Viabilidade de Arrendamento</h1>
+      <h1 class="h4 mb-0">Gestão de Ativos — IVA</h1>
       <div class="d-flex align-items-center gap-2">
         <label class="form-label mb-0 text-muted">Projeto:</label>
         <select id="seletor-projeto" class="form-select form-select-sm" style="min-width: 220px;">
           <option value="">— Selecionar projeto —</option>
         </select>
-        <a id="link-dashboard" href="#" class="btn btn-sm btn-outline-secondary text-nowrap" style="display: none;">Abrir Dashboard</a>
+        <a id="link-curadoria" href="#" class="btn btn-sm btn-outline-secondary text-nowrap" style="display: none;">Abrir Curadoria</a>
       </div>
     </header>
 
     <section class="card mb-4">
-      <div class="card-header">Criar Novo Projeto</div>
+      <div class="card-header">Gestão de Ativo</div>
       <div class="card-body">
         <form id="form-criar-projeto">
           <div class="row g-3">
@@ -44,8 +45,9 @@
               <label for="criar-ano" class="form-label">Ano Referência</label>
               <input type="number" id="criar-ano" name="ano_referencia" class="form-control" min="2000" max="2100">
             </div>
-            <div class="col-12">
-              <button type="submit" id="btn-criar" class="btn btn-primary">Criar Projeto</button>
+            <div class="col-12 d-flex gap-2 flex-wrap">
+              <button type="submit" id="btn-submit-ativo" class="btn btn-primary">Criar Ativo</button>
+              <button type="button" id="btn-novo-ativo" class="btn btn-outline-secondary">Novo Ativo</button>
             </div>
           </div>
         </form>
@@ -66,17 +68,45 @@
             <div class="col-md-4"><label class="form-label small">Contabilidade</label><input type="text" id="fin-contabilidade" class="form-control form-control-sm moeda"></div>
             <div class="col-md-4"><label class="form-label small">Seguros</label><input type="text" id="fin-seguros" class="form-control form-control-sm moeda"></div>
             <div class="col-md-4"><label class="form-label small">Outros</label><input type="text" id="fin-outros-fixos" class="form-control form-control-sm moeda"></div>
+            <div class="col-md-4">
+              <label class="form-label small">Aluguel/Arrendamento (R$/mês)</label>
+              <span class="ms-1" data-bs-toggle="tooltip" title="Valor mensal do arrendamento pretendido."><i class="bi bi-question-circle text-muted small"></i></span>
+              <input type="text" id="fin-aluguel" class="form-control form-control-sm moeda">
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-4">
+              <label class="form-label small">Folha de Pagamento Total (R$/mês)</label>
+              <span class="ms-1" data-bs-toggle="tooltip" title="Total mensal com salários e encargos de todos os funcionários."><i class="bi bi-question-circle text-muted small"></i></span>
+              <input type="text" id="fin-folha" class="form-control form-control-sm moeda">
+            </div>
           </div>
           <h6 class="mb-2">Custos variáveis por noite</h6>
           <div class="row g-2 mb-3">
-            <div class="col-md-3"><label class="form-label small">Café da manhã</label><input type="text" id="fin-cafe" class="form-control form-control-sm moeda"></div>
+            <div class="col-md-3">
+              <label class="form-label small">Café da manhã</label>
+              <span class="ms-1" data-bs-toggle="tooltip" title="Custo por pessoa/dia. Multiplicado pela ocupação estimada."><i class="bi bi-question-circle text-muted small"></i></span>
+              <input type="text" id="fin-cafe" class="form-control form-control-sm moeda">
+            </div>
             <div class="col-md-3"><label class="form-label small">Amenities</label><input type="text" id="fin-amenities" class="form-control form-control-sm moeda"></div>
             <div class="col-md-3"><label class="form-label small">Lavanderia</label><input type="text" id="fin-lavanderia" class="form-control form-control-sm moeda"></div>
             <div class="col-md-3"><label class="form-label small">Outros</label><input type="text" id="fin-outros-var" class="form-control form-control-sm moeda"></div>
           </div>
-          <div class="row g-2">
-            <div class="col-md-3"><label class="form-label small">Alíquota impostos (0–1)</label><input type="number" id="fin-aliquota" class="form-control form-control-sm" step="0.01" min="0" max="1"></div>
-            <div class="col-md-3"><label class="form-label small">% Contingência (0–1)</label><input type="number" id="fin-contingencia" class="form-control form-control-sm" step="0.01" min="0" max="1"></div>
+          <div class="row g-2 mb-2">
+            <div class="col-md-3"><label class="form-label small">Alíquota impostos (%)</label><input type="number" id="fin-aliquota" class="form-control form-control-sm" step="0.1" min="0" max="100" placeholder="ex: 6"></div>
+            <div class="col-md-3">
+              <label class="form-label small">% Contingência</label>
+              <span class="ms-1" data-bs-toggle="tooltip" title="Reserva para imprevistos. Ex: 5 = 5% do faturamento."><i class="bi bi-question-circle text-muted small"></i></span>
+              <input type="number" id="fin-contingencia" class="form-control form-control-sm" step="0.1" min="0" max="100" placeholder="ex: 5">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small">Outros Impostos/Taxas (%)</label>
+              <span class="ms-1" data-bs-toggle="tooltip" title="Taxas adicionais sobre faturamento além da alíquota principal."><i class="bi bi-question-circle text-muted small"></i></span>
+              <input type="number" id="fin-outros-impostos" class="form-control form-control-sm" step="0.1" min="0" max="100" placeholder="ex: 3,5">
+            </div>
+          </div>
+          <div class="mt-2">
+            <button type="button" id="btn-salvar-financeiro" class="btn btn-outline-primary btn-sm" style="display: none;">Salvar Configurações Financeiras</button>
           </div>
         </div>
       </div>

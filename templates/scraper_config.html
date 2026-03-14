@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurações do Scraper — {{ projeto.nome }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+      <div>
+        <h1 class="h4 mb-1">Configurações do Scraper — {{ projeto.nome }}</h1>
+        <p class="text-muted mb-0">Defina períodos especiais, datas normais e parâmetros de busca.</p>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <a href="/projeto/{{ projeto.id }}/curadoria" class="btn btn-outline-secondary btn-sm">
+          ⬅ Voltar para Curadoria
+        </a>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-salvar">
+          Salvar Configurações
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="btn-salvar-comando">
+          Salvar e Ver Comando do Terminal
+        </button>
+        <button type="button" class="btn btn-outline-success btn-sm" id="btn-salvar-rodar">
+          Salvar e Rodar Agora (Web)
+        </button>
+      </div>
+    </div>
+
+    <!-- Seção A - Períodos Especiais -->
+    <div class="card mb-4">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span>
+          Períodos Especiais
+          <i class="bi bi-info-circle ms-1 text-muted"
+             data-bs-toggle="tooltip"
+             title="Usados para marcar datas como categoria 'especial' (feriados, eventos, pacotes)."></i>
+        </span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-add-periodo">
+          Adicionar Período
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 20%;">Início (DD/MM/AAAA)</th>
+                <th style="width: 20%;">Fim (DD/MM/AAAA)</th>
+                <th>Nome do Período</th>
+                <th style="width: 10%;" class="text-end">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-periodos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção B - Estratégia de Amostragem -->
+    <div class="card mb-4">
+      <div class="card-header bg-white">
+        Estratégia de Amostragem de Datas Normais
+        <i class="bi bi-info-circle ms-1 text-muted"
+           data-bs-toggle="tooltip"
+           title="Quantidade de datas sem feriado que o scraper irá consultar em cada mês."></i>
+      </div>
+      <div class="card-body">
+        <div class="row g-3 align-items-center">
+          <div class="col-md-4">
+            <label class="form-label" for="select-datas-mes">Quantidade de datas NORMAIS por mês</label>
+            {% set am = config.amostragem %}
+            <select id="select-datas-mes" class="form-select form-select-sm">
+              {% for op in [2, 4, 6, 8] %}
+              <option value="{{ op }}" {% if am.datas_normais_por_mes == op %}selected{% endif %}>{{ op }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="check-fds" {% if am.incluir_fds %}checked{% endif %}>
+              <label class="form-check-label" for="check-fds">
+                Incluir Finais de Semana
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="check-dia-uteis" {% if am.incluir_dias_uteis %}checked{% endif %}>
+              <label class="form-check-label" for="check-dia-uteis">
+                Incluir Dias de Semana
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção C - Parâmetros Técnicos -->
+    <div class="card mb-4">
+      <div class="card-header bg-white">
+        <a class="text-decoration-none" data-bs-toggle="collapse" href="#collapse-tecnico" role="button" aria-expanded="false">
+          Configurações Avançadas
+        </a>
+      </div>
+      <div class="collapse" id="collapse-tecnico">
+        <div class="card-body">
+          {% set pt = config.parametros_tecnicos %}
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label for="input-timeout" class="form-label">Timeout (ms)</label>
+              <input type="number" class="form-control form-control-sm" id="input-timeout" value="{{ pt.timeout_ms }}">
+            </div>
+            <div class="col-md-3">
+              <label for="input-delay-min" class="form-label">Delay mínimo (s)</label>
+              <input type="number" class="form-control form-control-sm" id="input-delay-min" value="{{ pt.delay_min_s }}">
+            </div>
+            <div class="col-md-3">
+              <label for="input-delay-max" class="form-label">Delay máximo (s)</label>
+              <input type="number" class="form-control form-control-sm" id="input-delay-max" value="{{ pt.delay_max_s }}">
+            </div>
+            <div class="col-md-3 d-flex flex-column justify-content-center">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="check-headless" {% if pt.headless %}checked{% endif %}>
+                <label class="form-check-label" for="check-headless">Modo Headless</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="check-stealth" {% if pt.stealth %}checked{% endif %}>
+                <label class="form-check-label" for="check-stealth">Modo Stealth</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção extra - Noites e Descontos -->
+    <div class="card mb-4">
+      <div class="card-header bg-white fw-bold">Configurações de Noites e Descontos</div>
+      <div class="card-body">
+        {% set noites = config.noites if config.noites is defined else {'preferencial': 2, 'max_tentativas': 4} %}
+        {% set descontos = config.descontos if config.descontos is defined else {'global': 0.20, 'por_mes': {}} %}
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label" for="select-noites-preferencial">Noites preferenciais por busca</label>
+            <select id="select-noites-preferencial" class="form-select form-select-sm">
+              {% for n in [1,2,3,4,5,6] %}
+              <option value="{{ n }}" {% if noites.preferencial == n %}selected{% endif %}>{{ n }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="input-max-tentativas">Máx. tentativas por data</label>
+            <input type="number" class="form-control form-control-sm" id="input-max-tentativas" min="1" value="{{ noites.max_tentativas }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="input-desconto-global">Desconto global (%)</label>
+            {% set desc_global_pct = (descontos.global * 100) if descontos.global is defined else 20 %}
+            <input type="number" class="form-control form-control-sm" id="input-desconto-global" min="0" max="100" step="0.1" value="{{ "%.1f"|format(desc_global_pct) }}">
+          </div>
+        </div>
+        <div>
+          <label class="form-label">
+            Descontos específicos por mês (%)
+            <i class="bi bi-info-circle ms-1 text-muted"
+               data-bs-toggle="tooltip"
+               title="Permite aplicar descontos diferentes em meses específicos. Se vazio, usa o desconto global."></i>
+          </label>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 20%;">Mês (01–12)</th>
+                  <th>Desconto (%)</th>
+                  <th style="width: 10%;" class="text-end">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-descontos-mes">
+                {% for mes, val in descontos.por_mes.items() %}
+                <tr class="linha-desconto-mes">
+                  <td><input type="text" class="form-control form-control-sm input-mes" value="{{ mes }}"></td>
+                  <td><input type="number" class="form-control form-control-sm input-desconto-mes" min="0" max="100" step="0.1" value="{{ "%.1f"|format(val * 100) }}"></td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-remover-desconto-mes">Excluir</button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="btn-add-desconto-mes">
+            Adicionar desconto por mês
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção D - Preview -->
+    <div class="card mb-4">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span>Preview do Próximo Ciclo de Coleta</span>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="btn-preview">Gerar Preview</button>
+      </div>
+      <div class="card-body">
+        <div id="preview-empty" class="text-muted small">
+          Clique em "Gerar Preview" para ver as datas planejadas.
+        </div>
+        <div id="preview-conteudo" class="d-none">
+          <h6>Datas NORMAIS planejadas</h6>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-striped mb-0" id="tabela-normais">
+              <thead class="table-light">
+                <tr>
+                  <th>Check-in</th>
+                  <th>Checkout</th>
+                  <th>Mês/Ano</th>
+                  <th>Tipo</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <h6>Datas ESPECIAIS planejadas</h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0" id="tabela-especiais">
+              <thead class="table-light">
+                <tr>
+                  <th>Check-in</th>
+                  <th>Checkout</th>
+                  <th>Mês/Ano</th>
+                  <th>Tipo</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal comando terminal -->
+    <div class="modal fade" id="modal-comando" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Rodar via Terminal</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted small">Use o comando abaixo no terminal para rodar o scraper com as configurações atuais:</p>
+            <pre class="bg-light p-2 rounded small mb-2" id="pre-comando">
+python -m core.scraper.cli --url "{{ projeto.url_booking }}" --id "{{ projeto.id }}" --ano "{{ projeto.ano_referencia }}"
+            </pre>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-copiar-comando">Copiar comando</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    (function () {
+      var projetoId = "{{ projeto.id }}";
+      var configInicial = {{ config | tojson | safe }};
+
+      // Tooltips
+      var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+      tooltipTriggerList.forEach(function (el) { new bootstrap.Tooltip(el); });
+
+      function isoToBr(d) {
+        if (!d) return "";
+        var parts = d.split("-");
+        if (parts.length !== 3) return d;
+        return parts[2] + "/" + parts[1] + "/" + parts[0];
+      }
+
+      function brToIso(d) {
+        if (!d) return "";
+        var parts = d.split("/");
+        if (parts.length !== 3) return "";
+        var day = parts[0].padStart(2, "0");
+        var m = parts[1].padStart(2, "0");
+        var y = parts[2];
+        return y + "-" + m + "-" + day;
+      }
+
+      function adicionarLinhaPeriodo(p) {
+        var tbody = document.getElementById('tbody-periodos');
+        var tr = document.createElement('tr');
+        var inicioIso = p.inicio_iso || brToIso(p.inicio || "");
+        var fimIso = p.fim_iso || brToIso(p.fim || "");
+        tr.innerHTML =
+          '<td><input type="date" class="form-control form-control-sm input-data-inicio" value="' + (inicioIso || '') + '"></td>' +
+          '<td><input type="date" class="form-control form-control-sm input-data-fim" value="' + (fimIso || '') + '"></td>' +
+          '<td><input type="text" class="form-control form-control-sm input-nome" value="' + (p.nome || '') + '"></td>' +
+          '<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger btn-remover-periodo">Excluir</button></td>';
+        tbody.appendChild(tr);
+      }
+
+      document.getElementById('btn-add-periodo').addEventListener('click', function () {
+        adicionarLinhaPeriodo({});
+      });
+
+      document.getElementById('tbody-periodos').addEventListener('click', function (ev) {
+        if (ev.target.classList.contains('btn-remover-periodo')) {
+          var tr = ev.target.closest('tr');
+          if (tr) tr.remove();
+        }
+      });
+
+      // Popular tabela de períodos especiais com config inicial
+      (configInicial.periodos_especiais || []).forEach(function (p) {
+        adicionarLinhaPeriodo(p);
+      });
+
+      // Descontos por mês - handlers
+      document.getElementById('btn-add-desconto-mes').addEventListener('click', function () {
+        var tbody = document.getElementById('tbody-descontos-mes');
+        var tr = document.createElement('tr');
+        tr.className = 'linha-desconto-mes';
+        tr.innerHTML =
+          '<td><input type="text" class="form-control form-control-sm input-mes" placeholder="ex: 07"></td>' +
+          '<td><input type="number" class="form-control form-control-sm input-desconto-mes" min="0" max="100" step="0.1" value=""></td>' +
+          '<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger btn-remover-desconto-mes">Excluir</button></td>';
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('tbody-descontos-mes').addEventListener('click', function (ev) {
+        if (ev.target.classList.contains('btn-remover-desconto-mes')) {
+          var tr = ev.target.closest('tr');
+          if (tr) tr.remove();
+        }
+      });
+
+      function coletarConfigDaTela() {
+        var periodos = [];
+        document.querySelectorAll('#tbody-periodos tr').forEach(function (tr) {
+          var inicioIso = tr.querySelector('.input-data-inicio').value.trim();
+          var fimIso = tr.querySelector('.input-data-fim').value.trim();
+          var nome = tr.querySelector('.input-nome').value.trim();
+          var inicio = isoToBr(inicioIso);
+          var fim = isoToBr(fimIso);
+          if (inicio || fim || nome) {
+            periodos.push({ inicio: inicio, fim: fim, nome: nome });
+          }
+        });
+        var datasMes = parseInt(document.getElementById('select-datas-mes').value, 10) || 4;
+        var incluirFds = document.getElementById('check-fds').checked;
+        var incluirDiasUteis = document.getElementById('check-dia-uteis').checked;
+        var timeoutMs = parseInt(document.getElementById('input-timeout').value, 10) || 60000;
+        var delayMin = parseInt(document.getElementById('input-delay-min').value, 10) || 8;
+        var delayMax = parseInt(document.getElementById('input-delay-max').value, 10) || 18;
+        var headless = document.getElementById('check-headless').checked;
+        var stealth = document.getElementById('check-stealth').checked;
+
+        var noitesPreferencial = parseInt(document.getElementById('select-noites-preferencial').value, 10) || 2;
+        var maxTentativas = parseInt(document.getElementById('input-max-tentativas').value, 10) || 4;
+        var descontoGlobalPct = parseFloat(String(document.getElementById('input-desconto-global').value).replace(',', '.')) || 0;
+        var descontoGlobal = descontoGlobalPct > 1 ? descontoGlobalPct / 100 : descontoGlobalPct;
+        var descontosMes = {};
+        document.querySelectorAll('#tbody-descontos-mes tr.linha-desconto-mes').forEach(function (tr) {
+          var mes = (tr.querySelector('.input-mes').value || '').trim();
+          var valPct = parseFloat(String(tr.querySelector('.input-desconto-mes').value || '').replace(',', '.'));
+          if (!mes || isNaN(valPct)) return;
+          var v = valPct > 1 ? valPct / 100 : valPct;
+          if (v < 0 || v > 1) return;
+          descontosMes[mes] = v;
+        });
+
+        return {
+          periodos_especiais: periodos,
+          amostragem: {
+            datas_normais_por_mes: datasMes,
+            incluir_fds: incluirFds,
+            incluir_dias_uteis: incluirDiasUteis
+          },
+          parametros_tecnicos: {
+            timeout_ms: timeoutMs,
+            delay_min_s: delayMin,
+            delay_max_s: delayMax,
+            headless: headless,
+            stealth: stealth
+          },
+          noites: {
+            preferencial: noitesPreferencial,
+            max_tentativas: maxTentativas
+          },
+          descontos: {
+            global: descontoGlobal,
+            por_mes: descontosMes
+          }
+        };
+      }
+
+      function salvarConfig(callback) {
+        var cfg = coletarConfigDaTela();
+        fetch('/projeto/' + encodeURIComponent(projetoId) + '/scraper/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cfg)
+        }).then(function (r) { return r.json(); })
+          .then(function (res) {
+            if (!res.success) {
+              alert(res.message || 'Erro ao salvar configurações.');
+              return;
+            }
+            if (callback) callback();
+            else alert('Configurações salvas com sucesso.');
+          })
+          .catch(function () {
+            alert('Erro de rede ao salvar configurações.');
+          });
+      }
+
+      document.getElementById('btn-salvar').addEventListener('click', function () {
+        salvarConfig();
+      });
+
+      document.getElementById('btn-salvar-comando').addEventListener('click', function () {
+        salvarConfig(function () {
+          var modal = new bootstrap.Modal(document.getElementById('modal-comando'));
+          modal.show();
+        });
+      });
+
+      document.getElementById('btn-salvar-rodar').addEventListener('click', function () {
+        salvarConfig(function () {
+          alert('Configurações salvas. Integração para rodar via web será implementada futuramente.');
+        });
+      });
+
+      document.getElementById('btn-copiar-comando').addEventListener('click', function () {
+        var pre = document.getElementById('pre-comando');
+        var txt = pre.innerText || pre.textContent || '';
+        if (!txt) return;
+        navigator.clipboard.writeText(txt.trim())
+          .then(function () { alert('Comando copiado para a área de transferência.'); })
+          .catch(function () { alert('Não foi possível copiar o comando.'); });
+      });
+
+      document.getElementById('btn-preview').addEventListener('click', function () {
+        fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/scraper/preview')
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            if (!res.success) {
+              alert(res.message || 'Erro ao gerar preview.');
+              return;
+            }
+            var normaisBody = document.querySelector('#tabela-normais tbody');
+            var especiaisBody = document.querySelector('#tabela-especiais tbody');
+            normaisBody.innerHTML = '';
+            especiaisBody.innerHTML = '';
+            (res.normais || []).forEach(function (p) {
+              var tr = document.createElement('tr');
+              tr.innerHTML = '<td>' + (p.checkin || '') + '</td>' +
+                             '<td>' + (p.checkout || '') + '</td>' +
+                             '<td>' + (p.mes_ano || '') + '</td>' +
+                             '<td>' + (p.tipo_dia || '') + '</td>';
+              normaisBody.appendChild(tr);
+            });
+            (res.especiais || []).forEach(function (p) {
+              var tr = document.createElement('tr');
+              tr.innerHTML = '<td>' + (p.checkin || '') + '</td>' +
+                             '<td>' + (p.checkout || '') + '</td>' +
+                             '<td>' + (p.mes_ano || '') + '</td>' +
+                             '<td>' + (p.tipo_dia || '') + '</td>';
+              especiaisBody.appendChild(tr);
+            });
+            document.getElementById('preview-empty').classList.add('d-none');
+            document.getElementById('preview-conteudo').classList.remove('d-none');
+          })
+          .catch(function () {
+            alert('Erro de rede ao gerar preview.');
+          });
+      });
+    })();
+  </script>
+</body>
+</html>
+
