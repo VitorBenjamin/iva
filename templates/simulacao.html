@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador de Viabilidade Futura — {{ projeto.nome }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    .card-metric { min-height: 100px; }
+    .card-metric .card-body { display: flex; flex-direction: column; justify-content: center; }
+    .card-metric .valor { font-size: 1.25rem; font-weight: 700; }
+    .adr-fallback { background-color: #fff3cd; }
+    .break-even-inviavel { background-color: #f8d7da; color: #842029; font-weight: 600; }
+    .payback-indefinido { color: #856404; font-weight: 600; }
+    .table-simulacao input { max-width: 120px; }
+    .loading-overlay { opacity: 0.5; pointer-events: none; }
+    .spinner-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
+  </style>
+</head>
+<body class="bg-light">
+  <div class="container-fluid py-4">
+    <header class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom pb-3 mb-4">
+      <div class="d-flex align-items-center gap-2">
+        <a href="/projeto/{{ projeto.id }}/viabilidade" class="btn btn-outline-secondary btn-sm">← Voltar ao Relatório</a>
+        <h1 class="h5 mb-0">Simulador de Viabilidade Futura</h1>
+        <span class="badge bg-primary">{{ projeto.nome }}</span>
+      </div>
+    </header>
+
+    <!-- Cards de Resumo -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="card card-metric border-primary shadow-sm h-100">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase">Receita Anual Projetada</div>
+            <div class="valor text-primary" id="card-receita">R$ 0,00</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card card-metric border-success shadow-sm h-100">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase">Lucro Líquido Anual</div>
+            <div class="valor text-success" id="card-lucro">R$ 0,00</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card card-metric border-info shadow-sm h-100">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase">Margem Líquida Média</div>
+            <div class="valor text-info" id="card-margem">0%</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card card-metric border-warning shadow-sm h-100">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase">Payback Estimado</div>
+            <div class="valor" id="card-payback">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Investimento Inicial -->
+    <div class="card mb-4 shadow-sm">
+      <div class="card-body">
+        <label class="form-label fw-bold" for="input-investimento">
+          <i class="bi bi-cash-stack me-1"></i> Investimento Inicial (R$)
+        </label>
+        <input type="number" id="input-investimento" class="form-control form-control-lg" min="0" step="1000" value="0" placeholder="0" style="max-width: 280px;">
+      </div>
+    </div>
+
+    <!-- Tabela de Metas -->
+    <div class="card shadow-sm position-relative" id="card-tabela">
+      <div class="spinner-overlay d-none" id="spinner">
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Carregando...</span></div>
+      </div>
+      <div class="card-header bg-white fw-bold">Metas Mensais (Ocupação e ADR)</div>
+      <div class="card-body p-0" id="tabela-container">
+        <div class="table-responsive">
+          <table class="table table-hover table-striped mb-0 table-simulacao">
+            <thead class="table-light">
+              <tr>
+                <th>Mês</th>
+                <th>ADR Sugerido (R$)</th>
+                <th>Ocupação Meta (%)</th>
+                <th class="text-end">Receita</th>
+                <th class="text-end">Lucro</th>
+                <th class="text-end">Break-even %</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-meses">
+              <!-- Preenchido via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="msg-dados-base" class="alert alert-info mt-3 d-none">
+      <i class="bi bi-info-circle me-2"></i>
+      <span id="msg-dados-texto">Aguardando carregamento dos dados base...</span>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    (function () {
+      var projetoId = "{{ projeto.id }}";
+      var anoRef = {{ projeto.ano_referencia or 2025 }};
+      var mesesNomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+      var debounceTimer = null;
+      var debounceMs = 400;
+      var dadosBase = null;
+      var dadosCarregados = false;
+
+      function formatarMoeda(val) {
+        if (val == null || isNaN(val)) return 'R$ 0,00';
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+      }
+
+      function formatarPct(val) {
+        if (val == null || isNaN(val)) return '—';
+        return (val * 100).toFixed(1).replace('.', ',') + '%';
+      }
+
+      function obterValorNumerico(el) {
+        if (!el || !el.value) return 0;
+        var v = parseFloat(String(el.value).replace(',', '.'));
+        return isNaN(v) ? 0 : Math.max(0, v);
+      }
+
+      function debounce(fn) {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(fn, debounceMs);
+      }
+
+      function setLoading(loading) {
+        var card = document.getElementById('card-tabela');
+        var spinner = document.getElementById('spinner');
+        if (loading) {
+          card.classList.add('loading-overlay');
+          spinner.classList.remove('d-none');
+        } else {
+          card.classList.remove('loading-overlay');
+          spinner.classList.add('d-none');
+        }
+      }
+
+      function mostrarMsg(tipo, texto) {
+        var msg = document.getElementById('msg-dados-base');
+        msg.className = 'alert mt-3 alert-' + (tipo === 'erro' ? 'danger' : tipo === 'sucesso' ? 'success' : 'info');
+        document.getElementById('msg-dados-texto').textContent = texto;
+        msg.classList.remove('d-none');
+      }
+
+      function esconderMsg() {
+        document.getElementById('msg-dados-base').classList.add('d-none');
+      }
+
+      function construirMesAno(mes) {
+        return anoRef + '-' + String(mes).padStart(2, '0');
+      }
+
+      function infoAdrParaMes(adrPorMes, mes, mesAno) {
+        var info = adrPorMes[mesAno];
+        if (info) return info;
+        var mesPad = String(mes).padStart(2, '0');
+        var k = Object.keys(adrPorMes).find(function(x) { return x.endsWith('-' + mesPad); });
+        return k ? adrPorMes[k] : {};
+      }
+
+      function renderizarTabela() {
+        if (!dadosBase) return;
+        var adrPorMes = dadosBase.adr_por_mes || {};
+        var tbody = document.getElementById('tbody-meses');
+        tbody.innerHTML = '';
+        for (var m = 1; m <= 12; m++) {
+          var mesAno = construirMesAno(m);
+          var info = infoAdrParaMes(adrPorMes, m, mesAno);
+          var adrSug = info.adr != null ? info.adr : 0;
+          var fonteFallback = info.fonte === 'fallback_media';
+          var tr = document.createElement('tr');
+          tr.setAttribute('data-mes', mesAno);
+          tr.innerHTML =
+            '<td><strong>' + mesesNomes[m - 1] + ' ' + anoRef + '</strong></td>' +
+            '<td><div class="d-flex align-items-center gap-1">' +
+            '<input type="number" class="form-control form-control-sm input-adr ' + (fonteFallback ? 'adr-fallback' : '') + '" data-mes="' + mesAno + '" min="0" step="0.01" value="' + adrSug + '" placeholder="0">' +
+            (fonteFallback ? '<i class="bi bi-info-circle text-warning" title="Valor sugerido (média dos meses disponíveis)"></i>' : '') +
+            '</div></td>' +
+            '<td><input type="number" class="form-control form-control-sm input-ocupacao" data-mes="' + mesAno + '" min="0" max="100" step="1" value="40" placeholder="0"></td>' +
+            '<td class="text-end out-receita">—</td>' +
+            '<td class="text-end out-lucro">—</td>' +
+            '<td class="text-end out-breakeven">—</td>';
+          tbody.appendChild(tr);
+        }
+        anexarListeners();
+      }
+
+      function anexarListeners() {
+        document.querySelectorAll('.input-adr, .input-ocupacao').forEach(function (el) {
+          el.addEventListener('input', function () {
+            var v = parseFloat(el.value);
+            if (el.classList.contains('input-ocupacao') && (v < 0 || v > 100)) {
+              el.value = Math.max(0, Math.min(100, v));
+            }
+            if (el.classList.contains('input-adr') && v < 0) el.value = 0;
+            debounce(executarCalculo);
+          });
+        });
+        document.getElementById('input-investimento').addEventListener('input', function () {
+          var v = parseFloat(this.value);
+          if (v < 0) this.value = 0;
+          debounce(executarCalculo);
+        });
+      }
+
+      function coletarMetas() {
+        var metas = {};
+        document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
+          var mesAno = tr.getAttribute('data-mes');
+          var adr = obterValorNumerico(tr.querySelector('.input-adr'));
+          var ocup = obterValorNumerico(tr.querySelector('.input-ocupacao'));
+          metas[mesAno] = { ocupacao: ocup / 100, adr: adr };
+        });
+        return metas;
+      }
+
+      function atualizarTabelaComResultado(resultado) {
+        if (!resultado || !resultado.meses) return;
+        var porMes = {};
+        resultado.meses.forEach(function (r) { porMes[r.mes_ano] = r; });
+        document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
+          var mesAno = tr.getAttribute('data-mes');
+          var r = porMes[mesAno];
+          if (!r) return;
+          tr.querySelector('.out-receita').textContent = formatarMoeda(r.receita_bruta);
+          tr.querySelector('.out-lucro').textContent = formatarMoeda(r.lucro_liquido);
+          var be = r.break_even_ocupacao_pct;
+          var beCell = tr.querySelector('.out-breakeven');
+          beCell.textContent = r.break_even_status === 'inviavel' ? 'Inviável' : formatarPct(be);
+          beCell.className = 'text-end out-breakeven' + (r.break_even_status === 'inviavel' ? ' break-even-inviavel' : '');
+        });
+      }
+
+      function atualizarCards(resumo) {
+        if (!resumo) return;
+        document.getElementById('card-receita').textContent = formatarMoeda(resumo.receita_anual);
+        document.getElementById('card-lucro').textContent = formatarMoeda(resumo.lucro_anual);
+        var margem = (resumo.receita_anual && resumo.receita_anual > 0)
+          ? ((resumo.lucro_anual / resumo.receita_anual) * 100).toFixed(1).replace('.', ',') + '%'
+          : '0%';
+        document.getElementById('card-margem').textContent = margem;
+        var payEl = document.getElementById('card-payback');
+        if (resumo.payback_status === 'indefinido') {
+          payEl.textContent = 'Lucro insuficiente para Payback';
+          payEl.className = 'valor payback-indefinido';
+        } else {
+          payEl.textContent = resumo.payback_meses != null
+            ? resumo.payback_meses.toFixed(1) + ' meses'
+            : '—';
+          payEl.className = 'valor text-warning';
+        }
+      }
+
+      function executarCalculo() {
+        if (!dadosCarregados) return;
+        setLoading(true);
+        var metas = coletarMetas();
+        var invest = obterValorNumerico(document.getElementById('input-investimento'));
+        fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/calcular', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ metas_mensais: metas, investimento_inicial: invest })
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (json) {
+            setLoading(false);
+            if (json.success && json.data) {
+              atualizarTabelaComResultado(json.data);
+              if (json.data.resumo) atualizarCards(json.data.resumo);
+            }
+          })
+          .catch(function () {
+            setLoading(false);
+            mostrarMsg('erro', 'Erro ao calcular projeção.');
+          });
+      }
+
+      function carregarDadosBase() {
+        mostrarMsg('info', 'Carregando dados base...');
+        setLoading(true);
+        fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/dados-base')
+          .then(function (res) { return res.json(); })
+          .then(function (json) {
+            setLoading(false);
+            if (!json.success || !json.data) {
+              mostrarMsg('erro', json.message || 'Falha ao carregar dados base.');
+              return;
+            }
+            dadosBase = json.data;
+            anoRef = dadosBase.ano_referencia || anoRef;
+            dadosCarregados = true;
+            esconderMsg();
+            renderizarTabela();
+            executarCalculo();
+          })
+          .catch(function () {
+            setLoading(false);
+            mostrarMsg('erro', 'Erro de rede ao carregar dados.');
+          });
+      }
+
+      carregarDadosBase();
+    })();
+  </script>
+</body>
+</html>
