@@ -322,6 +322,26 @@ def _mes_label(mes_ano: str) -> str:
     return mes_ano
 
 
+def _dias_normais_especiais_por_mes(
+    projeto: Projeto, rolling: bool = False
+) -> dict[str, tuple[int, int]]:
+    """Retorna {mes_ano: (dias_normais, dias_especiais)} do calendário do projeto.
+    Com rolling=False: ano civil completo (Jan–Dez) para análise anual.
+    Com rolling=True: janela rolling 12 meses a partir de hoje."""
+    from core.config import gerar_calendario_diario_projeto
+    ano_ref = projeto.ano_referencia or 2026
+    calendario = gerar_calendario_diario_projeto(projeto.id, ano_ref, rolling=rolling)
+    por_mes: dict[str, list[str]] = defaultdict(list)
+    for d in calendario:
+        por_mes[d["mes_ano"]].append(d["categoria_dia"])
+    result: dict[str, tuple[int, int]] = {}
+    for mes_ano, categorias in por_mes.items():
+        esp = sum(1 for c in categorias if c == "especial")
+        norm = len(categorias) - esp
+        result[mes_ano] = (norm, esp)
+    return result
+
+
 def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAnaliseCurado:
     """
     Análise de engenharia reversa com preços curados: prioriza preco_curado, senão preco_direto.
@@ -394,13 +414,20 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
     ]
     adr_especial_media = sum(valores_especiais) / len(valores_especiais) if valores_especiais else 0.0
 
-    # Preço médio por mês (apenas meses que têm coleta, usando somente dias normais)
-    preco_por_mes: dict[str, list[float]] = defaultdict(list)
+    # Preço médio por mês: normal e especial (para baldes)
+    preco_por_mes_normais: dict[str, list[float]] = defaultdict(list)
+    preco_por_mes_especiais: dict[str, list[float]] = defaultdict(list)
     for r in registros_normais:
         if isinstance(r.get("valor_efetivo"), (int, float)) and r.get("mes_ano"):
-            preco_por_mes[r["mes_ano"]].append(float(r["valor_efetivo"]))
+            preco_por_mes_normais[r["mes_ano"]].append(float(r["valor_efetivo"]))
+    for r in registros_especiais:
+        if isinstance(r.get("valor_efetivo"), (int, float)) and r.get("mes_ano"):
+            preco_por_mes_especiais[r["mes_ano"]].append(float(r["valor_efetivo"]))
     preco_medio_mes: dict[str, float] = {
-        mes_ano: sum(vals) / len(vals) for mes_ano, vals in preco_por_mes.items() if vals
+        ma: sum(v) / len(v) for ma, v in preco_por_mes_normais.items() if v
+    }
+    preco_medio_especial_mes: dict[str, float] = {
+        ma: sum(v) / len(v) for ma, v in preco_por_mes_especiais.items() if v
     }
 
     faturamento_anual = projeto.faturamento_anual
@@ -419,29 +446,49 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
     if soma_pesos_sazonalidade <= 0:
         soma_pesos_sazonalidade = 12.0
 
+    dias_por_mes = _dias_normais_especiais_por_mes(projeto)
+
     for mes in range(1, 13):
         mes_ano = f"{ano_ref}-{mes:02d}"
         dias_mes = calendar.monthrange(ano_ref, mes)[1]
+        dias_normais, dias_especiais = dias_por_mes.get(mes_ano, (dias_mes, 0))
+        if dias_normais + dias_especiais != dias_mes:
+            dias_normais = dias_mes - dias_especiais
+        capacidade_mes = numero_quartos * dias_mes
+
         peso_mes = PESOS_SAZONALIDADE_ARRAIAL.get(mes, 1.0)
         faturamento_mensal = faturamento_anual * (peso_mes / soma_pesos_sazonalidade)
-        preco_medio = preco_medio_mes.get(mes_ano) or adr_anual  # Meses sem coleta: usa ADR como proxy
-        noites_vendidas = faturamento_mensal / preco_medio if preco_medio else 0.0
-        capacidade_mes = numero_quartos * dias_mes
+
+        adr_norm_mes = preco_medio_mes.get(mes_ano) or adr_normal_anual
+        adr_esp_mes = preco_medio_especial_mes.get(mes_ano) or adr_especial_media or adr_normal_anual
+
+        if capacidade_mes > 0:
+            fat_norm = faturamento_mensal * (dias_normais / dias_mes)
+            fat_esp = faturamento_mensal * (dias_especiais / dias_mes)
+            noites_norm = fat_norm / adr_norm_mes if adr_norm_mes else 0.0
+            noites_esp = fat_esp / adr_esp_mes if adr_esp_mes else 0.0
+        else:
+            noites_norm = noites_esp = 0.0
+        noites_vendidas = noites_norm + noites_esp
         ocupacao_pct = noites_vendidas / capacidade_mes if capacidade_mes else 0.0
+
         total_noites_vendidas += noites_vendidas
         custo_variavel_mensal = noites_vendidas * custo_var_noite
         impostos_mensais = _impostos_sobre_faturamento(faturamento_mensal, projeto)
         custos_variaveis_anuais += custo_variavel_mensal
         impostos_anuais += impostos_mensais
+
         detalhamento_mensal.append(
             DetalheMensal(
                 mes_ano=mes_ano,
                 mes_label=_mes_label(mes_ano),
                 faturamento_mensal=round(faturamento_mensal, 2),
-                preco_medio_mes=round(preco_medio, 2),
+                preco_medio_mes=round(adr_norm_mes, 2),
                 noites_vendidas=round(noites_vendidas, 2),
                 ocupacao_pct=round(ocupacao_pct, 4),
                 dias_no_mes=dias_mes,
+                dias_normais_mes=dias_normais,
+                dias_especiais_mes=dias_especiais,
                 custo_variavel_mensal=round(custo_variavel_mensal, 2),
                 impostos_mensais=round(impostos_mensais, 2),
             )

@@ -4,6 +4,9 @@ Responsabilidade: centralizar variáveis de ambiente e parâmetros de configura�
 """
 import calendar
 from datetime import date, timedelta
+from typing import Optional
+
+from loguru import logger
 
 
 def _carnaval_checkin_checkout(ano: int) -> tuple[str, str]:
@@ -104,56 +107,149 @@ def _nth_weekday(ano: int, mes: int, weekday: int, n: int) -> date:
     return date(ano, mes, dia)
 
 
-def definir_periodos_12meses(noites: int = 2) -> list[dict]:
+# --- Fallback de períodos especiais (usado quando não há config ou falha na leitura) ---
+FERIADOS_NACIONAIS: dict[tuple[int, int], str] = {
+    (1, 1): "Confraternização Universal",
+    (4, 21): "Tiradentes",
+    (5, 1): "Dia do Trabalho",
+    (9, 7): "Independência",
+    (10, 12): "Nossa Senhora Aparecida",
+    (11, 2): "Finados",
+    (11, 15): "Proclamação da República",
+    (12, 25): "Natal",
+}
+
+
+def _periodos_especiais_fallback(ano: int) -> list[tuple[date, date, str]]:
+    """Períodos especiais hardcoded. Usado como fallback quando config não existe/falha."""
+    reveillon_ini = date(ano, 12, 28)
+    reveillon_fim = date(ano + 1, 1, 2)
+    carnaval_ini_str, carnaval_fim_str = _carnaval_checkin_checkout(ano)
+    carnaval_ini = date.fromisoformat(carnaval_ini_str)
+    carnaval_fim = date.fromisoformat(carnaval_fim_str)
+    semana_santa_ini = date(ano, 3, 28)
+    semana_santa_fim = date(ano, 3, 31)
+    ferias_julho_ini = date(ano, 7, 10)
+    ferias_julho_fim = date(ano, 7, 25)
+    return [
+        (reveillon_ini, reveillon_fim, "Réveillon"),
+        (carnaval_ini, carnaval_fim, "Carnaval"),
+        (semana_santa_ini, semana_santa_fim, "Semana Santa"),
+        (ferias_julho_ini, ferias_julho_fim, "Férias de Julho"),
+    ]
+
+
+def _parse_ddmmyyyy(s: str) -> date | None:
+    """Converte DD/MM/YYYY em date. Retorna None se inválido."""
+    if not s or not isinstance(s, str):
+        return None
+    parts = s.strip().split("/")
+    if len(parts) != 3:
+        return None
+    try:
+        dia, mes, ano = int(parts[0]), int(parts[1]), int(parts[2])
+        return date(ano, mes, dia)
+    except (ValueError, TypeError):
+        return None
+
+
+def _avancar_periodo_se_passado(
+    d_ini: date, d_fim: date, hoje: date
+) -> tuple[date, date]:
+    """Se fim < hoje, avança o período para o próximo ano (dia/mês como template).
+    Períodos que cruzam o ano (ex: Réveillon 30/12 → 02/01) são avançados de forma coerente.
+    """
+    if d_fim >= hoje:
+        return d_ini, d_fim
+    anos_avancar = 1
+    while anos_avancar <= 10:
+        novo_ini = date(d_ini.year + anos_avancar, d_ini.month, d_ini.day)
+        novo_fim = date(d_fim.year + anos_avancar, d_fim.month, d_fim.day)
+        if novo_fim >= hoje:
+            return novo_ini, novo_fim
+        anos_avancar += 1
+    return novo_ini, novo_fim
+
+
+def _periodos_especiais_de_config(id_projeto: str) -> list[tuple[date, date, str]]:
+    """Lê periodos_especiais do scraper_config.json do projeto. Lista vazia em caso de erro.
+
+    Os anos no config são tratados como template; o ano efetivo é calculado em runtime.
+    Se fim < date.today(), o período é avançado automaticamente para o próximo ano
+    (inclusive períodos que cruzam o ano, ex: Réveillon 30/12 → 02/01).
+    """
+    cfg = carregar_config_scraper(id_projeto)
+    if not cfg:
+        return []
+    pe = cfg.get("periodos_especiais")
+    if not pe or not isinstance(pe, list):
+        return []
+    hoje = date.today()
+    result: list[tuple[date, date, str]] = []
+    for item in pe:
+        if not isinstance(item, dict):
+            continue
+        inicio_str = item.get("inicio")
+        fim_str = item.get("fim")
+        nome = item.get("nome") or ""
+        d_ini = _parse_ddmmyyyy(str(inicio_str)) if inicio_str is not None else None
+        d_fim = _parse_ddmmyyyy(str(fim_str)) if fim_str is not None else None
+        if d_ini is None:
+            logger.warning("periodos_especiais: início inválido '{}' ignorado", inicio_str)
+            continue
+        if d_fim is None:
+            d_fim = d_ini
+        if d_fim < d_ini:
+            d_ini, d_fim = d_fim, d_ini
+        d_ini, d_fim = _avancar_periodo_se_passado(d_ini, d_fim, hoje)
+        result.append((d_ini, d_fim, nome))
+    return result
+
+
+def _eh_especial(
+    d: date,
+    periodos: list[tuple[date, date, str]],
+    feriados: dict[tuple[int, int], str],
+) -> bool:
+    """Verifica se a data está em algum período especial ou é feriado nacional."""
+    for ini, fim, _ in periodos:
+        if ini <= d <= fim:
+            return True
+    if (d.month, d.day) in feriados:
+        return True
+    return False
+
+
+def definir_periodos_12meses(noites: int = 2, id_projeto: Optional[str] = None) -> list[dict]:
     """4 datas por mês (2 fim de semana, 2 dia de semana) × 12 meses a partir do mês atual.
 
     Além da classificação por tipo_dia (fim_de_semana / dia_de_semana),
-    marca também categoria_dia = "especial" para datas em períodos de alta demanda
-    (Réveillon, Carnaval, Semana Santa, férias de julho, feriados nacionais).
+    marca categoria_dia = "especial" quando a data está em períodos de alta demanda.
+    Usa periodos_especiais do scraper_config.json do projeto quando id_projeto é informado;
+    caso contrário, usa fallback hardcoded (Réveillon, Carnaval, Semana Santa, julho, feriados).
     """
     hoje = date.today()
 
-    # Feriados nacionais fixos (mes, dia)
-    feriados_nacionais: dict[tuple[int, int], str] = {
-        (1, 1): "Confraternização Universal",
-        (4, 21): "Tiradentes",
-        (5, 1): "Dia do Trabalho",
-        (9, 7): "Independência",
-        (10, 12): "Nossa Senhora Aparecida",
-        (11, 2): "Finados",
-        (11, 15): "Proclamação da República",
-        (12, 25): "Natal",
-    }
+    # Carregar períodos: config do projeto ou fallback hardcoded
+    periodos_list: list[tuple[date, date, str]] = []
+    feriados_atuais: dict[tuple[int, int], str] = {}
+    try:
+        if id_projeto:
+            periodos_list = _periodos_especiais_de_config(id_projeto)
+        if not periodos_list:
+            for a in (hoje.year, hoje.year + 1):
+                periodos_list.extend(_periodos_especiais_fallback(a))
+            feriados_atuais = FERIADOS_NACIONAIS
+        else:
+            feriados_atuais = {}  # Config tem prioridade; feriados ficam no config se necessário
+    except Exception as e:
+        logger.warning("Erro ao carregar periodos_especiais, usando fallback: {}", e)
+        for a in (hoje.year, hoje.year + 1):
+            periodos_list.extend(_periodos_especiais_fallback(a))
+        feriados_atuais = FERIADOS_NACIONAIS
 
-    # Períodos especiais aproximados (datas inclusivas)
-    def _periodos_especiais(ano: int) -> list[tuple[date, date, str]]:
-        reveillon_ini = date(ano, 12, 28)
-        reveillon_fim = date(ano + 1, 1, 2)
-        carnaval_ini_str, carnaval_fim_str = _carnaval_checkin_checkout(ano)
-        carnaval_ini = date.fromisoformat(carnaval_ini_str)
-        carnaval_fim = date.fromisoformat(carnaval_fim_str)
-        # Semana Santa (quinta a domingo aproximados em março/abril)
-        semana_santa_ini = date(ano, 3, 28)
-        semana_santa_fim = date(ano, 3, 31)
-        # Férias de julho aproximadas: 10 a 25/07
-        ferias_julho_ini = date(ano, 7, 10)
-        ferias_julho_fim = date(ano, 7, 25)
-        return [
-            (reveillon_ini, reveillon_fim, "Réveillon"),
-            (carnaval_ini, carnaval_fim, "Carnaval"),
-            (semana_santa_ini, semana_santa_fim, "Semana Santa"),
-            (ferias_julho_ini, ferias_julho_fim, "Férias de Julho"),
-        ]
-
-    def _eh_especial(d: date) -> bool:
-        # Dentro de períodos especiais
-        for ini, fim, _ in _periodos_especiais(d.year):
-            if ini <= d <= fim:
-                return True
-        # Feriado nacional fixo
-        if (d.month, d.day) in feriados_nacionais:
-            return True
-        return False
+    def eh_especial(d: date) -> bool:
+        return _eh_especial(d, periodos_list, feriados_atuais)
 
     periodos: list[dict] = []
     for m in range(12):
@@ -176,7 +272,7 @@ def definir_periodos_12meses(noites: int = 2) -> list[dict]:
             if checkin < hoje:
                 continue
             checkout = checkin + timedelta(days=noites)
-            categoria = "especial" if _eh_especial(checkin) else "normal"
+            categoria = "especial" if eh_especial(checkin) else "normal"
             periodos.append(
                 {
                     "checkin": checkin.strftime("%Y-%m-%d"),
@@ -188,6 +284,163 @@ def definir_periodos_12meses(noites: int = 2) -> list[dict]:
                 }
             )
     return periodos
+
+
+def definir_calendario_soberano_ano(
+    ano_referencia: int,
+    noites: int = 2,
+    id_projeto: Optional[str] = None,
+    rolling: bool = True,
+) -> list[dict]:
+    """Calendário soberano: 4 datas/mês (2 FDS + 2 dia de semana) na janela de coleta.
+
+    Com rolling=True (padrão): janela [date.today(), date.today()+365 dias].
+    4 datas por mês apenas para meses contidos nessa janela; checkins passados excluídos.
+    Com rolling=False: 12 meses do ano_referencia (comportamento legado).
+    Usa periodos_especiais já corrigidos (avanço automático quando data passou).
+    """
+    hoje = date.today()
+    ano_fallback = hoje.year if rolling else ano_referencia
+
+    periodos_list: list[tuple[date, date, str]] = []
+    feriados_atuais: dict[tuple[int, int], str] = {}
+    try:
+        if id_projeto:
+            periodos_list = _periodos_especiais_de_config(id_projeto)
+        if not periodos_list:
+            for a in (ano_fallback, ano_fallback + 1):
+                periodos_list.extend(_periodos_especiais_fallback(a))
+            feriados_atuais = FERIADOS_NACIONAIS
+        else:
+            feriados_atuais = {}
+    except Exception as e:
+        logger.warning("Erro ao carregar periodos_especiais (calendário soberano), usando fallback: {}", e)
+        for a in (ano_fallback, ano_fallback + 1):
+            periodos_list.extend(_periodos_especiais_fallback(a))
+        feriados_atuais = FERIADOS_NACIONAIS
+
+    def eh_especial(d: date) -> bool:
+        return _eh_especial(d, periodos_list, feriados_atuais)
+
+    fim_janela = hoje + timedelta(days=365) if rolling else date(ano_referencia, 12, 31)
+    periodos: list[dict] = []
+    if rolling:
+        for m in range(12):
+            mes = hoje.month + m
+            ano = hoje.year + (mes - 1) // 12
+            mes = (mes - 1) % 12 + 1
+            if date(ano, mes, 1) > fim_janela:
+                break
+            mes_ano = f"{ano}-{mes:02d}"
+            sab1 = _nth_weekday(ano, mes, 5, 1)
+            sab3 = _nth_weekday(ano, mes, 5, 3)
+            ter2 = _nth_weekday(ano, mes, 1, 2)
+            ter4 = _nth_weekday(ano, mes, 1, 4)
+            for checkin, tipo in [
+                (sab1, "fim_de_semana"),
+                (sab3, "fim_de_semana"),
+                (ter2, "dia_de_semana"),
+                (ter4, "dia_de_semana"),
+            ]:
+                if checkin < hoje or checkin > fim_janela:
+                    continue
+                checkout = checkin + timedelta(days=noites)
+                categoria = "especial" if eh_especial(checkin) else "normal"
+                periodos.append(
+                    {
+                        "checkin": checkin.strftime("%Y-%m-%d"),
+                        "checkout": checkout.strftime("%Y-%m-%d"),
+                        "mes_ano": mes_ano,
+                        "tipo_dia": tipo,
+                        "categoria_dia": categoria,
+                        "noites": noites,
+                    }
+                )
+    else:
+        for mes in range(1, 13):
+            mes_ano = f"{ano_referencia}-{mes:02d}"
+            sab1 = _nth_weekday(ano_referencia, mes, 5, 1)
+            sab3 = _nth_weekday(ano_referencia, mes, 5, 3)
+            ter2 = _nth_weekday(ano_referencia, mes, 1, 2)
+            ter4 = _nth_weekday(ano_referencia, mes, 1, 4)
+            for checkin, tipo in [
+                (sab1, "fim_de_semana"),
+                (sab3, "fim_de_semana"),
+                (ter2, "dia_de_semana"),
+                (ter4, "dia_de_semana"),
+            ]:
+                checkout = checkin + timedelta(days=noites)
+                categoria = "especial" if eh_especial(checkin) else "normal"
+                periodos.append(
+                    {
+                        "checkin": checkin.strftime("%Y-%m-%d"),
+                        "checkout": checkout.strftime("%Y-%m-%d"),
+                        "mes_ano": mes_ano,
+                        "tipo_dia": tipo,
+                        "categoria_dia": categoria,
+                        "noites": noites,
+                    }
+                )
+    return periodos
+
+
+def gerar_calendario_diario_projeto(
+    id_projeto: str,
+    ano_referencia: int,
+    rolling: bool = True,
+) -> list[dict]:
+    """Gera calendário diário: rolling 12 meses a partir de hoje (padrão) ou ano civil completo.
+
+    Com rolling=True (padrão): janela [date.today(), date.today()+365 dias].
+    Com rolling=False: ano civil completo 01/01 a 31/12 do ano_referencia.
+    Inclui dias de períodos que cruzam o ano (ex: Réveillon 01/01, 02/01).
+    Fonte da Verdade para o Scraper.
+    Cada objeto: checkin, checkout (checkin+1), mes_ano, categoria_dia, tipo_dia.
+    """
+    hoje = date.today()
+    ano_fallback = hoje.year if rolling else ano_referencia
+    periodos_list: list[tuple[date, date, str]] = []
+    feriados_atuais: dict[tuple[int, int], str] = {}
+    try:
+        periodos_list = _periodos_especiais_de_config(id_projeto)
+        if not periodos_list:
+            for a in (ano_fallback, ano_fallback + 1):
+                periodos_list.extend(_periodos_especiais_fallback(a))
+            feriados_atuais = FERIADOS_NACIONAIS
+    except Exception as e:
+        logger.warning("Erro ao carregar periodos_especiais (calendário diário), usando fallback: {}", e)
+        for a in (ano_fallback, ano_fallback + 1):
+            periodos_list.extend(_periodos_especiais_fallback(a))
+        feriados_atuais = FERIADOS_NACIONAIS
+
+    def eh_especial(d: date) -> bool:
+        return _eh_especial(d, periodos_list, feriados_atuais)
+
+    calendario: list[dict] = []
+    if rolling:
+        inicio_janela = hoje
+        fim_janela = hoje + timedelta(days=365)
+    else:
+        inicio_janela = date(ano_referencia, 1, 1)
+        fim_janela = date(ano_referencia, 12, 31)
+    dia_atual = inicio_janela
+    while dia_atual <= fim_janela:
+        checkin_str = dia_atual.strftime("%Y-%m-%d")
+        checkout_date = dia_atual + timedelta(days=1)
+        checkout_str = checkout_date.strftime("%Y-%m-%d")
+        mes_ano = f"{dia_atual.year}-{dia_atual.month:02d}"
+        categoria = "especial" if eh_especial(dia_atual) else "normal"
+        wd = dia_atual.weekday()
+        tipo_dia = "fim_de_semana" if wd in (5, 6) else "dia_de_semana"
+        calendario.append({
+            "checkin": checkin_str,
+            "checkout": checkout_str,
+            "mes_ano": mes_ano,
+            "categoria_dia": categoria,
+            "tipo_dia": tipo_dia,
+        })
+        dia_atual += timedelta(days=1)
+    return calendario
 
 
 def carregar_config_scraper(id_projeto: str) -> dict | None:

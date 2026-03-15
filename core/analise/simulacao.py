@@ -1,7 +1,7 @@
 """
 simulacao - Projeção financeira com metas de ocupação e ADR.
 Responsabilidade: calcular receita, custos, lucro, break-even e payback.
-Reutiliza funções de engenharia_reversa.py; não modifica arquivos de dados.
+Usa calendário diário: meta aplicada a dias normais; dias especiais com ocupação 100%.
 """
 import calendar
 from typing import Any
@@ -11,6 +11,7 @@ from core.projetos import ArquivoProjetoNaoEncontrado
 from core.analise.engenharia_reversa import (
     _calcular_break_even,
     _custo_fixo_mensal_total,
+    _dias_normais_especiais_por_mes,
     _custo_variavel_por_noite,
     _impostos_sobre_faturamento,
 )
@@ -36,6 +37,7 @@ def calcular_projecao(
     numero_quartos = max(projeto.numero_quartos or 1, 1)
     custo_fixo_mensal = _custo_fixo_mensal_total(projeto)
     custo_var_noite = _custo_variavel_por_noite(projeto, ocupacao_media_pessoas=2.0)
+    dias_por_mes = _dias_normais_especiais_por_mes(projeto)
 
     meses_result: list[dict[str, Any]] = []
     receita_anual = 0.0
@@ -46,14 +48,23 @@ def calcular_projecao(
     for mes in range(1, 13):
         mes_ano = f"{ano_ref}-{mes:02d}"
         metas = metas_mensais.get(mes_ano) or {}
-        ocupacao = float(metas.get("ocupacao", 0.0))
+        ocupacao_meta = float(metas.get("ocupacao", 0.0))
         adr = float(metas.get("adr", 0.0))
         adr = max(adr, 0.0)
-        ocupacao = max(0.0, min(1.0, ocupacao))
+        ocupacao_meta = max(0.0, min(1.0, ocupacao_meta))
 
         dias_mes = calendar.monthrange(ano_ref, mes)[1]
+        dias_normais, dias_especiais = dias_por_mes.get(mes_ano, (dias_mes, 0))
+        if dias_normais + dias_especiais != dias_mes:
+            dias_normais = dias_mes - dias_especiais
+
+        capacidade_normal = numero_quartos * dias_normais
+        capacidade_especial = numero_quartos * dias_especiais
+        ocupacao_especial = max(1.0, ocupacao_meta)
+        noites_normais = capacidade_normal * ocupacao_meta
+        noites_especiais = capacidade_especial * ocupacao_especial
+        noites_vendidas = noites_normais + noites_especiais
         capacidade_mes = numero_quartos * dias_mes
-        noites_vendidas = capacidade_mes * ocupacao
         receita_bruta = adr * noites_vendidas
         custos_variaveis = noites_vendidas * custo_var_noite
         impostos = _impostos_sobre_faturamento(receita_bruta, projeto)
@@ -108,3 +119,50 @@ def calcular_projecao(
             "payback_status": payback_status,
         },
     }
+
+
+def calcular_curva_sensibilidade(
+    id_projeto: str,
+    investimento_inicial: float,
+    metas_mensais: dict[str, dict] | None = None,
+    passo_ocupacao: float = 0.1,
+) -> list[dict[str, float]]:
+    """
+    Gera pontos (ocupacao_pct, lucro_anual, lucro_medio_mensal) para curva de sensibilidade.
+    Reutiliza calcular_projecao com ocupação uniforme em [0, passo, ..., 1].
+    metas_mensais: base para ADR por mês; ocupação é substituída uniformemente.
+    """
+    try:
+        projeto = carregar_projeto(id_projeto)
+    except ArquivoProjetoNaoEncontrado:
+        return []
+
+    ano_ref = projeto.ano_referencia or 2025
+    if not metas_mensais:
+        metas_mensais = {}
+    base_metas = {f"{ano_ref}-{m:02d}": metas_mensais.get(f"{ano_ref}-{m:02d}") or {} for m in range(1, 13)}
+
+    pontos: list[dict[str, float]] = []
+    ocp = 0.0
+    while ocp <= 1.0:
+        metas_uniforme = {}
+        for mes_ano, meta in base_metas.items():
+            adr = float(meta.get("adr", 0.0))
+            metas_uniforme[mes_ano] = {"ocupacao": ocp, "adr": adr}
+        resultado = calcular_projecao(id_projeto, metas_uniforme, investimento_inicial)
+        if "erro" in resultado:
+            break
+        resumo = resultado.get("resumo") or {}
+        lucro_anual = float(resumo.get("lucro_anual", 0.0))
+        lucro_medio_mensal = float(resumo.get("lucro_medio_mensal", 0.0))
+        pontos.append({
+            "ocupacao_pct": round(ocp, 2),
+            "lucro_anual": round(lucro_anual, 2),
+            "lucro_medio_mensal": round(lucro_medio_mensal, 2),
+        })
+        ocp = round(ocp + passo_ocupacao, 2)
+        if ocp > 1.0:
+            ocp = 1.0
+            if pontos and pontos[-1]["ocupacao_pct"] >= 1.0:
+                break
+    return pontos

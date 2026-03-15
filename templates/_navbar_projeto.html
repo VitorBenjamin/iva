@@ -1,0 +1,33 @@
+{# Navbar global do projeto. Espera: projeto, nav_active (curadoria|simulacao|relatorio|config) #}
+<nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom mb-4">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="/">{{ projeto.nome }}</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-projeto" aria-controls="navbar-projeto" aria-expanded="false">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbar-projeto">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link {{ 'active fw-bold' if nav_active == 'curadoria' else '' }}" href="/projeto/{{ projeto.id }}/curadoria">
+            🗂 Curadoria
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {{ 'active fw-bold' if nav_active == 'simulacao' else '' }}" href="/projeto/{{ projeto.id }}/simulacao">
+            📊 Simulador
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {{ 'active fw-bold' if nav_active == 'relatorio' else '' }}" href="/projeto/{{ projeto.id }}/viabilidade">
+            📈 Relatório Final
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {{ 'active fw-bold' if nav_active == 'config' else '' }}" href="/projeto/{{ projeto.id }}/scraper/config">
+            🔧 Configuração
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>

@@ -1,9 +1,11 @@
 """
 cli - Entry point de linha de comando para o scraper expandido.
 Uso:
+    python -m core.scraper.cli --url "https://..." --id "meu-projeto"
     python -m core.scraper.cli --url "https://..." --id "meu-projeto" --ano 2026
 """
 import argparse
+from datetime import date
 from typing import Tuple
 
 from loguru import logger
@@ -18,7 +20,13 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--url", required=True, help="URL do Booking.com do ativo.")
     parser.add_argument("--id", required=True, dest="id_projeto", help="ID do projeto (slug).")
-    parser.add_argument("--ano", required=True, type=int, help="Ano de referência da coleta (ex: 2026).")
+    parser.add_argument(
+        "--ano",
+        type=int,
+        default=None,
+        help="Define o ciclo/rótulo do projeto (projeto.ano_referencia), não o intervalo de coleta. "
+        "Opcional; padrão: ano atual.",
+    )
     return parser.parse_args()
 
 
@@ -68,9 +76,9 @@ def main() -> None:
     args = _parse_args()
     url = args.url
     id_projeto = args.id_projeto
-    ano = args.ano
+    ano = args.ano if args.ano is not None else date.today().year
 
-    logger.info("Iniciando CLI do scraper para projeto '{}' (ano {}).", id_projeto, ano)
+    logger.info("Iniciando CLI do scraper para projeto '{}' (ano rótulo: {}).", id_projeto, ano)
     projeto = _atualizar_projeto(id_projeto=id_projeto, url=url, ano=ano)
 
     # Usa a função de coleta expandida existente (não altera lógica interna).

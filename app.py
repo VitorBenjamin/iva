@@ -21,6 +21,8 @@ from core.projetos import (
     get_market_bruto_path,
     get_market_curado_path,
     get_projeto_json_path,
+    get_simulacao_cenarios_path,
+    get_simulacao_salva_path,
     listar_projetos,
     migrar_estrutura_legada,
     salvar_projeto,
@@ -292,7 +294,9 @@ def _carregar_registros_com_valor_efetivo(id_projeto: str) -> list[dict] | None:
 
 
 def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
-    """Carrega market_bruto e mescla com market_curado; aplica descontos (global/por_mes) ao preco_direto exibido."""
+    """Carrega market_bruto e mescla com market_curado.
+    Exibe apenas ESTADIAS coletadas (preco_booking não nulo): cada linha = uma pesquisa (check-in até check-out).
+    Preço exibido = ADR (Preço Total/Noites). Datas especiais agregadas em uma linha por período."""
     path_bruto = get_market_bruto_path(id_projeto)
     if not path_bruto.exists():
         path_bruto = PROJECTS_DIR / f"market_bruto_{id_projeto}.json"
@@ -332,13 +336,15 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
         except (json.JSONDecodeError, ValidationError, ValueError) as e:
             logger.warning("Market curado inválido, ignorando: {} - {}", path_curado, e)
 
-    from core.config import obter_config_scraper_com_defaults
+    from datetime import date
+    from core.config import obter_config_scraper_com_defaults, _periodos_especiais_de_config
     scraper_cfg = obter_config_scraper_com_defaults(id_projeto)
     descontos_cfg = scraper_cfg.get("descontos") or {}
     desconto_global = descontos_cfg.get("global")
     if desconto_global is None:
         desconto_global = 0.20
     descontos_por_mes = descontos_cfg.get("por_mes") or {}
+    periodos_especiais = _periodos_especiais_de_config(id_projeto)
 
     MESES_PT = {
         "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril",
@@ -353,38 +359,35 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
         return f"R$ {s}"
 
     def _data_br(iso_date: str) -> str:
-        """Converte yyyy-mm-dd para dd/mm/yyyy."""
         if not iso_date or len(iso_date) < 10:
             return iso_date or "—"
         parts = iso_date[:10].split("-")
-        if len(parts) != 3:
-            return iso_date
-        return f"{parts[2]}/{parts[1]}/{parts[0]}"
+        return f"{parts[2]}/{parts[1]}/{parts[0]}" if len(parts) == 3 else iso_date
 
+    def _periodo_para_checkin(checkin_str: str) -> str | None:
+        try:
+            d = date.fromisoformat(checkin_str[:10])
+        except (ValueError, TypeError):
+            return None
+        for ini, fim, nome in periodos_especiais:
+            if ini <= d <= fim:
+                return nome
+        return None
+
+    coletados = [r for r in bruto.registros if r.preco_booking is not None]
     registros_normais: list[dict] = []
-    registros_especiais: list[dict] = []
-    for r in bruto.registros:
+    registros_especiais_raw: list[dict] = []
+    for r in coletados:
         tem_curado = r.checkin in curado_por_checkin
         preco_curado = curado_por_checkin[r.checkin].get("preco_curado") if tem_curado else None
-        # Status base vindo do bruto (ex: FALHA), se existir
-        status_bruto = getattr(r, "status", None)
-        if tem_curado:
-            status = "Editado (Manual)"
-        elif status_bruto == "FALHA" or r.preco_booking is None:
-            status = "Faltando"
-        else:
-            status = "Original (Booking)"
+        status = "Editado (Manual)" if tem_curado else "Original (Booking)"
         partes = (r.mes_ano.split("-") + ["", ""])[:2]
-        ano, mes = partes[0], partes[1]  # mes_ano vem como "yyyy-mm" (ex: 2026-03)
+        ano, mes = partes[0], partes[1]
         mes_ano_label = f"{MESES_PT.get(mes, mes)}/{ano}" if mes and ano else r.mes_ano
         categoria = getattr(r, "categoria_dia", "normal") or "normal"
-        # Desconto dinâmico: por_mes (chave "01"-"12") ou global
         mes_key = mes if mes else ""
-        desconto = descontos_por_mes.get(mes_key) if mes_key and mes_key in descontos_por_mes else desconto_global
-        if r.preco_booking is not None and desconto is not None:
-            preco_direto_exibicao = round(float(r.preco_booking) * (1 - float(desconto)), 2)
-        else:
-            preco_direto_exibicao = r.preco_direto
+        desconto = descontos_por_mes.get(mes_key) if mes_key in descontos_por_mes else desconto_global
+        preco_direto_exibicao = round(float(r.preco_booking) * (1 - float(desconto)), 2) if desconto is not None else r.preco_direto
         row = {
             "checkin": r.checkin,
             "checkout": r.checkout,
@@ -401,31 +404,65 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
             "nome_quarto": r.nome_quarto or "",
             "tipo_tarifa": r.tipo_tarifa or "",
             "noites": r.noites,
-            "preco_booking_fmt": _moeda_br(r.preco_booking) if r.preco_booking is not None else "—",
-            "preco_direto_fmt": _moeda_br(preco_direto_exibicao) if preco_direto_exibicao is not None else "—",
+            "preco_booking_fmt": _moeda_br(r.preco_booking),
+            "preco_direto_fmt": _moeda_br(preco_direto_exibicao),
             "preco_curado_fmt": _moeda_br(preco_curado) if preco_curado is not None else None,
+            "periodo_nome": _periodo_para_checkin(r.checkin) if categoria == "especial" else None,
         }
         if categoria == "especial":
-            registros_especiais.append(row)
+            registros_especiais_raw.append(row)
         else:
             registros_normais.append(row)
-    # Agrupar por mês para exibição (mantém ordem por mes_ano e checkin)
+
+    periodos_agrupados: dict[str, list[dict]] = {}
+    for row in registros_especiais_raw:
+        pn = row.get("periodo_nome") or "Outro (especial)"
+        periodos_agrupados.setdefault(pn, []).append(row)
+
+    registros_especiais: list[dict] = []
+    for periodo_nome, grupo in sorted(periodos_agrupados.items(), key=lambda x: (x[1][0]["checkin"] if x[1] else "")):
+        checkins = [r["checkin"] for r in grupo]
+        checkin_ini = min(g["checkin"] for g in grupo)
+        checkout_fim = max(g["checkout"] for g in grupo)
+        precos_direto = [g["preco_direto"] for g in grupo if g["preco_direto"] is not None]
+        precos_curado = [g["preco_curado"] for g in grupo if g["preco_curado"] is not None]
+        adr_medio = sum(precos_direto) / len(precos_direto) if precos_direto else 0.0
+        preco_curado_periodo = sum(precos_curado) / len(precos_curado) if precos_curado else None
+        status = "Editado (Manual)" if all(g["status"] == "Editado (Manual)" for g in grupo) else "Original (Booking)"
+        registros_especiais.append({
+            "periodo_nome": periodo_nome,
+            "checkin": checkin_ini,
+            "checkout": checkout_fim,
+            "checkin_br": _data_br(checkin_ini),
+            "checkout_br": _data_br(checkout_fim),
+            "checkins": checkins,
+            "mes_ano_label": grupo[0]["mes_ano_label"] if grupo else "",
+            "preco_direto": adr_medio,
+            "preco_curado": preco_curado_periodo,
+            "preco_direto_fmt": _moeda_br(adr_medio),
+            "preco_curado_fmt": _moeda_br(preco_curado_periodo) if preco_curado_periodo is not None else None,
+            "preco_booking_fmt": _moeda_br(grupo[0]["preco_booking"]) if grupo and grupo[0].get("preco_booking") else "—",
+            "status": status,
+            "nome_quarto": grupo[0].get("nome_quarto", "") if grupo else "",
+            "tipo_tarifa": grupo[0].get("tipo_tarifa", "") if grupo else "",
+            "noites": grupo[0].get("noites", 0) if grupo else 0,
+        })
+
     from itertools import groupby
-    registros_normais_ordenados = sorted(registros_normais, key=lambda x: (x["mes_ano"], x["checkin"]))
-    registros_especiais_ordenados = sorted(registros_especiais, key=lambda x: (x["mes_ano"], x["checkin"]))
+    registros_normais_ordenados = sorted(registros_normais, key=lambda x: x["checkin"])
     grupos_normais = []
     grupos_especiais = []
     for mes_ano, it in groupby(registros_normais_ordenados, key=lambda x: x["mes_ano"]):
         lista = list(it)
         grupos_normais.append({"mes_ano_label": lista[0]["mes_ano_label"], "mes_ano": mes_ano, "registros": lista})
-    for mes_ano, it in groupby(registros_especiais_ordenados, key=lambda x: x["mes_ano"]):
-        lista = list(it)
-        grupos_especiais.append({"mes_ano_label": lista[0]["mes_ano_label"], "mes_ano": mes_ano, "registros": lista})
+    if registros_especiais:
+        grupos_especiais.append({"mes_ano_label": "Datas Especiais", "mes_ano": "especial", "registros": registros_especiais})
 
-    # Meses presentes no bruto que não possuem nenhum registro normal
-    meses_com_qualquer = {r.mes_ano for r in bruto.registros}
+    meses_mes_ano = {r.mes_ano for r in coletados}
     meses_com_normais = {g["mes_ano"] for g in grupos_normais}
-    meses_sem_normais = sorted(meses_com_qualquer - meses_com_normais)
+    meses_mes_ano = {r.mes_ano for r in coletados}
+    meses_com_normais = {g["mes_ano"] for g in grupos_normais}
+    meses_sem_normais = sorted(meses_mes_ano - meses_com_normais)
     meses_sem_normais_labels = []
     for mes_ano in meses_sem_normais:
         partes = (mes_ano.split("-") + ["", ""])[:2]
@@ -461,15 +498,19 @@ def curadoria_mercado(id: str):
         dados = {"registros": dados, "grupos_mes": [], "grupos_normais": [], "grupos_especiais": [], "meses_sem_normais": []}
     from core.config import obter_config_scraper_com_defaults
     descontos_config = obter_config_scraper_com_defaults(id).get("descontos") or {"global": 0.20, "por_mes": {}}
+    dg = descontos_config.get("global")
+    desconto_exibicao = f"{float(dg or 0.20) * 100:.1f}".replace(".", ",")
     return render_template(
         "dashboard.html",
         projeto=projeto.model_dump(mode="json"),
+        nav_active="curadoria",
         grupos_mes=dados.get("grupos_mes", []),
         grupos_normais=dados.get("grupos_normais", []),
         grupos_especiais=dados.get("grupos_especiais", []),
         meses_sem_normais=dados.get("meses_sem_normais", []),
         registros=dados.get("registros", []),
         descontos_config=descontos_config,
+        desconto_exibicao=desconto_exibicao,
     )
 
 
@@ -624,6 +665,7 @@ def estudo_viabilidade(id_projeto: str):
         return render_template(
             "relatorio.html",
             projeto=projeto.model_dump(mode="json"),
+            nav_active="relatorio",
             analise=None,
             sem_dados=True,
         )
@@ -631,6 +673,7 @@ def estudo_viabilidade(id_projeto: str):
     return render_template(
         "relatorio.html",
         projeto=projeto.model_dump(mode="json"),
+        nav_active="relatorio",
         analise=analise.model_dump(mode="json"),
         sem_dados=False,
     )
@@ -648,14 +691,15 @@ def estudo_viabilidade_resumo(id_projeto: str):
         return render_template(
             "relatorio.html",
             projeto=projeto.model_dump(mode="json"),
+            nav_active="relatorio",
             analise=None,
             sem_dados=True,
         )
     analise = gerar_analise_curado(projeto, registros)
-    # Reutiliza o mesmo template; a rota de resumo pode focar na aba "Relatório Resumido"
     return render_template(
         "relatorio.html",
         projeto=projeto.model_dump(mode="json"),
+        nav_active="relatorio",
         analise=analise.model_dump(mode="json"),
         sem_dados=False,
     )
@@ -673,6 +717,7 @@ def scraper_config_get(id_projeto: str):
     return render_template(
         "scraper_config.html",
         projeto=projeto.model_dump(mode="json"),
+        nav_active="config",
         config=config,
     )
 
@@ -770,7 +815,7 @@ def scraper_preview(id_projeto: str):
         return jsonify({"success": False, "message": "Projeto não encontrado"}), 404
     from core.config import definir_periodos_12meses
 
-    periodos = definir_periodos_12meses(noites=2)
+    periodos = definir_periodos_12meses(noites=2, id_projeto=id_projeto)
     normais: list[dict] = []
     especiais: list[dict] = []
     for p in periodos:
@@ -792,6 +837,18 @@ def scraper_preview(id_projeto: str):
 
 # --- Simulação Futura (Projeção) ---
 
+def _carregar_dados_simulacao_salva(id_projeto: str) -> dict | None:
+    """Carrega simulacao_salva.json se existir. Retorna None em caso de erro ou ausência."""
+    path = get_simulacao_salva_path(id_projeto)
+    if not path.exists() or not path.is_file():
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
 @app.get("/projeto/<id>/simulacao")
 def simulacao_page(id: str):
     """Renderiza página de simulação de metas de ocupação e ADR."""
@@ -809,12 +866,15 @@ def simulacao_page(id: str):
         "custo_fixo_mensal": custo_fixo_mensal,
         "custo_var_por_noite": custo_var_por_noite,
     }
+    dados_salvos = _carregar_dados_simulacao_salva(id)
     return render_template(
         "simulacao.html",
         projeto=projeto.model_dump(mode="json"),
+        nav_active="simulacao",
         adr_por_mes=adr_por_mes,
         custos_base=custos_base,
         numero_quartos=projeto.numero_quartos or 1,
+        dados_salvos=dados_salvos,
     )
 
 
@@ -831,6 +891,16 @@ def api_simulacao_dados_base(id: str):
     adr_por_mes = obter_adr_por_mes(id)
     custo_fixo_mensal = _custo_fixo_mensal_total(projeto)
     custo_var_por_noite = _custo_variavel_por_noite(projeto)
+    fin = projeto.financeiro
+    financeiro = None
+    if fin:
+        financeiro = {
+            "custos_fixos": fin.custos_fixos.model_dump() if hasattr(fin.custos_fixos, "model_dump") else {},
+            "folha_pagamento_mensal": fin.folha_pagamento_mensal,
+            "custos_variaveis": fin.custos_variaveis.model_dump() if hasattr(fin.custos_variaveis, "model_dump") else {},
+            "aliquota_impostos": fin.aliquota_impostos,
+            "outros_impostos_taxas_percentual": fin.outros_impostos_taxas_percentual,
+        }
     return jsonify({
         "success": True,
         "data": {
@@ -839,8 +909,33 @@ def api_simulacao_dados_base(id: str):
             "custo_var_por_noite": custo_var_por_noite,
             "numero_quartos": projeto.numero_quartos or 1,
             "ano_referencia": projeto.ano_referencia or 2025,
+            "financeiro": financeiro,
         },
     })
+
+
+@app.post("/api/projeto/<id>/simulacao/salvar")
+def api_simulacao_salvar(id: str):
+    """Salva metas_mensais e investimento_inicial em simulacao_salva.json."""
+    try:
+        carregar_projeto(id)
+    except ArquivoProjetoNaoEncontrado:
+        return jsonify({"success": False, "message": "Projeto não encontrado"}), 404
+    body = request.get_json(force=True, silent=True) or {}
+    metas_mensais = body.get("metas_mensais") or {}
+    investimento_inicial = float(body.get("investimento_inicial") or 0)
+    path = get_simulacao_salva_path(id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "metas_mensais": metas_mensais,
+        "investimento_inicial": investimento_inicial,
+    }
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+    except OSError as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+    return jsonify({"success": True, "message": "Cenário salvo com sucesso."})
 
 
 @app.post("/api/projeto/<id>/simulacao/calcular")
@@ -863,3 +958,172 @@ def api_simulacao_calcular(id: str):
             "data": None,
         }), 404
     return jsonify({"success": True, "data": resultado})
+
+
+@app.post("/api/projeto/<id>/simulacao/curva-sensibilidade")
+def api_simulacao_curva_sensibilidade(id: str):
+    """Retorna pontos (ocupacao_pct, lucro_anual, lucro_medio_mensal) para gráfico de sensibilidade."""
+    try:
+        carregar_projeto(id)
+    except ArquivoProjetoNaoEncontrado:
+        return jsonify({"success": False, "message": "Projeto não encontrado", "data": None}), 404
+    from core.analise.simulacao import calcular_curva_sensibilidade
+
+    body = request.get_json(force=True, silent=True) or {}
+    investimento_inicial = float(body.get("investimento_inicial") or 0)
+    metas_mensais = body.get("metas_mensais") or {}
+    passo = float(body.get("passo_ocupacao") or 0.1)
+    passo = max(0.05, min(0.25, passo))
+    pontos = calcular_curva_sensibilidade(id, investimento_inicial, metas_mensais, passo_ocupacao=passo)
+    return jsonify({"success": True, "data": {"pontos": pontos}})
+
+
+def _carregar_cenarios(id_projeto: str) -> list[dict]:
+    """Carrega lista de cenários de simulacao_cenarios.json. Retorna lista vazia se não existir."""
+    path = get_simulacao_cenarios_path(id_projeto)
+    if not path.exists() or not path.is_file():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data.get("cenarios") if isinstance(data.get("cenarios"), list) else []
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def _salvar_cenarios(id_projeto: str, cenarios: list[dict]) -> None:
+    """Persiste lista de cenários em simulacao_cenarios.json."""
+    path = get_simulacao_cenarios_path(id_projeto)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"cenarios": cenarios}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _migrar_simulacao_salva_para_cenarios(id_projeto: str) -> list[dict]:
+    """Se simulacao_cenarios.json não existir mas simulacao_salva.json existir, cria cenário inicial."""
+    path_cenarios = get_simulacao_cenarios_path(id_projeto)
+    if path_cenarios.exists():
+        return _carregar_cenarios(id_projeto)
+    path_salva = get_simulacao_salva_path(id_projeto)
+    if not path_salva.exists() or not path_salva.is_file():
+        return []
+    try:
+        dados = json.loads(path_salva.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    metas = dados.get("metas_mensais") or {}
+    invest = float(dados.get("investimento_inicial") or 0)
+    from core.analise.simulacao import calcular_projecao
+    resultado = calcular_projecao(id_projeto, metas, invest)
+    if "erro" in resultado:
+        resultado = {"meses": [], "resumo": {}}
+    import uuid
+    from datetime import datetime
+    cenario = {
+        "id": str(uuid.uuid4())[:8],
+        "nome": "Cenário atual",
+        "criado_em": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "metas_mensais": metas,
+        "investimento_inicial": invest,
+        "resultado": resultado,
+    }
+    cenarios = [cenario]
+    _salvar_cenarios(id_projeto, cenarios)
+    return cenarios
+
+
+@app.get("/api/projeto/<id>/simulacao/cenarios")
+def api_simulacao_listar_cenarios(id: str):
+    """Lista cenários salvos. Migra simulacao_salva.json para cenário único se necessário."""
+    try:
+        carregar_projeto(id)
+    except ArquivoProjetoNaoEncontrado:
+        return jsonify({"success": False, "message": "Projeto não encontrado", "data": None}), 404
+    cenarios = _carregar_cenarios(id)
+    if not cenarios:
+        cenarios = _migrar_simulacao_salva_para_cenarios(id)
+    lista = []
+    for c in cenarios:
+        resumo = (c.get("resultado") or {}).get("resumo") or {}
+        lista.append({
+            "id": c.get("id"),
+            "nome": c.get("nome") or "Sem nome",
+            "criado_em": c.get("criado_em"),
+            "lucro_anual": resumo.get("lucro_anual"),
+            "payback_meses": resumo.get("payback_meses"),
+            "payback_status": resumo.get("payback_status"),
+        })
+    return jsonify({"success": True, "data": {"cenarios": lista}})
+
+
+@app.post("/api/projeto/<id>/simulacao/cenarios")
+def api_simulacao_criar_cenario(id: str):
+    """Cria novo cenário com nome, metas_mensais, investimento_inicial e resultado (snapshot)."""
+    try:
+        carregar_projeto(id)
+    except ArquivoProjetoNaoEncontrado:
+        return jsonify({"success": False, "message": "Projeto não encontrado", "data": None}), 404
+    body = request.get_json(force=True, silent=True) or {}
+    nome = (body.get("nome") or "").strip() or None
+    from datetime import datetime
+    import uuid
+    if not nome:
+        nome = "Sem nome " + datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+    metas_mensais = body.get("metas_mensais") or {}
+    investimento_inicial = float(body.get("investimento_inicial") or 0)
+    resultado = body.get("resultado")
+    if not resultado or not isinstance(resultado, dict):
+        from core.analise.simulacao import calcular_projecao
+        resultado = calcular_projecao(id, metas_mensais, investimento_inicial)
+    cenarios = _carregar_cenarios(id)
+    if not cenarios:
+        cenarios = _migrar_simulacao_salva_para_cenarios(id)
+    cenario = {
+        "id": str(uuid.uuid4())[:8],
+        "nome": nome,
+        "criado_em": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "metas_mensais": metas_mensais,
+        "investimento_inicial": investimento_inicial,
+        "resultado": resultado,
+    }
+    cenarios.append(cenario)
+    _salvar_cenarios(id, cenarios)
+    return jsonify({
+        "success": True,
+        "message": "Cenário salvo.",
+        "data": {"id": cenario["id"], "nome": cenario["nome"], "criado_em": cenario["criado_em"]},
+    })
+
+
+@app.get("/api/projeto/<id>/simulacao/cenarios/<cid>")
+def api_simulacao_obter_cenario(id: str, cid: str):
+    """Retorna um cenário salvo por id."""
+    try:
+        carregar_projeto(id)
+    except ArquivoProjetoNaoEncontrado:
+        return jsonify({"success": False, "message": "Projeto não encontrado", "data": None}), 404
+    cenarios = _carregar_cenarios(id)
+    if not cenarios:
+        cenarios = _migrar_simulacao_salva_para_cenarios(id)
+    for c in cenarios:
+        if c.get("id") == cid:
+            return jsonify({"success": True, "data": c})
+    return jsonify({"success": False, "message": "Cenário não encontrado", "data": None}), 404
+
+
+@app.delete("/api/projeto/<id>/simulacao/cenarios/<cid>")
+def api_simulacao_deletar_cenario(id: str, cid: str):
+    """Remove um cenário da lista."""
+    try:
+        carregar_projeto(id)
+    except ArquivoProjetoNaoEncontrado:
+        return jsonify({"success": False, "message": "Projeto não encontrado"}), 404
+    cenarios = _carregar_cenarios(id)
+    if not cenarios:
+        cenarios = _migrar_simulacao_salva_para_cenarios(id)
+    novo = [c for c in cenarios if c.get("id") != cid]
+    if len(novo) == len(cenarios):
+        return jsonify({"success": False, "message": "Cenário não encontrado"}), 404
+    _salvar_cenarios(id, novo)
+    return jsonify({"success": True, "message": "Cenário excluído."})

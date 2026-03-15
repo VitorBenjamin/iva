@@ -63,6 +63,16 @@ def get_scraper_config_path(id_projeto: str) -> Path:
     return get_projeto_dir(id_projeto) / "scraper_config.json"
 
 
+def get_simulacao_salva_path(id_projeto: str) -> Path:
+    """Retorna o path da simulação salva: data/projects/<id>/simulacao_salva.json."""
+    return get_projeto_dir(id_projeto) / "simulacao_salva.json"
+
+
+def get_simulacao_cenarios_path(id_projeto: str) -> Path:
+    """Retorna o path da lista de cenários salvos: data/projects/<id>/simulacao_cenarios.json."""
+    return get_projeto_dir(id_projeto) / "simulacao_cenarios.json"
+
+
 def _assegurar_dir_projetos() -> None:
     """Garante que data/projects existe."""
     PROJECTS_DIR.mkdir(parents=True, exist_ok=True)

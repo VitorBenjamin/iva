@@ -17,22 +17,15 @@
 </head>
 <body>
   <div class="container-fluid py-4">
-    <header class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom pb-3 mb-4">
-      <div class="d-flex align-items-center gap-2">
-        <a href="/" class="btn btn-outline-secondary btn-sm">← Voltar</a>
-        <h1 class="h5 mb-0">Dashboard — {{ projeto.nome }}</h1>
-      </div>
+    {% include '_navbar_projeto.html' %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+      <h1 class="h5 mb-0">Curadoria — {{ projeto.nome }}</h1>
       <div class="d-flex align-items-center gap-2 flex-wrap">
-        <a href="/projeto/{{ projeto.id }}/viabilidade" class="btn btn-success btn-sm">Gerar Relatório Final</a>
-        <a href="/projeto/{{ projeto.id }}/simulacao" class="btn btn-outline-info btn-sm">Simulação Futura</a>
-        <a href="/projeto/{{ projeto.id }}/scraper/config" class="btn btn-outline-secondary btn-sm">
-          <i class="bi bi-gear"></i> Configurar Scraper
-        </a>
         <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-desconto">Aplicar desconto %</button>
         <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-scraper">📋 Ver Comandos do Scraper</button>
         <button type="button" id="btn-salvar-ajustes" class="btn btn-primary btn-sm">Salvar Ajustes</button>
       </div>
-    </header>
+    </div>
 
     <!-- Configuração de Descontos da Curadoria -->
     {% set _dc = descontos_config or {} %}
@@ -79,10 +72,9 @@
         <thead class="table-light">
           <tr>
             <th>Mês/Ano</th>
-            <th>Tipo</th>
             <th>Quarto / Tarifa</th>
             <th>Preço Booking</th>
-            <th>Preço Direto (-20%)</th>
+            <th>Preço Direto (-{{ desconto_exibicao|default('20,0') }}%)</th>
             <th>Preço de Ajuste</th>
             <th>Status</th>
             <th title="Check-in e Check-out">Datas</th>
@@ -91,18 +83,11 @@
         <tbody id="tbody-registros-especiais">
           {% for grupo in grupos_especiais %}
           <tr class="table-section-header table-warning">
-            <td colspan="8">{{ grupo.mes_ano_label }}</td>
+            <td colspan="7">{{ grupo.mes_ano_label }}</td>
           </tr>
           {% for r in grupo.registros %}
-          <tr data-checkin="{{ r.checkin }}" class="table-warning">
-            <td>{{ r.mes_ano_label }}</td>
-            <td>
-              {% if r.tipo_dia == 'fim_de_semana' %}
-              <span class="badge badge-fim-semana">Fim de Semana</span>
-              {% else %}
-              <span class="badge badge-dia-semana">Dia de Semana</span>
-              {% endif %}
-            </td>
+          <tr data-checkin="{{ r.checkin }}" data-checkins="{{ r.checkins|join(',') if r.checkins is defined else r.checkin }}" class="table-warning">
+            <td>{{ r.periodo_nome|default(r.mes_ano_label) }}</td>
             <td>{{ r.nome_quarto }}{% if r.tipo_tarifa %} — {{ r.tipo_tarifa }}{% endif %}</td>
             <td>{{ r.preco_booking_fmt }}</td>
             <td>{{ r.preco_direto_fmt }}</td>
@@ -145,10 +130,9 @@
         <thead class="table-light">
           <tr>
             <th>Mês/Ano</th>
-            <th>Tipo</th>
             <th>Quarto / Tarifa</th>
             <th>Preço Booking</th>
-            <th>Preço Direto (-20%)</th>
+            <th>Preço Direto (-{{ desconto_exibicao|default('20,0') }}%)</th>
             <th>Preço de Ajuste</th>
             <th>Status</th>
             <th title="Check-in e Check-out">Datas</th>
@@ -157,18 +141,11 @@
         <tbody id="tbody-registros">
           {% for grupo in grupos_normais %}
           <tr class="table-section-header">
-            <td colspan="8">{{ grupo.mes_ano_label }}</td>
+            <td colspan="7">{{ grupo.mes_ano_label }}</td>
           </tr>
           {% for r in grupo.registros %}
           <tr data-checkin="{{ r.checkin }}">
             <td>{{ r.mes_ano_label }}</td>
-            <td>
-              {% if r.tipo_dia == 'fim_de_semana' %}
-              <span class="badge badge-fim-semana">Fim de Semana</span>
-              {% else %}
-              <span class="badge badge-dia-semana">Dia de Semana</span>
-              {% endif %}
-            </td>
             <td>{{ r.nome_quarto }}{% if r.tipo_tarifa %} — {{ r.tipo_tarifa }}{% endif %}</td>
             <td>{{ r.preco_booking_fmt }}</td>
             <td>{{ r.preco_direto_fmt }}</td>
@@ -304,14 +281,14 @@
         var rows = document.querySelectorAll('#tbody-registros tr[data-checkin], #tbody-registros-especiais tr[data-checkin]');
         var registros = [];
         rows.forEach(function (tr) {
-          var checkin = tr.getAttribute('data-checkin');
+          var checkinsAttr = tr.getAttribute('data-checkins') || tr.getAttribute('data-checkin');
+          var checkins = checkinsAttr ? checkinsAttr.split(',').map(function (c) { return c.trim(); }).filter(Boolean) : [];
+          if (checkins.length === 0) return;
           var inputPreco = tr.querySelector('.input-preco-curado');
           var precoCurado = inputPreco ? valorMoedaInput(inputPreco) : null;
           var status = (precoCurado !== null && precoCurado !== undefined) ? 'Editado (Manual)' : 'Original (Booking)';
-          registros.push({
-            checkin: checkin,
-            preco_curado: precoCurado,
-            status: status
+          checkins.forEach(function (checkin) {
+            registros.push({ checkin: checkin, preco_curado: precoCurado, status: status });
           });
         });
         fetch('/api/projeto/' + encodeURIComponent(idProjeto) + '/curadoria', {

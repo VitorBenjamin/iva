@@ -11,10 +11,12 @@ class DetalheMensal(BaseModel):
     mes_ano: str = Field(description="Ex: 2026-03")
     mes_label: str = Field(description="Ex: Março/2026")
     faturamento_mensal: float
-    preco_medio_mes: float
+    preco_medio_mes: float = Field(description="ADR Normal do mês (métrica principal operacional)")
     noites_vendidas: float
     ocupacao_pct: float = Field(description="Ex: 0.45 para 45%")
     dias_no_mes: int
+    dias_normais_mes: int = 0
+    dias_especiais_mes: int = 0
     custo_variavel_mensal: float = 0.0
     impostos_mensais: float = 0.0
 

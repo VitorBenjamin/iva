@@ -11,8 +11,14 @@ from urllib.parse import urlencode, urlparse, urlunparse
 from loguru import logger
 from playwright.sync_api import sync_playwright
 
-from core.config import carregar_config_scraper, definir_periodos_sazonais, definir_periodos_12meses
-from core.projetos import get_market_bruto_path
+from core.config import (
+    carregar_config_scraper,
+    definir_calendario_soberano_ano,
+    definir_periodos_sazonais,
+    definir_periodos_12meses,
+    gerar_calendario_diario_projeto,
+)
+from core.projetos import ArquivoProjetoNaoEncontrado, carregar_projeto, get_market_bruto_path
 from core.scraper.modelos import DadosMercado, DiariaPeriodo, MarketBruto, MarketBrutoRegistro
 from core.scraper.parsing import detectar_tipo_tarifa, parsear_valor_preco
 
@@ -275,9 +281,17 @@ def _sequencia_noites_tentativas(preferencial: int, max_tentativas: int) -> list
 
 
 def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> MarketBruto:
-    """Coleta 4 datas/mês × 12 meses; salva em projects/<id>/market_bruto.json. Scraper puro: preco_direto = preco_booking/1.20."""
+    """Calendário diário 365 dias: gera market_bruto com um registro por dia do ano.
+    Amostra 48 dias/mês (4/mês) para coleta; demais dias recebem placeholder preco_booking=null, status='FALHA'.
+    Salva sempre para que a Curadoria tenha os 365 slots."""
     ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
     headless = os.environ.get("HEADLESS", "false").lower() == "true"
+    try:
+        projeto = carregar_projeto(id_projeto)
+        ano_referencia = projeto.ano_referencia or date.today().year
+    except ArquivoProjetoNaoEncontrado:
+        ano_referencia = date.today().year
+        logger.warning("Projeto não encontrado; usando ano atual {} como ano_referencia", ano_referencia)
     cfg = carregar_config_scraper(id_projeto) or {}
     noites_cfg = cfg.get("noites") or {}
     noites_preferencial = int(noites_cfg.get("preferencial", 2))
@@ -285,11 +299,21 @@ def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> Market
     noites_preferencial = max(1, noites_preferencial)
     max_tentativas = max(1, max_tentativas)
 
-    periodos = definir_periodos_12meses(noites=noites_preferencial)
+    calendario_completo = gerar_calendario_diario_projeto(
+        id_projeto, ano_referencia, rolling=True
+    )
+    dias_amostra = definir_calendario_soberano_ano(
+        ano_referencia=ano_referencia,
+        noites=noites_preferencial,
+        id_projeto=id_projeto,
+        rolling=True,
+    )
+    coletados: dict[str, MarketBrutoRegistro] = {}
     registros: list[MarketBrutoRegistro] = []
     logger.info(
-        "Coleta expandida: {} períodos (noites preferencial={}, max_tentativas={})",
-        len(periodos),
+        "Calendário diário: {} dias totais; amostra de {} para coleta (noites pref={}, max_tent={})",
+        len(calendario_completo),
+        len(dias_amostra),
         noites_preferencial,
         max_tentativas,
     )
@@ -303,7 +327,7 @@ def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> Market
         )
         page = context.new_page()
 
-        for i, periodo in enumerate(periodos):
+        for i, periodo in enumerate(dias_amostra):
             checkin_str = periodo["checkin"]
             mes_ano = periodo["mes_ano"]
             tipo_dia = periodo["tipo_dia"]
@@ -315,7 +339,7 @@ def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> Market
                 checkout_date = checkin_date + timedelta(days=noites_reais)
                 checkout_str = checkout_date.strftime("%Y-%m-%d")
                 try:
-                    logger.info(">>> [{}/{}] {} ({} noites) {}", i + 1, len(periodos), checkin_str, noites_reais, tipo_dia)
+                    logger.info(">>> [{}/{}] {} ({} noites) {}", i + 1, len(dias_amostra), checkin_str, noites_reais, tipo_dia)
                     url = _url_com_datas(url_booking, checkin_str, checkout_str)
                     page.goto(url, wait_until="domcontentloaded", timeout=30000)
                     page.wait_for_load_state("networkidle", timeout=15000)
@@ -329,20 +353,18 @@ def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> Market
                     preco_booking = round(total / noites_reais, 2)
                     preco_direto = round(preco_booking / 1.20, 2)
                     nome_quarto = (menor.get("nome") or "").strip() or "Indefinido"
-                    registros.append(
-                        MarketBrutoRegistro(
-                            checkin=checkin_str,
-                            checkout=checkout_str,
-                            mes_ano=mes_ano,
-                            tipo_dia=tipo_dia,
-                            preco_booking=preco_booking,
-                            preco_direto=preco_direto,
-                            nome_quarto=nome_quarto,
-                            tipo_tarifa=menor.get("tarifa", "Padrão") or "Padrão",
-                            noites=noites_reais,
-                            status="OK",
-                            categoria_dia=categoria_dia,
-                        )
+                    coletados[checkin_str] = MarketBrutoRegistro(
+                        checkin=checkin_str,
+                        checkout=checkout_str,
+                        mes_ano=mes_ano,
+                        tipo_dia=tipo_dia,
+                        preco_booking=preco_booking,
+                        preco_direto=preco_direto,
+                        nome_quarto=nome_quarto,
+                        tipo_tarifa=menor.get("tarifa", "Padrão") or "Padrão",
+                        noites=noites_reais,
+                        status="OK",
+                        categoria_dia=categoria_dia,
                     )
                     sucesso = True
                     break
@@ -356,25 +378,47 @@ def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> Market
                     page.screenshot(path=str(path_scr))
                 except Exception:
                     pass
-                checkout_fallback = (checkin_date + timedelta(days=noites_preferencial)).strftime("%Y-%m-%d")
-                registros.append(
-                    MarketBrutoRegistro(
-                        checkin=checkin_str,
-                        checkout=checkout_fallback,
-                        mes_ano=mes_ano,
-                        tipo_dia=tipo_dia,
-                        preco_booking=None,
-                        preco_direto=None,
-                        nome_quarto="",
-                        tipo_tarifa="Padrão",
-                        noites=noites_preferencial,
-                        status="FALHA",
-                        categoria_dia=categoria_dia,
-                    )
+                checkout_fallback = (checkin_date + timedelta(days=1)).strftime("%Y-%m-%d")
+                coletados[checkin_str] = MarketBrutoRegistro(
+                    checkin=checkin_str,
+                    checkout=checkout_fallback,
+                    mes_ano=mes_ano,
+                    tipo_dia=tipo_dia,
+                    preco_booking=None,
+                    preco_direto=None,
+                    nome_quarto="",
+                    tipo_tarifa="Padrão",
+                    noites=1,
+                    status="FALHA",
+                    categoria_dia=categoria_dia,
                 )
 
         context.close()
         browser.close()
+
+    # Montar registros: 365 dias, usando coletados quando existir, senão placeholder
+    for dia in calendario_completo:
+        checkin_str = dia["checkin"]
+        if checkin_str in coletados:
+            registros.append(coletados[checkin_str])
+        else:
+            checkin_date = date.fromisoformat(checkin_str)
+            checkout_str = (checkin_date + timedelta(days=1)).strftime("%Y-%m-%d")
+            registros.append(
+                MarketBrutoRegistro(
+                    checkin=checkin_str,
+                    checkout=checkout_str,
+                    mes_ano=dia["mes_ano"],
+                    tipo_dia=dia["tipo_dia"],
+                    preco_booking=None,
+                    preco_direto=None,
+                    nome_quarto="",
+                    tipo_tarifa="Padrão",
+                    noites=1,
+                    status="FALHA",
+                    categoria_dia=dia["categoria_dia"],
+                )
+            )
 
     tem_valido = any(
         (r.preco_booking is not None and r.preco_booking > 0)
@@ -384,24 +428,27 @@ def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> Market
     market = MarketBruto(
         id_projeto=id_projeto,
         url=url_booking,
-        ano=datetime.utcnow().year,
+        ano=ano_referencia,
         criado_em=datetime.utcnow(),
         registros=registros,
     )
     path_bruto = get_market_bruto_path(id_projeto)
-    if tem_valido or not path_bruto.exists():
+    # Calendário soberano: salvar sempre que o calendário foi gerado (permite curadoria manual)
+    calendario_gerado = len(registros) > 0
+    if calendario_gerado:
         path_bruto.parent.mkdir(parents=True, exist_ok=True)
         with open(path_bruto, "w", encoding="utf-8") as f:
             json.dump(market.model_dump(mode="json"), f, ensure_ascii=False, indent=2)
         logger.info(
-            "Market bruto salvo: {} ({} registros; possui válidos: {})",
+            "Market bruto salvo: {} ({} registros; possui válidos: {}; ano_referencia: {})",
             path_bruto,
             len(registros),
             tem_valido,
+            ano_referencia,
         )
     else:
         logger.warning(
-            "Coleta expandida não gerou registros válidos; mantendo arquivo anterior: {}",
+            "Calendário soberano não gerou registros; mantendo arquivo anterior: {}",
             path_bruto,
         )
     return market

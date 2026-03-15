@@ -20,13 +20,10 @@
 </head>
 <body class="bg-light">
   <div class="container-fluid py-4">
-    <header class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom pb-3 mb-4">
-      <div class="d-flex align-items-center gap-2">
-        <a href="/projeto/{{ projeto.id }}/viabilidade" class="btn btn-outline-secondary btn-sm">← Voltar ao Relatório</a>
-        <h1 class="h5 mb-0">Simulador de Viabilidade Futura</h1>
-        <span class="badge bg-primary">{{ projeto.nome }}</span>
-      </div>
-    </header>
+    {% include '_navbar_projeto.html' %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+      <h1 class="h5 mb-0">Simulador de Viabilidade Futura</h1>
+    </div>
 
     <!-- Cards de Resumo -->
     <div class="row g-3 mb-4">
@@ -64,13 +61,29 @@
       </div>
     </div>
 
+    <!-- Estrutura de Custos (somente leitura) -->
+    <div class="card mb-4 shadow-sm">
+      <div class="card-header bg-white d-flex align-items-center">
+        <a class="text-decoration-none flex-grow-1" data-bs-toggle="collapse" href="#collapse-custos" role="button" aria-expanded="false">
+          <i class="bi bi-calculator me-1"></i> Estrutura de Custos Utilizada (Somente Leitura)
+        </a>
+      </div>
+      <div class="collapse" id="collapse-custos">
+        <div class="card-body">
+          <div id="custos-conteudo" class="small">
+            <p class="text-muted mb-0">Carregue os dados para exibir a estrutura de custos.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Investimento Inicial -->
     <div class="card mb-4 shadow-sm">
       <div class="card-body">
-        <label class="form-label fw-bold" for="input-investimento">
+        <label class="form-label fw-bold" for="investimento_inicial">
           <i class="bi bi-cash-stack me-1"></i> Investimento Inicial (R$)
         </label>
-        <input type="number" id="input-investimento" class="form-control form-control-lg" min="0" step="1000" value="0" placeholder="0" style="max-width: 280px;">
+        <input type="text" id="investimento_inicial" class="form-control form-control-lg moeda" value="R$ 0,00" placeholder="R$ 0,00" style="max-width: 280px;">
       </div>
     </div>
 
@@ -101,13 +114,69 @@
       </div>
     </div>
 
+    <!-- Gráfico de Sensibilidade (linhas: Receita / Custos totais / Lucro) -->
+    <div class="card shadow-sm mt-4 mb-4">
+      <div class="card-header bg-white fw-bold">
+        <i class="bi bi-graph-up me-1"></i> Receita, Custos e Lucro por Mês
+      </div>
+      <div class="card-body" style="height: 320px;">
+        <canvas id="graficoSensibilidade"></canvas>
+      </div>
+    </div>
+
+    <!-- Gráfico Barras: Receita vs Custos Fixos -->
+    <div class="card shadow-sm mt-4 mb-4">
+      <div class="card-header bg-white fw-bold">
+        <i class="bi bi-bar-chart me-1"></i> Receita vs Custos Fixos (mensal)
+      </div>
+      <div class="card-body" style="height: 280px;">
+        <canvas id="graficoBarras"></canvas>
+      </div>
+    </div>
+
+    <!-- Curva Lucro x Ocupação -->
+    <div class="card shadow-sm mt-4 mb-4">
+      <div class="card-header bg-white fw-bold">
+        <i class="bi bi-graph-up-arrow me-1"></i> Curva Lucro × Ocupação
+      </div>
+      <div class="card-body" style="height: 280px;">
+        <canvas id="graficoCurvaOcupacao"></canvas>
+      </div>
+    </div>
+
+    <!-- Cenários salvos -->
+    <div class="card shadow-sm mt-4 mb-4">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <span class="fw-bold"><i class="bi bi-folder2 me-1"></i> Cenários salvos</span>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-salvar-cenario-novo" title="Salvar cenário atual com um nome">
+          💾 Salvar cenário
+        </button>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-2">Carregue um cenário para preencher metas e investimento; você pode recalcular depois.</p>
+        <ul class="list-group list-group-flush" id="lista-cenarios">
+          <li class="list-group-item text-muted small" id="lista-cenarios-vazia">Nenhum cenário salvo. Salve o cenário atual para começar.</li>
+        </ul>
+      </div>
+    </div>
+
     <div id="msg-dados-base" class="alert alert-info mt-3 d-none">
       <i class="bi bi-info-circle me-2"></i>
       <span id="msg-dados-texto">Aguardando carregamento dos dados base...</span>
     </div>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+      <div id="toast-salvo" class="toast align-items-center text-bg-success border-0" role="alert">
+        <div class="d-flex">
+          <div class="toast-body"><i class="bi bi-check-circle me-2"></i>Cenário salvo com sucesso!</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
     (function () {
       var projetoId = "{{ projeto.id }}";
@@ -117,6 +186,11 @@
       var debounceMs = 400;
       var dadosBase = null;
       var dadosCarregados = false;
+      var dadosSalvos = {{ (dados_salvos or {}) | tojson | safe }};
+      var graficoSensibilidade = null;
+      var graficoBarras = null;
+      var graficoCurvaOcupacao = null;
+      var ultimoResultado = null;
 
       function formatarMoeda(val) {
         if (val == null || isNaN(val)) return 'R$ 0,00';
@@ -132,6 +206,24 @@
         if (!el || !el.value) return 0;
         var v = parseFloat(String(el.value).replace(',', '.'));
         return isNaN(v) ? 0 : Math.max(0, v);
+      }
+
+      function valorMoedaInput(el) {
+        if (!el || !el.value) return 0;
+        var v = el.value.replace(/\D/g, '');
+        return v ? parseFloat(v) / 100 : 0;
+      }
+
+      function aplicarMascaraMoeda() {
+        document.querySelectorAll('.moeda').forEach(function (input) {
+          input.addEventListener('input', function (e) {
+            var value = e.target.value.replace(/\D/g, '');
+            if (value === '') { e.target.value = ''; return; }
+            value = (parseFloat(value) / 100).toFixed(2) + '';
+            value = value.replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+            e.target.value = 'R$ ' + value;
+          });
+        });
       }
 
       function debounce(fn) {
@@ -166,6 +258,33 @@
         return anoRef + '-' + String(mes).padStart(2, '0');
       }
 
+      function renderizarCustos(dados) {
+        var el = document.getElementById('custos-conteudo');
+        if (!el) return;
+        var fin = dados && dados.financeiro;
+        if (!fin) {
+          el.innerHTML = '<p class="text-muted mb-0">Nenhum dado financeiro configurado para este projeto.</p>';
+          return;
+        }
+        var cf = fin.custos_fixos || {};
+        var cv = fin.custos_variaveis || {};
+        var html = '<table class="table table-sm mb-0"><thead class="table-light"><tr><th>Custo</th><th class="text-end">Valor (R$/mês)</th></tr></thead><tbody>';
+        ['luz','agua','internet','iptu','contabilidade','seguros','outros','aluguel'].forEach(function (k) {
+          var v = cf[k] != null ? cf[k] : 0;
+          html += '<tr><td>' + (k.charAt(0).toUpperCase() + k.slice(1)) + '</td><td class="text-end">' + formatarMoeda(v) + '</td></tr>';
+        });
+        html += '<tr class="table-light"><td><strong>Folha de pagamento</strong></td><td class="text-end"><strong>' + formatarMoeda(fin.folha_pagamento_mensal) + '</strong></td></tr>';
+        html += '</tbody></table>';
+        html += '<p class="mt-2 mb-1 small fw-bold">Custos variáveis por noite:</p><table class="table table-sm mb-0"><thead class="table-light"><tr><th>Item</th><th class="text-end">R$/noite</th></tr></thead><tbody>';
+        ['cafe_manha','amenities','lavanderia','outros'].forEach(function (k) {
+          var v = cv[k] != null ? cv[k] : 0;
+          html += '<tr><td>' + (k === 'cafe_manha' ? 'Café da manhã' : k.charAt(0).toUpperCase() + k.slice(1)) + '</td><td class="text-end">' + formatarMoeda(v) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        html += '<p class="mt-2 mb-0 small text-muted">Custo fixo mensal total: <strong>' + formatarMoeda(dados.custo_fixo_mensal) + '</strong> | Custo variável por noite: <strong>' + formatarMoeda(dados.custo_var_por_noite) + '</strong></p>';
+        el.innerHTML = html;
+      }
+
       function infoAdrParaMes(adrPorMes, mes, mesAno) {
         var info = adrPorMes[mesAno];
         if (info) return info;
@@ -177,13 +296,16 @@
       function renderizarTabela() {
         if (!dadosBase) return;
         var adrPorMes = dadosBase.adr_por_mes || {};
+        var metasSalvas = (dadosSalvos && dadosSalvos.metas_mensais) ? dadosSalvos.metas_mensais : {};
         var tbody = document.getElementById('tbody-meses');
         tbody.innerHTML = '';
         for (var m = 1; m <= 12; m++) {
           var mesAno = construirMesAno(m);
           var info = infoAdrParaMes(adrPorMes, m, mesAno);
-          var adrSug = info.adr != null ? info.adr : 0;
-          var fonteFallback = info.fonte === 'fallback_media';
+          var ms = metasSalvas[mesAno];
+          var adrSug = (ms && ms.adr != null) ? ms.adr : (info.adr != null ? info.adr : 0);
+          var ocupSug = (ms && ms.ocupacao != null) ? Math.round(ms.ocupacao * 100) : 40;
+          var fonteFallback = info.fonte === 'fallback_media' && !ms;
           var tr = document.createElement('tr');
           tr.setAttribute('data-mes', mesAno);
           tr.innerHTML =
@@ -192,7 +314,7 @@
             '<input type="number" class="form-control form-control-sm input-adr ' + (fonteFallback ? 'adr-fallback' : '') + '" data-mes="' + mesAno + '" min="0" step="0.01" value="' + adrSug + '" placeholder="0">' +
             (fonteFallback ? '<i class="bi bi-info-circle text-warning" title="Valor sugerido (média dos meses disponíveis)"></i>' : '') +
             '</div></td>' +
-            '<td><input type="number" class="form-control form-control-sm input-ocupacao" data-mes="' + mesAno + '" min="0" max="100" step="1" value="40" placeholder="0"></td>' +
+            '<td><input type="number" class="form-control form-control-sm input-ocupacao" data-mes="' + mesAno + '" min="0" max="100" step="1" value="' + ocupSug + '" placeholder="0"></td>' +
             '<td class="text-end out-receita">—</td>' +
             '<td class="text-end out-lucro">—</td>' +
             '<td class="text-end out-breakeven">—</td>';
@@ -212,11 +334,10 @@
             debounce(executarCalculo);
           });
         });
-        document.getElementById('input-investimento').addEventListener('input', function () {
-          var v = parseFloat(this.value);
-          if (v < 0) this.value = 0;
-          debounce(executarCalculo);
-        });
+        var investEl = document.getElementById('investimento_inicial');
+        if (investEl) {
+          investEl.addEventListener('input', function () { debounce(executarCalculo); });
+        }
       }
 
       function coletarMetas() {
@@ -267,11 +388,40 @@
         }
       }
 
+      function salvarCenario() {
+        if (!dadosCarregados) return;
+        var nome = (prompt('Nome do cenário:', '') || '').trim();
+        if (nome === '') nome = 'Sem nome ' + new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+        var metas = coletarMetas();
+        var invest = valorMoedaInput(document.getElementById('investimento_inicial'));
+        var payload = {
+          nome: nome,
+          metas_mensais: metas,
+          investimento_inicial: invest,
+          resultado: ultimoResultado || null
+        };
+        fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/cenarios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (json) {
+            if (json.success) {
+              listarCenarios();
+              mostrarToast('Cenário salvo.', true);
+            } else {
+              mostrarToast(json.message || 'Erro ao salvar cenário.', false);
+            }
+          })
+          .catch(function () { mostrarToast('Erro ao salvar.', false); });
+      }
+
       function executarCalculo() {
         if (!dadosCarregados) return;
         setLoading(true);
         var metas = coletarMetas();
-        var invest = obterValorNumerico(document.getElementById('input-investimento'));
+        var invest = valorMoedaInput(document.getElementById('investimento_inicial'));
         fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/calcular', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -283,12 +433,236 @@
             if (json.success && json.data) {
               atualizarTabelaComResultado(json.data);
               if (json.data.resumo) atualizarCards(json.data.resumo);
+              atualizarGrafico(json.data);
+              buscarCurvaSensibilidade();
             }
           })
           .catch(function () {
             setLoading(false);
             mostrarMsg('erro', 'Erro ao calcular projeção.');
           });
+      }
+
+      function inicializarGraficoSensibilidade() {
+        var ctx = document.getElementById('graficoSensibilidade');
+        if (!ctx || typeof Chart === 'undefined') return;
+        graficoSensibilidade = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: mesesNomes,
+            datasets: [
+              { label: 'Receita Bruta', data: [], borderColor: '#198754', backgroundColor: 'rgba(25,135,84,0.1)', tension: 0.2, fill: false },
+              { label: 'Custos Totais', data: [], borderColor: '#dc3545', backgroundColor: 'rgba(220,53,69,0.1)', tension: 0.2, fill: false },
+              { label: 'Lucro Líquido', data: [], borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.1)', tension: 0.2, fill: false }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) { return ctx.dataset.label + ': ' + formatarMoeda(ctx.raw); }
+                }
+              }
+            },
+            scales: {
+              y: { beginAtZero: true }
+            }
+          }
+        });
+      }
+
+      function atualizarGrafico(dadosProjecao) {
+        ultimoResultado = dadosProjecao;
+        if (!dadosProjecao || !dadosProjecao.meses) return;
+        var meses = dadosProjecao.meses;
+        if (graficoSensibilidade) {
+          var receitas = meses.map(function (m) { return m.receita_bruta || 0; });
+          var custos = meses.map(function (m) {
+            return (m.custos_fixos || 0) + (m.custos_variaveis || 0) + (m.impostos || 0);
+          });
+          var lucros = meses.map(function (m) { return m.lucro_liquido != null ? m.lucro_liquido : 0; });
+          graficoSensibilidade.data.datasets[0].data = receitas;
+          graficoSensibilidade.data.datasets[1].data = custos;
+          graficoSensibilidade.data.datasets[2].data = lucros;
+          graficoSensibilidade.update();
+        }
+        if (graficoBarras) {
+          graficoBarras.data.datasets[0].data = meses.map(function (m) { return m.receita_bruta || 0; });
+          graficoBarras.data.datasets[1].data = meses.map(function (m) { return m.custos_fixos || 0; });
+          graficoBarras.update();
+        }
+      }
+
+      function inicializarGraficoBarras() {
+        var ctx = document.getElementById('graficoBarras');
+        if (!ctx || typeof Chart === 'undefined') return;
+        graficoBarras = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: mesesNomes,
+            datasets: [
+              { label: 'Receita', data: [], backgroundColor: 'rgba(25,135,84,0.7)' },
+              { label: 'Custos Fixos', data: [], backgroundColor: 'rgba(220,53,69,0.7)' }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + formatarMoeda(c.raw); } } } },
+            scales: { y: { beginAtZero: true } }
+          }
+        });
+      }
+
+      function inicializarGraficoCurvaOcupacao() {
+        var ctx = document.getElementById('graficoCurvaOcupacao');
+        if (!ctx || typeof Chart === 'undefined') return;
+        graficoCurvaOcupacao = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: [],
+            datasets: [{ label: 'Lucro anual (R$)', data: [], borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.1)', tension: 0.2, fill: true }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { tooltip: { callbacks: { label: function (c) { return 'Ocupação ' + (c.label * 100) + '%: ' + formatarMoeda(c.raw); } } } },
+            scales: { x: { title: { display: true, text: 'Ocupação' } }, y: { beginAtZero: true } }
+          }
+        });
+      }
+
+      function buscarCurvaSensibilidade() {
+        if (!dadosCarregados) return;
+        var metas = coletarMetas();
+        var invest = valorMoedaInput(document.getElementById('investimento_inicial'));
+        fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/curva-sensibilidade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ metas_mensais: metas, investimento_inicial: invest, passo_ocupacao: 0.1 })
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (json) {
+            if (json.success && json.data && json.data.pontos && graficoCurvaOcupacao) {
+              var pts = json.data.pontos;
+              graficoCurvaOcupacao.data.labels = pts.map(function (p) { return p.ocupacao_pct; });
+              graficoCurvaOcupacao.data.datasets[0].data = pts.map(function (p) { return p.lucro_anual; });
+              graficoCurvaOcupacao.update();
+            }
+          })
+          .catch(function () {});
+      }
+
+      function listarCenarios() {
+        fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/cenarios')
+          .then(function (res) { return res.json(); })
+          .then(function (json) {
+            var ul = document.getElementById('lista-cenarios');
+            var vazia = document.getElementById('lista-cenarios-vazia');
+            if (!json.success || !json.data || !json.data.cenarios) {
+              if (vazia) vazia.classList.remove('d-none');
+              return;
+            }
+            var cenarios = json.data.cenarios;
+            if (vazia && vazia.parentNode) vazia.remove();
+            while (ul.firstChild) ul.removeChild(ul.firstChild);
+            if (cenarios.length === 0) {
+              ul.appendChild(vazia);
+              vazia.classList.remove('d-none');
+              return;
+            }
+            if (vazia) vazia.classList.add('d-none');
+            cenarios.forEach(function (c) {
+              var li = document.createElement('li');
+              li.className = 'list-group-item d-flex align-items-center justify-content-between flex-wrap gap-2';
+              var info = document.createElement('span');
+              var dataStr = c.criado_em ? new Date(c.criado_em).toLocaleString('pt-BR') : '';
+              var lucroStr = c.lucro_anual != null ? formatarMoeda(c.lucro_anual) : '—';
+              var payStr = c.payback_meses != null ? c.payback_meses + ' meses' : (c.payback_status || '—');
+              info.innerHTML = '<strong>' + (c.nome || 'Sem nome') + '</strong> <span class="text-muted small">' + dataStr + '</span><br><span class="small">Lucro anual: ' + lucroStr + ' · Payback: ' + payStr + '</span>';
+              var btns = document.createElement('span');
+              var btnCarregar = document.createElement('button');
+              btnCarregar.className = 'btn btn-sm btn-outline-primary';
+              btnCarregar.textContent = 'Carregar';
+              btnCarregar.onclick = function () { carregarCenario(c.id); };
+              var btnExcluir = document.createElement('button');
+              btnExcluir.className = 'btn btn-sm btn-outline-danger ms-1';
+              btnExcluir.textContent = 'Excluir';
+              btnExcluir.onclick = function () { excluirCenario(c.id); };
+              btns.appendChild(btnCarregar);
+              btns.appendChild(btnExcluir);
+              li.appendChild(info);
+              li.appendChild(btns);
+              ul.appendChild(li);
+            });
+          })
+          .catch(function () {});
+      }
+
+      function carregarCenario(cid) {
+        fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/cenarios/' + encodeURIComponent(cid))
+          .then(function (res) { return res.json(); })
+          .then(function (json) {
+            if (!json.success || !json.data) return;
+            var c = json.data;
+            aplicarMetas(c.metas_mensais || {});
+            var invEl = document.getElementById('investimento_inicial');
+            if (invEl) invEl.value = formatarMoeda(c.investimento_inicial != null ? c.investimento_inicial : 0);
+            if (c.resultado) {
+              atualizarTabelaComResultado(c.resultado);
+              if (c.resultado.resumo) atualizarCards(c.resultado.resumo);
+              atualizarGrafico(c.resultado);
+            }
+            buscarCurvaSensibilidade();
+            mostrarToast('Cenário carregado. Você pode recalcular com os custos atuais.', true);
+          })
+          .catch(function () { mostrarToast('Erro ao carregar cenário.', false); });
+      }
+
+      function excluirCenario(cid) {
+        if (!confirm('Excluir este cenário?')) return;
+        fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/cenarios/' + encodeURIComponent(cid), { method: 'DELETE' })
+          .then(function (res) { return res.json(); })
+          .then(function (json) {
+            if (json.success) {
+              listarCenarios();
+              mostrarToast('Cenário excluído.', true);
+            } else {
+              mostrarToast(json.message || 'Erro ao excluir.', false);
+            }
+          })
+          .catch(function () { mostrarToast('Erro ao excluir.', false); });
+      }
+
+      function aplicarMetas(metas) {
+        for (var mes = 1; mes <= 12; mes++) {
+          var mesAno = anoRef + '-' + String(mes).padStart(2, '0');
+          var m = metas[mesAno] || {};
+          var row = document.querySelector('#tbody-meses tr[data-mes="' + mesAno + '"]');
+          if (row) {
+            var adrInp = row.querySelector('.input-adr');
+            var ocpInp = row.querySelector('.input-ocupacao');
+            if (adrInp) adrInp.value = m.adr != null ? m.adr : '';
+            if (ocpInp) ocpInp.value = m.ocupacao != null ? Math.round(m.ocupacao * 100) : '';
+          }
+        }
+      }
+
+      function mostrarToast(msg, sucesso) {
+        var container = document.querySelector('.toast-container');
+        if (!container) return;
+        var id = 'toast-' + Date.now();
+        var bg = sucesso ? 'bg-success' : 'bg-danger';
+        var html = '<div id="' + id + '" class="toast align-items-center text-white ' + bg + ' border-0"><div class="d-flex"><div class="toast-body">' + msg + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>';
+        container.insertAdjacentHTML('beforeend', html);
+        var el = document.getElementById(id);
+        if (el && typeof bootstrap !== 'undefined') {
+          var t = new bootstrap.Toast(el);
+          t.show();
+          el.addEventListener('hidden.bs.toast', function () { el.remove(); });
+        }
       }
 
       function carregarDadosBase() {
@@ -306,8 +680,17 @@
             anoRef = dadosBase.ano_referencia || anoRef;
             dadosCarregados = true;
             esconderMsg();
+            renderizarCustos(dadosBase);
             renderizarTabela();
+            if (dadosSalvos && dadosSalvos.investimento_inicial != null) {
+              var invEl = document.getElementById('investimento_inicial');
+              if (invEl) invEl.value = formatarMoeda(dadosSalvos.investimento_inicial);
+            }
+            inicializarGraficoSensibilidade();
+            inicializarGraficoBarras();
+            inicializarGraficoCurvaOcupacao();
             executarCalculo();
+            listarCenarios();
           })
           .catch(function () {
             setLoading(false);
@@ -315,6 +698,11 @@
           });
       }
 
+      aplicarMascaraMoeda();
+      var btnSalvar = document.getElementById('btn-salvar-cenario');
+      if (btnSalvar) btnSalvar.addEventListener('click', salvarCenario);
+      var btnSalvarNovo = document.getElementById('btn-salvar-cenario-novo');
+      if (btnSalvarNovo) btnSalvarNovo.addEventListener('click', salvarCenario);
       carregarDadosBase();
     })();
   </script>
