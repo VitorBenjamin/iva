@@ -101,14 +101,16 @@ def _custo_fixo_mensal_total(projeto: Projeto) -> float:
     return max(total, 0.0)
 
 
-def _custo_variavel_por_noite(projeto: Projeto, ocupacao_media_pessoas: float = 2.0) -> float:
-    """Retorna o custo variável estimado por noite (por quarto), considerando pessoas."""
+def _custo_variavel_por_noite(projeto: Projeto) -> float:
+    """Retorna o custo variável estimado por noite (por quarto), considerando média de pessoas por diária."""
     fin = getattr(projeto, "financeiro", None)
     if not fin or not getattr(fin, "custos_variaveis", None):
         return 0.0
+    media = float(getattr(fin, "media_pessoas_por_diaria", 2.0) or 2.0)
+    media = max(0.1, min(10.0, media))
     cv = fin.custos_variaveis
     por_pessoa = float(cv.cafe_manha) + float(cv.amenities) + float(cv.lavanderia) + float(cv.outros)
-    total = por_pessoa * ocupacao_media_pessoas
+    total = por_pessoa * media
     return max(total, 0.0)
 
 
@@ -439,7 +441,7 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
     total_noites_vendidas = 0.0
     custos_variaveis_anuais = 0.0
     impostos_anuais = 0.0
-    custo_var_noite = _custo_variavel_por_noite(projeto, ocupacao_media_pessoas=2.0)
+    custo_var_noite = _custo_variavel_por_noite(projeto)
     custo_fixo_mensal_total = _custo_fixo_mensal_total(projeto)
 
     soma_pesos_sazonalidade = sum(PESOS_SAZONALIDADE_ARRAIAL.values())

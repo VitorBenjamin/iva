@@ -36,8 +36,21 @@ def calcular_projecao(
 
     numero_quartos = max(projeto.numero_quartos or 1, 1)
     custo_fixo_mensal = _custo_fixo_mensal_total(projeto)
-    custo_var_noite = _custo_variavel_por_noite(projeto, ocupacao_media_pessoas=2.0)
+    custo_var_noite = _custo_variavel_por_noite(projeto)
     dias_por_mes = _dias_normais_especiais_por_mes(projeto)
+
+    # Itens de custo variável: valor_unitario = R$/noite por quarto (já com media_pessoas_por_diaria)
+    fin = getattr(projeto, "financeiro", None)
+    cv = getattr(fin, "custos_variaveis", None) if fin else None
+    media_pessoas = float(getattr(fin, "media_pessoas_por_diaria", 2.0) or 2.0)
+    media_pessoas = max(0.1, min(10.0, media_pessoas))
+    _itens_cv = [
+        ("Café da Manhã", float(getattr(cv, "cafe_manha", 0.0) or 0.0)),
+        ("Amenities", float(getattr(cv, "amenities", 0.0) or 0.0)),
+        ("Lavanderia", float(getattr(cv, "lavanderia", 0.0) or 0.0)),
+        ("Outros", float(getattr(cv, "outros", 0.0) or 0.0)),
+    ]
+    itens_cv_unitarios = [(nome, val * media_pessoas) for nome, val in _itens_cv]
 
     meses_result: list[dict[str, Any]] = []
     receita_anual = 0.0
@@ -88,10 +101,21 @@ def calcular_projecao(
         else:
             break_even_status = "inviavel"
 
+        total_diarias_mes = round(noites_vendidas, 2)
+        detalhe_custos_variaveis = [
+            {
+                "nome": nome,
+                "valor_unitario": round(valor_unit, 2),
+                "subtotal_mensal": round(valor_unit * noites_vendidas, 2),
+            }
+            for nome, valor_unit in itens_cv_unitarios
+        ]
         meses_result.append({
             "mes_ano": mes_ano,
             "dias_mes": dias_mes,
-            "noites_vendidas": round(noites_vendidas, 2),
+            "noites_vendidas": total_diarias_mes,
+            "total_diarias_mes": total_diarias_mes,
+            "detalhe_custos_variaveis": detalhe_custos_variaveis,
             "receita_bruta": round(receita_bruta, 2),
             "custos_fixos": round(custo_fixo_mensal, 2),
             "custos_variaveis": round(custos_variaveis, 2),
