@@ -1,5 +1,6 @@
 # Entry point Flask
 import json
+import os
 import sys
 from datetime import date, datetime
 
@@ -10,8 +11,8 @@ from pydantic import BaseModel, Field, ValidationError
 logger.remove()
 logger.add(sys.stderr, level="INFO")
 
-from core.config import definir_periodos_sazonais
-from core.financeiro.modelos import DadosFinanceiros
+from core.config import definir_calendario_soberano_ano, definir_periodos_sazonais
+from core.financeiro.modelos import DadosFinanceiros, Infraestrutura
 from core.projetos import (
     PROJECTS_DIR,
     ArquivoProjetoNaoEncontrado,
@@ -76,6 +77,7 @@ class CriarProjetoBody(BaseModel):
     faturamento_anual: float = Field(ge=0)
     ano_referencia: int = Field(default_factory=lambda: date.today().year, ge=2000, le=2100)
     financeiro: DadosFinanceiros | None = None
+    infraestrutura: Infraestrutura | None = None
 
 
 class AtualizarProjetoBody(BaseModel):
@@ -87,6 +89,7 @@ class AtualizarProjetoBody(BaseModel):
     faturamento_anual: float | None = None
     ano_referencia: int | None = None
     financeiro: DadosFinanceiros | None = None
+    infraestrutura: Infraestrutura | None = None
 
 
 @app.get("/")
@@ -101,6 +104,37 @@ def api_listar_projetos():
     projetos = listar_projetos()
     dados = [p.model_dump(mode="json") for p in projetos]
     return jsonify({"success": True, "message": "Projetos listados.", "data": dados})
+
+
+@app.get("/api/presets-infraestrutura")
+def api_presets_infraestrutura():
+    """Retorna presets calibrados para infraestrutura (query: tipo_unidade, matriz_energetica, matriz_hidrica, modelo_lavanderia, numero_quartos)."""
+    try:
+        from core.benchmarks import obter_presets_infraestrutura
+    except ImportError as e:
+        logger.warning("benchmarks não disponível: {}", e)
+        return jsonify({"success": False, "message": "Presets não disponíveis.", "data": None}), 500
+    try:
+        tipo_unidade = (request.args.get("tipo_unidade") or "").strip() or None
+        matriz_energetica = (request.args.get("matriz_energetica") or "").strip() or None
+        matriz_hidrica = (request.args.get("matriz_hidrica") or "").strip() or None
+        modelo_lavanderia = (request.args.get("modelo_lavanderia") or "").strip() or None
+        try:
+            numero_quartos = int(request.args.get("numero_quartos", 10))
+        except (TypeError, ValueError):
+            numero_quartos = 10
+        numero_quartos = max(1, min(1000, numero_quartos))
+        data = obter_presets_infraestrutura(
+            tipo_unidade=tipo_unidade,
+            matriz_energetica=matriz_energetica,
+            matriz_hidrica=matriz_hidrica,
+            modelo_lavanderia=modelo_lavanderia,
+            numero_quartos=numero_quartos,
+        )
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.warning("Erro ao obter presets: {}", e)
+        return jsonify({"success": False, "message": str(e), "data": None}), 400
 
 
 @app.post("/projeto")
@@ -133,6 +167,7 @@ def criar_projeto():
         faturamento_anual=payload.faturamento_anual,
         ano_referencia=payload.ano_referencia,
         financeiro=financeiro,
+        infraestrutura=payload.infraestrutura,
         dados_mercado=None,
     )
     salvar_projeto(projeto)
@@ -177,6 +212,8 @@ def api_atualizar_projeto(id: str):
         projeto.ano_referencia = payload.ano_referencia
     if payload.financeiro is not None:
         projeto.financeiro = payload.financeiro
+    if payload.infraestrutura is not None:
+        projeto.infraestrutura = payload.infraestrutura
     salvar_projeto(projeto)
     logger.info("Projeto atualizado via PUT: {}", id)
     return jsonify({
@@ -295,8 +332,8 @@ def _carregar_registros_com_valor_efetivo(id_projeto: str) -> list[dict] | None:
 
 def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
     """Carrega market_bruto e mescla com market_curado.
-    Exibe apenas ESTADIAS coletadas (preco_booking não nulo): cada linha = uma pesquisa (check-in até check-out).
-    Preço exibido = ADR (Preço Total/Noites). Datas especiais agregadas em uma linha por período."""
+    Exibe todas as datas TENTADAS pelo scraper (amostra normais + especiais), com ou sem preço.
+    Registros com preco_booking null (falha) aparecem para ajuste manual. Datas especiais agregadas em uma linha por período."""
     path_bruto = get_market_bruto_path(id_projeto)
     if not path_bruto.exists():
         path_bruto = PROJECTS_DIR / f"market_bruto_{id_projeto}.json"
@@ -374,20 +411,35 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
                 return nome
         return None
 
-    coletados = [r for r in bruto.registros if r.preco_booking is not None]
+    ano_ref = getattr(bruto, "ano", None) or date.today().year
+    noites_cfg = scraper_cfg.get("noites") or {}
+    noites_pref = int(noites_cfg.get("preferencial", 2))
+    amostra = definir_calendario_soberano_ano(
+        ano_referencia=ano_ref,
+        noites=max(1, noites_pref),
+        id_projeto=id_projeto,
+        rolling=True,
+    )
+    checkins_amostra = {p["checkin"] for p in amostra["normais"] + amostra["especiais"]}
+    coletados = [r for r in bruto.registros if r.checkin in checkins_amostra]
+
     registros_normais: list[dict] = []
     registros_especiais_raw: list[dict] = []
     for r in coletados:
         tem_curado = r.checkin in curado_por_checkin
         preco_curado = curado_por_checkin[r.checkin].get("preco_curado") if tem_curado else None
-        status = "Editado (Manual)" if tem_curado else "Original (Booking)"
+        status = "Editado (Manual)" if tem_curado else ("Original (Booking)" if r.preco_booking is not None else "Faltando")
         partes = (r.mes_ano.split("-") + ["", ""])[:2]
         ano, mes = partes[0], partes[1]
         mes_ano_label = f"{MESES_PT.get(mes, mes)}/{ano}" if mes and ano else r.mes_ano
         categoria = getattr(r, "categoria_dia", "normal") or "normal"
         mes_key = mes if mes else ""
         desconto = descontos_por_mes.get(mes_key) if mes_key in descontos_por_mes else desconto_global
-        preco_direto_exibicao = round(float(r.preco_booking) * (1 - float(desconto)), 2) if desconto is not None else r.preco_direto
+        if r.preco_booking is not None and desconto is not None:
+            preco_direto_exibicao = round(float(r.preco_booking) * (1 - float(desconto)), 2)
+        else:
+            preco_direto_exibicao = r.preco_direto
+        preco_falha = r.preco_booking is None or (r.preco_booking == 0)
         row = {
             "checkin": r.checkin,
             "checkout": r.checkout,
@@ -404,8 +456,9 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
             "nome_quarto": r.nome_quarto or "",
             "tipo_tarifa": r.tipo_tarifa or "",
             "noites": r.noites,
+            "preco_falha": preco_falha,
             "preco_booking_fmt": _moeda_br(r.preco_booking),
-            "preco_direto_fmt": _moeda_br(preco_direto_exibicao),
+            "preco_direto_fmt": _moeda_br(preco_direto_exibicao) if preco_direto_exibicao is not None else None,
             "preco_curado_fmt": _moeda_br(preco_curado) if preco_curado is not None else None,
             "periodo_nome": _periodo_para_checkin(r.checkin) if categoria == "especial" else None,
         }
@@ -428,7 +481,8 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
         precos_curado = [g["preco_curado"] for g in grupo if g["preco_curado"] is not None]
         adr_medio = sum(precos_direto) / len(precos_direto) if precos_direto else 0.0
         preco_curado_periodo = sum(precos_curado) / len(precos_curado) if precos_curado else None
-        status = "Editado (Manual)" if all(g["status"] == "Editado (Manual)" for g in grupo) else "Original (Booking)"
+        status = "Editado (Manual)" if all(g["status"] == "Editado (Manual)" for g in grupo) else ("Original (Booking)" if any(g.get("preco_booking") for g in grupo) else "Faltando")
+        preco_falha_agregado = not any(g.get("preco_booking") for g in grupo)
         registros_especiais.append({
             "periodo_nome": periodo_nome,
             "checkin": checkin_ini,
@@ -437,11 +491,12 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
             "checkout_br": _data_br(checkout_fim),
             "checkins": checkins,
             "mes_ano_label": grupo[0]["mes_ano_label"] if grupo else "",
-            "preco_direto": adr_medio,
+            "preco_direto": adr_medio if precos_direto else None,
             "preco_curado": preco_curado_periodo,
-            "preco_direto_fmt": _moeda_br(adr_medio),
+            "preco_direto_fmt": _moeda_br(adr_medio) if precos_direto else None,
             "preco_curado_fmt": _moeda_br(preco_curado_periodo) if preco_curado_periodo is not None else None,
-            "preco_booking_fmt": _moeda_br(grupo[0]["preco_booking"]) if grupo and grupo[0].get("preco_booking") else "—",
+            "preco_booking_fmt": _moeda_br(grupo[0]["preco_booking"]) if grupo and grupo[0].get("preco_booking") else None,
+            "preco_falha": preco_falha_agregado,
             "status": status,
             "nome_quarto": grupo[0].get("nome_quarto", "") if grupo else "",
             "tipo_tarifa": grupo[0].get("tipo_tarifa", "") if grupo else "",
@@ -893,11 +948,14 @@ def api_simulacao_dados_base(id: str):
     custo_var_por_noite = _custo_variavel_por_noite(projeto)
     fin = projeto.financeiro
     financeiro = None
+    media_pessoas_por_diaria = 2.0
     if fin:
+        media_pessoas_por_diaria = float(getattr(fin, "media_pessoas_por_diaria", 2.0) or 2.0)
         financeiro = {
             "custos_fixos": fin.custos_fixos.model_dump() if hasattr(fin.custos_fixos, "model_dump") else {},
             "folha_pagamento_mensal": fin.folha_pagamento_mensal,
             "custos_variaveis": fin.custos_variaveis.model_dump() if hasattr(fin.custos_variaveis, "model_dump") else {},
+            "media_pessoas_por_diaria": media_pessoas_por_diaria,
             "aliquota_impostos": fin.aliquota_impostos,
             "outros_impostos_taxas_percentual": fin.outros_impostos_taxas_percentual,
         }
@@ -907,6 +965,7 @@ def api_simulacao_dados_base(id: str):
             "adr_por_mes": adr_por_mes,
             "custo_fixo_mensal": custo_fixo_mensal,
             "custo_var_por_noite": custo_var_por_noite,
+            "media_pessoas_por_diaria": media_pessoas_por_diaria,
             "numero_quartos": projeto.numero_quartos or 1,
             "ano_referencia": projeto.ano_referencia or 2025,
             "financeiro": financeiro,
@@ -991,13 +1050,13 @@ def _carregar_cenarios(id_projeto: str) -> list[dict]:
 
 
 def _salvar_cenarios(id_projeto: str, cenarios: list[dict]) -> None:
-    """Persiste lista de cenários em simulacao_cenarios.json."""
+    """Persiste lista de cenários em simulacao_cenarios.json com escrita atômica."""
     path = get_simulacao_cenarios_path(id_projeto)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps({"cenarios": cenarios}, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    tmp = path.parent / (path.name + ".tmp")
+    content = json.dumps({"cenarios": cenarios}, ensure_ascii=False, indent=2)
+    tmp.write_text(content, encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def _migrar_simulacao_salva_para_cenarios(id_projeto: str) -> list[dict]:
@@ -1058,18 +1117,16 @@ def api_simulacao_listar_cenarios(id: str):
 
 
 @app.post("/api/projeto/<id>/simulacao/cenarios")
-def api_simulacao_criar_cenario(id: str):
-    """Cria novo cenário com nome, metas_mensais, investimento_inicial e resultado (snapshot)."""
+def api_simulacao_criar_ou_atualizar_cenario(id: str):
+    """Cria ou atualiza cenário. Se body.id for enviado e existir na lista: UPDATE. Senão: CREATE."""
     try:
         carregar_projeto(id)
     except ArquivoProjetoNaoEncontrado:
         return jsonify({"success": False, "message": "Projeto não encontrado", "data": None}), 404
     body = request.get_json(force=True, silent=True) or {}
-    nome = (body.get("nome") or "").strip() or None
+    cid = (body.get("id") or "").strip() or None
     from datetime import datetime
     import uuid
-    if not nome:
-        nome = "Sem nome " + datetime.utcnow().strftime("%Y-%m-%d %H:%M")
     metas_mensais = body.get("metas_mensais") or {}
     investimento_inicial = float(body.get("investimento_inicial") or 0)
     resultado = body.get("resultado")
@@ -1079,6 +1136,22 @@ def api_simulacao_criar_cenario(id: str):
     cenarios = _carregar_cenarios(id)
     if not cenarios:
         cenarios = _migrar_simulacao_salva_para_cenarios(id)
+    idx = next((i for i, c in enumerate(cenarios) if c.get("id") == cid), None)
+    if cid and idx is not None:
+        cenario = cenarios[idx]
+        cenario["nome"] = (body.get("nome") or "").strip() or cenario.get("nome") or "Sem nome"
+        cenario["metas_mensais"] = metas_mensais
+        cenario["investimento_inicial"] = investimento_inicial
+        cenario["resultado"] = resultado
+        _salvar_cenarios(id, cenarios)
+        return jsonify({
+            "success": True,
+            "message": "Cenário atualizado.",
+            "data": {"id": cenario["id"], "nome": cenario["nome"], "criado_em": cenario.get("criado_em")},
+        })
+    nome = (body.get("nome") or "").strip() or None
+    if not nome:
+        nome = "Sem nome " + datetime.utcnow().strftime("%Y-%m-%d %H:%M")
     cenario = {
         "id": str(uuid.uuid4())[:8],
         "nome": nome,
