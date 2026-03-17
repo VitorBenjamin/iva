@@ -87,15 +87,27 @@
           </tr>
           {% for r in grupo.registros %}
           <tr data-checkin="{{ r.checkin }}" data-checkins="{{ r.checkins|join(',') if r.checkins is defined else r.checkin }}" class="table-warning">
-            <td>{{ r.periodo_nome|default(r.mes_ano_label) }}</td>
+            <td><strong>{{ r.periodo_nome|default(r.mes_ano_label) }}</strong></td>
             <td>{{ r.nome_quarto }}{% if r.tipo_tarifa %} — {{ r.tipo_tarifa }}{% endif %}</td>
-            <td>{{ r.preco_booking_fmt }}</td>
-            <td>{{ r.preco_direto_fmt }}</td>
+            <td>
+              {% if r.preco_falha %}
+              <span class="badge bg-danger">Não encontrado</span>
+              {% else %}
+              {{ r.preco_booking_fmt or '—' }}
+              {% endif %}
+            </td>
+            <td>
+              {% if r.preco_falha %}
+              <span class="text-muted">—</span>
+              {% else %}
+              {{ r.preco_direto_fmt or '—' }}
+              {% endif %}
+            </td>
             <td>
               <input type="text" class="form-control form-control-sm input-preco-curado moeda-dashboard" style="max-width: 130px;"
-                     data-checkin="{{ r.checkin }}" data-bruto="{{ r.preco_direto }}"
+                     data-checkin="{{ r.checkin }}" data-bruto="{{ r.preco_direto or '' }}"
                      value="{{ r.preco_curado_fmt if r.preco_curado_fmt else '' }}"
-                     placeholder="{{ r.preco_direto_fmt }}">
+                     placeholder="{{ r.preco_direto_fmt if r.preco_direto_fmt else 'Informe o valor' }}">
             </td>
             <td>
               {% if r.status == 'Editado (Manual)' %}
@@ -147,13 +159,25 @@
           <tr data-checkin="{{ r.checkin }}">
             <td>{{ r.mes_ano_label }}</td>
             <td>{{ r.nome_quarto }}{% if r.tipo_tarifa %} — {{ r.tipo_tarifa }}{% endif %}</td>
-            <td>{{ r.preco_booking_fmt }}</td>
-            <td>{{ r.preco_direto_fmt }}</td>
+            <td>
+              {% if r.preco_falha %}
+              <span class="badge bg-danger">Não encontrado</span>
+              {% else %}
+              {{ r.preco_booking_fmt or '—' }}
+              {% endif %}
+            </td>
+            <td>
+              {% if r.preco_falha %}
+              <span class="text-muted">—</span>
+              {% else %}
+              {{ r.preco_direto_fmt or '—' }}
+              {% endif %}
+            </td>
             <td>
               <input type="text" class="form-control form-control-sm input-preco-curado moeda-dashboard" style="max-width: 130px;"
-                     data-checkin="{{ r.checkin }}" data-bruto="{{ r.preco_direto }}"
+                     data-checkin="{{ r.checkin }}" data-bruto="{{ r.preco_direto or '' }}"
                      value="{{ r.preco_curado_fmt if r.preco_curado_fmt else '' }}"
-                     placeholder="{{ r.preco_direto_fmt }}">
+                     placeholder="{{ r.preco_direto_fmt if r.preco_direto_fmt else 'Informe o valor' }}">
             </td>
             <td>
               {% if r.status == 'Editado (Manual)' %}

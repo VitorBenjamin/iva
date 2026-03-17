@@ -55,6 +55,67 @@
     </section>
 
     <section class="card mb-4">
+      <div class="card-header">Infraestrutura</div>
+      <div class="card-body">
+        <p class="text-muted small mb-3" id="infraestrutura-dica">Selecione um projeto para carregar os dados.</p>
+        <div id="painel-infraestrutura" class="d-none">
+          <label class="form-label small">Tipo de unidade</label>
+          <div class="btn-group w-100 mb-3" role="group">
+            <button type="button" class="btn btn-outline-primary infra-btn" data-infra="tipo_unidade" data-value="quarto_standard">🏠 Quarto Standard</button>
+            <button type="button" class="btn btn-outline-primary infra-btn" data-infra="tipo_unidade" data-value="chale_com_cozinha">🏡 Chalé c/ Cozinha</button>
+            <button type="button" class="btn btn-outline-primary infra-btn" data-infra="tipo_unidade" data-value="apartamento">🏢 Apartamento</button>
+          </div>
+          <select id="infra-tipo-unidade" class="d-none">
+            <option value="">— Não informado —</option>
+            <option value="quarto_standard">Quarto Standard</option>
+            <option value="chale_com_cozinha">Chalé com Cozinha</option>
+            <option value="apartamento">Apartamento</option>
+          </select>
+
+          <label class="form-label small">Matriz energética</label>
+          <div class="btn-group w-100 mb-3" role="group">
+            <button type="button" class="btn btn-outline-primary infra-btn" data-infra="matriz_energetica" data-value="rede_concessionaria">⚡ Rede Elétrica</button>
+            <button type="button" class="btn btn-outline-primary infra-btn" data-infra="matriz_energetica" data-value="energia_solar">☀️ Energia Solar</button>
+          </div>
+          <select id="infra-matriz-energetica" class="d-none">
+            <option value="">— Não informado —</option>
+            <option value="rede_concessionaria">Rede concessionária</option>
+            <option value="energia_solar">Energia solar</option>
+          </select>
+
+          <label class="form-label small">Matriz hídrica</label>
+          <div class="btn-group w-100 mb-3" role="group">
+            <button type="button" class="btn btn-outline-primary infra-btn" data-infra="matriz_hidrica" data-value="rede_concessionaria">💧 Rede (Rua)</button>
+            <button type="button" class="btn btn-outline-primary infra-btn" data-infra="matriz_hidrica" data-value="poco_artesiano">🌊 Poço Artesiano</button>
+          </div>
+          <select id="infra-matriz-hidrica" class="d-none">
+            <option value="">— Não informado —</option>
+            <option value="rede_concessionaria">Rede concessionária</option>
+            <option value="poco_artesiano">Poço artesiano</option>
+          </select>
+
+          <label class="form-label small">Modelo de lavanderia</label>
+          <div class="btn-group w-100 mb-3" role="group">
+            <button type="button" class="btn btn-outline-primary infra-btn" data-infra="modelo_lavanderia" data-value="interna">🧺 Interna</button>
+            <button type="button" class="btn btn-outline-primary infra-btn" data-infra="modelo_lavanderia" data-value="externa_terceirizada">🚚 Terceirizada</button>
+          </div>
+          <select id="infra-modelo-lavanderia" class="d-none">
+            <option value="">— Não informado —</option>
+            <option value="interna">Interna</option>
+            <option value="externa_terceirizada">Externa (terceirizada)</option>
+          </select>
+
+          <button type="button" id="btn-calibrar" class="btn btn-outline-success mt-3" disabled>
+            ✨ Calibrar com Médias de Mercado
+          </button>
+          <small class="text-muted d-block mt-1">
+            Preenche média de pessoas e custos sugeridos com base no perfil selecionado. Você pode editar os valores depois.
+          </small>
+        </div>
+      </div>
+    </section>
+
+    <section class="card mb-4">
       <div class="card-header">Configuração Financeira</div>
       <div class="card-body">
         <p class="text-muted small mb-3" id="financeiro-dica">Selecione um projeto para carregar os dados.</p>
@@ -81,11 +142,18 @@
               <input type="text" id="fin-folha" class="form-control form-control-sm moeda">
             </div>
           </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-4">
+              <label class="form-label small">Média de Pessoas por Quarto</label>
+              <span class="ms-1" data-bs-toggle="tooltip" title="Média de pessoas por diária vendida. Usado para calcular custo variável por noite (ex.: 2,13)."><i class="bi bi-question-circle text-muted small"></i></span>
+              <input type="number" id="fin-media-pessoas" class="form-control form-control-sm" step="0.01" min="0.1" max="10" value="2" placeholder="2">
+            </div>
+          </div>
           <h6 class="mb-2">Custos variáveis por noite</h6>
           <div class="row g-2 mb-3">
             <div class="col-md-3">
               <label class="form-label small">Café da manhã</label>
-              <span class="ms-1" data-bs-toggle="tooltip" title="Custo por pessoa/dia. Multiplicado pela ocupação estimada."><i class="bi bi-question-circle text-muted small"></i></span>
+              <span class="ms-1" data-bs-toggle="tooltip" title="Custo por pessoa/dia. Multiplicado pela média de pessoas por quarto."><i class="bi bi-question-circle text-muted small"></i></span>
               <input type="text" id="fin-cafe" class="form-control form-control-sm moeda">
             </div>
             <div class="col-md-3"><label class="form-label small">Amenities</label><input type="text" id="fin-amenities" class="form-control form-control-sm moeda"></div>

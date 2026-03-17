@@ -41,6 +41,20 @@
     el.value = formatarMoedaBR(valor);
   }
 
+  function coletarInfraestruturaDoForm() {
+    var el = function (id) { return document.getElementById(id); };
+    var v = function (id) {
+      var e = el(id);
+      return (e && e.value && e.value.trim()) ? e.value.trim() : null;
+    };
+    return {
+      tipo_unidade: v('infra-tipo-unidade'),
+      matriz_energetica: v('infra-matriz-energetica'),
+      matriz_hidrica: v('infra-matriz-hidrica'),
+      modelo_lavanderia: v('infra-modelo-lavanderia')
+    };
+  }
+
   function coletarFinanceiroDoForm() {
     var el = function (id) { return document.getElementById(id); };
     var cf = {
@@ -62,14 +76,17 @@
     var aliquota = parseFloat(el('fin-aliquota').value) || 0;
     var contingencia = parseFloat(el('fin-contingencia').value) || 0;
     var outrosImpostos = parseFloat(el('fin-outros-impostos').value) || 0;
+    var mediaPessoas = parseFloat(el('fin-media-pessoas').value) || 2;
     if (aliquota > 1) aliquota = aliquota / 100;
     if (contingencia > 1) contingencia = contingencia / 100;
     if (outrosImpostos > 1) outrosImpostos = outrosImpostos / 100;
+    mediaPessoas = Math.max(0.1, Math.min(10, mediaPessoas));
     return {
       custos_fixos: cf,
       folha_pagamento_mensal: valorMoeda(el('fin-folha')) || 0,
       funcionarios: [],
       custos_variaveis: cv,
+      media_pessoas_por_diaria: mediaPessoas,
       aliquota_impostos: aliquota,
       percentual_contingencia: contingencia,
       outros_impostos_taxas_percentual: outrosImpostos
@@ -122,6 +139,41 @@
     definirMoeda(document.getElementById('criar-faturamento'), projeto.faturamento_anual);
     document.getElementById('criar-ano').value = projeto.ano_referencia || new Date().getFullYear();
 
+    var inf = projeto.infraestrutura;
+    var selIds = ['infra-tipo-unidade', 'infra-matriz-energetica', 'infra-matriz-hidrica', 'infra-modelo-lavanderia'];
+    var dimMap = { 'infra-tipo-unidade': 'tipo_unidade', 'infra-matriz-energetica': 'matriz_energetica', 'infra-matriz-hidrica': 'matriz_hidrica', 'infra-modelo-lavanderia': 'modelo_lavanderia' };
+    if (inf) {
+      selIds.forEach(function (id) {
+        var key = dimMap[id];
+        var val = (inf[key] && inf[key].trim()) ? inf[key] : '';
+        var e = document.getElementById(id);
+        if (e) e.value = val;
+        var btn = document.querySelector('.infra-btn[data-infra="' + key + '"][data-value="' + val + '"]');
+        document.querySelectorAll('.infra-btn[data-infra="' + key + '"]').forEach(function (b) {
+          b.classList.remove('active', 'btn-primary');
+          b.classList.add('btn-outline-primary');
+        });
+        if (btn && val) {
+          btn.classList.add('active', 'btn-primary');
+          btn.classList.remove('btn-outline-primary');
+        }
+      });
+    } else {
+      selIds.forEach(function (id) {
+        var e = document.getElementById(id);
+        if (e) e.value = '';
+        var key = dimMap[id];
+        document.querySelectorAll('.infra-btn[data-infra="' + key + '"]').forEach(function (b) {
+          b.classList.remove('active', 'btn-primary');
+          b.classList.add('btn-outline-primary');
+        });
+      });
+    }
+    document.getElementById('infraestrutura-dica').classList.add('d-none');
+    document.getElementById('painel-infraestrutura').classList.remove('d-none');
+    var btnCalibrar = document.getElementById('btn-calibrar');
+    if (btnCalibrar) btnCalibrar.disabled = !(document.getElementById('infra-tipo-unidade').value || '').trim();
+
     var fin = projeto.financeiro;
     if (fin && fin.custos_fixos) {
       var cf = fin.custos_fixos;
@@ -143,6 +195,11 @@
       definirMoeda(document.getElementById('fin-amenities'), cv.amenities);
       definirMoeda(document.getElementById('fin-lavanderia'), cv.lavanderia);
       definirMoeda(document.getElementById('fin-outros-var'), cv.outros);
+    }
+    var mediaPessoasEl = document.getElementById('fin-media-pessoas');
+    if (mediaPessoasEl) {
+      var mp = (fin && fin.media_pessoas_por_diaria != null) ? Number(fin.media_pessoas_por_diaria) : 2;
+      mediaPessoasEl.value = (mp >= 0.1 && mp <= 10) ? mp : 2;
     }
     if (fin) {
       var aliquotaVal = fin.aliquota_impostos != null ? fin.aliquota_impostos : '';
@@ -171,6 +228,8 @@
   function limparSelecao() {
     document.getElementById('financeiro-dica').classList.remove('d-none');
     document.getElementById('painel-financeiro').classList.add('d-none');
+    document.getElementById('infraestrutura-dica').classList.remove('d-none');
+    document.getElementById('painel-infraestrutura').classList.add('d-none');
     var linkCuradoria = document.getElementById('link-curadoria');
     if (linkCuradoria) {
       linkCuradoria.href = '#';
@@ -201,9 +260,21 @@
     definirMoeda(document.getElementById('fin-amenities'), 0);
     definirMoeda(document.getElementById('fin-lavanderia'), 0);
     definirMoeda(document.getElementById('fin-outros-var'), 0);
+    var finMedia = document.getElementById('fin-media-pessoas');
+    if (finMedia) finMedia.value = '2';
     document.getElementById('fin-aliquota').value = '';
     document.getElementById('fin-contingencia').value = '';
     document.getElementById('fin-outros-impostos').value = '';
+    document.getElementById('infra-tipo-unidade').value = '';
+    document.getElementById('infra-matriz-energetica').value = '';
+    document.getElementById('infra-matriz-hidrica').value = '';
+    document.getElementById('infra-modelo-lavanderia').value = '';
+    document.querySelectorAll('.infra-btn').forEach(function (b) {
+      b.classList.remove('active', 'btn-primary');
+      b.classList.add('btn-outline-primary');
+    });
+    var btnCalibrar = document.getElementById('btn-calibrar');
+    if (btnCalibrar) btnCalibrar.disabled = true;
     document.getElementById('seletor-projeto').value = '';
     limparSelecao();
     var btnSubmit = document.getElementById('btn-submit-ativo');
@@ -226,7 +297,8 @@
       numero_quartos: parseInt(document.getElementById('criar-quartos').value, 10) || 1,
       faturamento_anual: faturamento,
       ano_referencia: parseInt(document.getElementById('criar-ano').value, 10) || new Date().getFullYear(),
-      financeiro: coletarFinanceiroDoForm()
+      financeiro: coletarFinanceiroDoForm(),
+      infraestrutura: coletarInfraestruturaDoForm()
     };
 
     btn.disabled = true;
@@ -284,6 +356,93 @@
     }
   }
 
+  function aplicarPresets() {
+    var infra = coletarInfraestruturaDoForm();
+    var numeroQuartos = parseInt(document.getElementById('criar-quartos').value, 10) || 10;
+    var params = new URLSearchParams({
+      tipo_unidade: infra.tipo_unidade || 'quarto_standard',
+      numero_quartos: String(numeroQuartos)
+    });
+    if (infra.matriz_energetica) params.set('matriz_energetica', infra.matriz_energetica);
+    if (infra.matriz_hidrica) params.set('matriz_hidrica', infra.matriz_hidrica);
+    if (infra.modelo_lavanderia) params.set('modelo_lavanderia', infra.modelo_lavanderia);
+    fetch('/api/presets-infraestrutura?' + params.toString())
+      .then(function (r) { return r.json(); })
+      .then(function (json) {
+        if (!json.success || !json.data) {
+          mostrarToast(json.message || 'Erro ao obter presets.', false);
+          return;
+        }
+        var d = json.data;
+        var cafeEl = document.getElementById('fin-cafe');
+        var lavEl = document.getElementById('fin-lavanderia');
+        var luzEl = document.getElementById('fin-luz');
+        var aguaEl = document.getElementById('fin-agua');
+        var mediaEl = document.getElementById('fin-media-pessoas');
+        var temCafe = valorMoeda(cafeEl) > 0;
+        var temLav = valorMoeda(lavEl) > 0;
+        var temLuz = valorMoeda(luzEl) > 0;
+        var temAgua = valorMoeda(aguaEl) > 0;
+        var algumPreenchido = temCafe || temLav || temLuz || temAgua;
+        function aplicar(substituirTudo) {
+          if (mediaEl) mediaEl.value = String(d.media_pessoas_por_diaria);
+          if (substituirTudo || !temCafe) definirMoeda(cafeEl, d.cafe_manha);
+          if (substituirTudo || !temLav) definirMoeda(lavEl, d.lavanderia);
+          if (substituirTudo || !temLuz) definirMoeda(luzEl, d.sugestao_luz);
+          if (substituirTudo || !temAgua) definirMoeda(aguaEl, d.sugestao_agua);
+          mostrarToast('Valores calibrados aplicados. Revise e ajuste conforme necessário.', true);
+        }
+        if (!algumPreenchido) {
+          aplicar(true);
+          return;
+        }
+        var modalEl = document.getElementById('modal-calibrar-confirm');
+        if (!modalEl) {
+          modalEl = document.createElement('div');
+          modalEl.id = 'modal-calibrar-confirm';
+          modalEl.className = 'modal fade';
+          modalEl.setAttribute('tabindex', '-1');
+          modalEl.innerHTML =
+            '<div class="modal-dialog modal-dialog-centered">' +
+            '  <div class="modal-content">' +
+            '    <div class="modal-header"><h5 class="modal-title">Calibrar com benchmark</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>' +
+            '    <div class="modal-body">Alguns campos já têm valor. Deseja substituir pelos valores calibrados ou preencher apenas os campos vazios?</div>' +
+            '    <div class="modal-footer">' +
+            '      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>' +
+            '      <button type="button" class="btn btn-outline-primary" id="btn-calibrar-vazios">Preencher vazios</button>' +
+            '      <button type="button" class="btn btn-success" id="btn-calibrar-tudo">Substituir tudo</button>' +
+            '    </div>' +
+            '  </div>' +
+            '</div>';
+          document.body.appendChild(modalEl);
+        }
+        var modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        var btnTudo = document.getElementById('btn-calibrar-tudo');
+        var btnVazios = document.getElementById('btn-calibrar-vazios');
+        function off() {
+          if (btnTudo) btnTudo.removeEventListener('click', onTudo);
+          if (btnVazios) btnVazios.removeEventListener('click', onVazios);
+        }
+        function onTudo() {
+          off();
+          modal.hide();
+          aplicar(true);
+        }
+        function onVazios() {
+          off();
+          modal.hide();
+          aplicar(false);
+        }
+        if (btnTudo) btnTudo.addEventListener('click', onTudo);
+        if (btnVazios) btnVazios.addEventListener('click', onVazios);
+        modalEl.addEventListener('hidden.bs.modal', function () { off(); }, { once: true });
+      })
+      .catch(function () {
+        mostrarToast('Erro de conexão ao obter presets.', false);
+      });
+  }
+
   function salvarConfiguracoesFinanceiras() {
     var id = document.getElementById('seletor-projeto').value;
     if (!id) {
@@ -292,7 +451,10 @@
     }
     var btn = document.getElementById('btn-salvar-financeiro');
     if (btn) btn.disabled = true;
-    var payload = { financeiro: coletarFinanceiroDoForm() };
+    var payload = {
+      financeiro: coletarFinanceiroDoForm(),
+      infraestrutura: coletarInfraestruturaDoForm()
+    };
     fetch('/api/projeto/' + encodeURIComponent(id), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -345,6 +507,46 @@
     });
 
     document.getElementById('form-criar-projeto').addEventListener('submit', enviarFormAtivo);
+
+    var tipoUnidadeEl = document.getElementById('infra-tipo-unidade');
+    if (tipoUnidadeEl) {
+      tipoUnidadeEl.addEventListener('change', function () {
+        var mediaEl = document.getElementById('fin-media-pessoas');
+        if (!mediaEl) return;
+        var v = (this.value || '').trim();
+        if (v === 'chale_com_cozinha') mediaEl.value = '2.46';
+        else if (v === 'quarto_standard') mediaEl.value = '2.1';
+        else if (v === 'apartamento') mediaEl.value = '2.2';
+      });
+    }
+
+    var selectIdPorDim = { tipo_unidade: 'infra-tipo-unidade', matriz_energetica: 'infra-matriz-energetica', matriz_hidrica: 'infra-matriz-hidrica', modelo_lavanderia: 'infra-modelo-lavanderia' };
+    document.querySelectorAll('.infra-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var dim = this.getAttribute('data-infra');
+        var val = this.getAttribute('data-value') || '';
+        var selectId = selectIdPorDim[dim];
+        var sel = selectId ? document.getElementById(selectId) : null;
+        document.querySelectorAll('.infra-btn[data-infra="' + dim + '"]').forEach(function (b) {
+          b.classList.remove('active', 'btn-primary');
+          b.classList.add('btn-outline-primary');
+        });
+        this.classList.add('active', 'btn-primary');
+        this.classList.remove('btn-outline-primary');
+        if (sel) {
+          sel.value = val;
+          sel.dispatchEvent(new Event('change'));
+        }
+        var btnCalibrar = document.getElementById('btn-calibrar');
+        if (btnCalibrar) {
+          var tipoVal = (document.getElementById('infra-tipo-unidade') || {}).value || '';
+          btnCalibrar.disabled = !tipoVal.trim();
+        }
+      });
+    });
+
+    var btnCalibrar = document.getElementById('btn-calibrar');
+    if (btnCalibrar) btnCalibrar.addEventListener('click', aplicarPresets);
 
     var btnNovo = document.getElementById('btn-novo-ativo');
     if (btnNovo) btnNovo.addEventListener('click', limparFormularioCompleto);

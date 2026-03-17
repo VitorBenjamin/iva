@@ -59,6 +59,38 @@
           </div>
         </div>
       </div>
+      <div class="col-md-3">
+        <div class="card card-metric border-secondary shadow-sm h-100">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase">Break-even Ocupação</div>
+            <div class="valor text-secondary" id="card-breakeven-ocupacao">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráficos: Evolução do Lucro Mensal e Sensibilidade (Ocupação) -->
+    <div class="row g-3 mb-4">
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white fw-bold">
+            <i class="bi bi-graph-up me-1"></i> Evolução do Lucro Mensal
+          </div>
+          <div class="card-body" style="height: 280px;">
+            <canvas id="chart-evolucao-mensal"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white fw-bold">
+            <i class="bi bi-graph-up-arrow me-1"></i> Sensibilidade: Lucro vs. Ocupação
+          </div>
+          <div class="card-body" style="height: 280px;">
+            <canvas id="chart-sensibilidade-ocupacao"></canvas>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Estrutura de Custos (somente leitura) -->
@@ -72,6 +104,34 @@
         <div class="card-body">
           <div id="custos-conteudo" class="small">
             <p class="text-muted mb-0">Carregue os dados para exibir a estrutura de custos.</p>
+          </div>
+          <hr class="my-3">
+          <p class="small fw-bold mb-2"><i class="bi bi-calculator-fill me-1"></i> Memória de cálculo — custos variáveis por mês</p>
+          <p class="small text-muted mb-2" id="premissa-pessoas-diaria">Premissa: — pessoas/diária (média histórica).</p>
+          <div class="mb-2">
+            <label class="form-label small mb-0">Mês</label>
+            <select id="select-mes-custos-var" class="form-select form-select-sm" style="max-width: 200px;">
+              <option value="">Selecione o mês</option>
+            </select>
+          </div>
+          <p class="small mb-1"><strong>Diárias previstas:</strong> <span id="diarias-previstas-mes">—</span></p>
+          <div class="table-responsive small">
+            <table class="table table-sm table-bordered mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Item</th>
+                  <th class="text-end">Custo unitário (R$/noite)</th>
+                  <th class="text-end">Diárias</th>
+                  <th class="text-end">Subtotal (R$)</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-detalhe-custos-var">
+                <tr><td colspan="4" class="text-muted">Execute o cálculo e selecione um mês.</td></tr>
+              </tbody>
+              <tfoot class="table-light" id="tfoot-total-custos-var" style="display: none;">
+                <tr><th colspan="3" class="text-end">Custo variável total do mês</th><th class="text-end" id="total-custos-var-mes">—</th></tr>
+              </tfoot>
+            </table>
           </div>
         </div>
       </div>
@@ -146,14 +206,23 @@
 
     <!-- Cenários salvos -->
     <div class="card shadow-sm mt-4 mb-4">
-      <div class="card-header bg-white d-flex align-items-center justify-content-between">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between flex-wrap gap-2">
         <span class="fw-bold"><i class="bi bi-folder2 me-1"></i> Cenários salvos</span>
-        <button type="button" class="btn btn-primary btn-sm" id="btn-salvar-cenario-novo" title="Salvar cenário atual com um nome">
-          💾 Salvar cenário
-        </button>
+        <div class="d-flex flex-wrap gap-1">
+          <span class="align-self-center small text-muted" id="label-cenario-ativo" style="display: none;">Editando: <strong id="nome-cenario-ativo"></strong></span>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-limpar-cenario" title="Limpar seleção e editar como novo cenário">
+            Limpar
+          </button>
+          <button type="button" class="btn btn-success btn-sm" id="btn-salvar-cenario" title="Salvar (atualiza o cenário em edição ou cria novo)">
+            💾 Salvar
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-salvar-cenario-novo" title="Sempre criar um novo cenário com nome">
+            Salvar como Novo
+          </button>
+        </div>
       </div>
       <div class="card-body">
-        <p class="text-muted small mb-2">Carregue um cenário para preencher metas e investimento; você pode recalcular depois.</p>
+        <p class="text-muted small mb-2">Carregue um cenário para preencher metas e investimento; use Salvar para atualizar ou Salvar como Novo para criar cópia.</p>
         <ul class="list-group list-group-flush" id="lista-cenarios">
           <li class="list-group-item text-muted small" id="lista-cenarios-vazia">Nenhum cenário salvo. Salve o cenário atual para começar.</li>
         </ul>
@@ -190,7 +259,11 @@
       var graficoSensibilidade = null;
       var graficoBarras = null;
       var graficoCurvaOcupacao = null;
+      var chartEvolucaoMensal = null;
+      var chartSensibilidadeOcupacao = null;
       var ultimoResultado = null;
+      var cenarioAtivoId = null;
+      var cenarioAtivoNome = null;
 
       function formatarMoeda(val) {
         if (val == null || isNaN(val)) return 'R$ 0,00';
@@ -259,6 +332,11 @@
       }
 
       function renderizarCustos(dados) {
+        var premissaEl = document.getElementById('premissa-pessoas-diaria');
+        if (premissaEl && dados) {
+          var media = dados.media_pessoas_por_diaria != null ? Number(dados.media_pessoas_por_diaria) : 2;
+          premissaEl.textContent = 'Premissa: ' + (media % 1 === 0 ? media : media.toFixed(2)) + ' pessoas/diária (média histórica).';
+        }
         var el = document.getElementById('custos-conteudo');
         if (!el) return;
         var fin = dados && dados.financeiro;
@@ -388,18 +466,33 @@
         }
       }
 
-      function salvarCenario() {
+      function atualizarUIPerfilCenario() {
+        var label = document.getElementById('label-cenario-ativo');
+        var nomeEl = document.getElementById('nome-cenario-ativo');
+        if (cenarioAtivoId && label && nomeEl) {
+          label.style.display = '';
+          nomeEl.textContent = cenarioAtivoNome || 'Sem nome';
+        } else if (label) {
+          label.style.display = 'none';
+        }
+      }
+
+      function salvarCenario(comoNovo) {
         if (!dadosCarregados) return;
-        var nome = (prompt('Nome do cenário:', '') || '').trim();
-        if (nome === '') nome = 'Sem nome ' + new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
         var metas = coletarMetas();
         var invest = valorMoedaInput(document.getElementById('investimento_inicial'));
         var payload = {
-          nome: nome,
           metas_mensais: metas,
           investimento_inicial: invest,
           resultado: ultimoResultado || null
         };
+        if (comoNovo || !cenarioAtivoId) {
+          var nome = (prompt('Nome do cenário:', '') || '').trim();
+          if (nome === '') nome = 'Sem nome ' + new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+          payload.nome = nome;
+        } else {
+          payload.id = cenarioAtivoId;
+        }
         fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/cenarios', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -408,8 +501,16 @@
           .then(function (res) { return res.json(); })
           .then(function (json) {
             if (json.success) {
+              if (comoNovo) {
+                cenarioAtivoId = null;
+                cenarioAtivoNome = null;
+                atualizarUIPerfilCenario();
+              } else if (payload.id) {
+                cenarioAtivoNome = json.data && json.data.nome ? json.data.nome : cenarioAtivoNome;
+                atualizarUIPerfilCenario();
+              }
               listarCenarios();
-              mostrarToast('Cenário salvo.', true);
+              mostrarToast(json.message || 'Cenário salvo.', true);
             } else {
               mostrarToast(json.message || 'Erro ao salvar cenário.', false);
             }
@@ -434,6 +535,8 @@
               atualizarTabelaComResultado(json.data);
               if (json.data.resumo) atualizarCards(json.data.resumo);
               atualizarGrafico(json.data);
+              atualizarGraficos(json.data);
+              atualizarDetalheCustosVar(json.data);
               buscarCurvaSensibilidade();
             }
           })
@@ -441,6 +544,134 @@
             setLoading(false);
             mostrarMsg('erro', 'Erro ao calcular projeção.');
           });
+      }
+
+      function inicializarChartEvolucaoMensal() {
+        var ctx = document.getElementById('chart-evolucao-mensal');
+        if (!ctx || typeof Chart === 'undefined') return;
+        chartEvolucaoMensal = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: mesesNomes,
+            datasets: [
+              {
+                label: 'Lucro Líquido (R$)',
+                data: [],
+                borderWidth: 2,
+                tension: 0.2,
+                fill: false,
+                pointRadius: 4,
+                segment: {
+                  borderColor: function (ctx) {
+                    var y0 = ctx.p0.parsed.y;
+                    var y1 = ctx.p1.parsed.y;
+                    return (y0 >= 0 && y1 >= 0) ? 'rgb(13, 110, 253)' : 'rgb(220, 53, 69)';
+                  }
+                },
+                pointBackgroundColor: function (ctx) {
+                  return ctx.raw >= 0 ? 'rgb(13, 110, 253)' : 'rgb(220, 53, 69)';
+                },
+                pointBorderColor: function (ctx) {
+                  return ctx.raw >= 0 ? 'rgb(13, 110, 253)' : 'rgb(220, 53, 69)';
+                }
+              },
+              {
+                label: 'Zero',
+                data: [],
+                borderColor: 'rgba(0,0,0,0.35)',
+                borderWidth: 1,
+                borderDash: [4, 4],
+                pointRadius: 0,
+                fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    if (ctx.datasetIndex === 1) return ctx.dataset.label + ': R$ 0,00';
+                    return ctx.dataset.label + ': ' + formatarMoeda(ctx.raw);
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { callback: function (v) { return 'R$ ' + Number(v).toLocaleString('pt-BR'); } }
+              }
+            }
+          }
+        });
+      }
+
+      function inicializarChartSensibilidadeOcupacao() {
+        var ctx = document.getElementById('chart-sensibilidade-ocupacao');
+        if (!ctx || typeof Chart === 'undefined') return;
+        chartSensibilidadeOcupacao = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: [],
+            datasets: [
+              {
+                label: 'Lucro Anual (R$)',
+                data: [],
+                borderColor: 'rgb(13, 110, 253)',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                borderWidth: 2,
+                tension: 0.2,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: function (ctx) {
+                  return ctx.raw >= 0 ? 'rgb(13, 110, 253)' : 'rgb(220, 53, 69)';
+                },
+                pointBorderColor: function (ctx) {
+                  return ctx.raw >= 0 ? 'rgb(13, 110, 253)' : 'rgb(220, 53, 69)';
+                }
+              },
+              {
+                label: 'Zero',
+                data: [],
+                borderColor: 'rgba(0,0,0,0.35)',
+                borderWidth: 1,
+                borderDash: [4, 4],
+                pointRadius: 0,
+                fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    if (ctx.datasetIndex === 1) return ctx.dataset.label + ': R$ 0,00';
+                    var pct = ctx.dataIndex < ctx.chart.data.labels.length ? (Number(ctx.chart.data.labels[ctx.dataIndex]) * 100) : 0;
+                    return 'Ocupação ' + pct + '%: ' + formatarMoeda(ctx.raw);
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                title: { display: true, text: 'Ocupação (%)' },
+                ticks: { callback: function (_, i, vals) { var v = vals[i]; return (Number(v) * 100) + '%'; } }
+              },
+              y: {
+                beginAtZero: true,
+                ticks: { callback: function (v) { return 'R$ ' + Number(v).toLocaleString('pt-BR'); } }
+              }
+            }
+          }
+        });
       }
 
       function inicializarGraficoSensibilidade() {
@@ -471,6 +702,94 @@
             }
           }
         });
+      }
+
+      function atualizarDetalheCustosVar(resultado) {
+        var select = document.getElementById('select-mes-custos-var');
+        var diariasEl = document.getElementById('diarias-previstas-mes');
+        var tbody = document.getElementById('tbody-detalhe-custos-var');
+        var tfoot = document.getElementById('tfoot-total-custos-var');
+        var totalEl = document.getElementById('total-custos-var-mes');
+        if (!select || !diariasEl || !tbody) return;
+        if (!resultado || !resultado.meses || resultado.meses.length === 0) {
+          select.innerHTML = '<option value="">Selecione o mês</option>';
+          diariasEl.textContent = '—';
+          tbody.innerHTML = '<tr><td colspan="4" class="text-muted">Execute o cálculo e selecione um mês.</td></tr>';
+          if (tfoot) tfoot.style.display = 'none';
+          return;
+        }
+        var meses = resultado.meses;
+        var selected = select.value;
+        select.innerHTML = '';
+        meses.forEach(function (m, i) {
+          var parts = (m.mes_ano || '').split('-');
+          var ano = parts[0] || anoRef;
+          var mesNum = parseInt(parts[1], 10) || (i + 1);
+          var label = (mesesNomes[mesNum - 1] || '') + ' ' + ano;
+          var opt = document.createElement('option');
+          opt.value = m.mes_ano || '';
+          opt.textContent = label;
+          select.appendChild(opt);
+        });
+        if (!selected || !meses.some(function (m) { return m.mes_ano === selected; })) {
+          selected = meses[0] && meses[0].mes_ano ? meses[0].mes_ano : '';
+          select.value = selected;
+        }
+        function preencherTabela(mes) {
+          if (!mes) {
+            diariasEl.textContent = '—';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-muted">Selecione um mês.</td></tr>';
+            if (tfoot) tfoot.style.display = 'none';
+            return;
+          }
+          var diarias = mes.total_diarias_mes != null ? mes.total_diarias_mes : mes.noites_vendidas;
+          diariasEl.textContent = typeof diarias === 'number' ? diarias.toLocaleString('pt-BR') : (diarias || '—');
+          var detalhes = mes.detalhe_custos_variaveis || [];
+          var total = 0;
+          tbody.innerHTML = '';
+          detalhes.forEach(function (d) {
+            var sub = d.subtotal_mensal != null ? d.subtotal_mensal : 0;
+            total += sub;
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+              '<td>' + (d.nome || '') + '</td>' +
+              '<td class="text-end">' + formatarMoeda(d.valor_unitario) + '</td>' +
+              '<td class="text-end">× ' + (typeof diarias === 'number' ? diarias.toLocaleString('pt-BR') : diarias) + '</td>' +
+              '<td class="text-end">= ' + formatarMoeda(sub) + '</td>';
+            tbody.appendChild(tr);
+          });
+          if (detalhes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-muted">Nenhum item de custo variável.</td></tr>';
+          }
+          if (tfoot && totalEl) {
+            totalEl.textContent = formatarMoeda(total);
+            tfoot.style.display = detalhes.length ? '' : 'none';
+          }
+        }
+        var mesSel = meses.find(function (m) { return m.mes_ano === selected; });
+        preencherTabela(mesSel || null);
+        select.onchange = function () {
+          var m = meses.find(function (x) { return x.mes_ano === select.value; });
+          preencherTabela(m || null);
+        };
+      }
+
+      function atualizarGraficos(resultado) {
+        if (!resultado || !resultado.meses || typeof Chart === 'undefined') return;
+        var meses = resultado.meses;
+        var labels = meses.map(function (m) {
+          var parts = (m.mes_ano || '').split('-');
+          var mesNum = parseInt(parts[1], 10) || 0;
+          return mesesNomes[mesNum - 1] || m.mes_ano || '';
+        });
+        var lucros = meses.map(function (m) { return m.lucro_liquido != null ? m.lucro_liquido : 0; });
+        var zeros = lucros.map(function () { return 0; });
+        if (chartEvolucaoMensal) {
+          chartEvolucaoMensal.data.labels = labels;
+          chartEvolucaoMensal.data.datasets[0].data = lucros;
+          chartEvolucaoMensal.data.datasets[1].data = zeros;
+          chartEvolucaoMensal.update();
+        }
       }
 
       function atualizarGrafico(dadosProjecao) {
@@ -534,6 +853,24 @@
         });
       }
 
+      function estimarBreakEvenOcupacao(pontos) {
+        if (!pontos || pontos.length < 2) return null;
+        for (var i = 1; i < pontos.length; i++) {
+          var la = pontos[i].lucro_anual;
+          var lb = pontos[i - 1].lucro_anual;
+          if (lb <= 0 && la >= 0) {
+            var oa = pontos[i].ocupacao_pct;
+            var ob = pontos[i - 1].ocupacao_pct;
+            if (oa === ob) return Math.round(oa * 1000) / 10;
+            var t = la - lb;
+            var frac = t ? (0 - lb) / t : 0;
+            return Math.round((ob + frac * (oa - ob)) * 1000) / 10;
+          }
+        }
+        if (pontos[0].lucro_anual >= 0) return Math.round(pontos[0].ocupacao_pct * 1000) / 10;
+        return null;
+      }
+
       function buscarCurvaSensibilidade() {
         if (!dadosCarregados) return;
         var metas = coletarMetas();
@@ -545,11 +882,26 @@
         })
           .then(function (res) { return res.json(); })
           .then(function (json) {
-            if (json.success && json.data && json.data.pontos && graficoCurvaOcupacao) {
-              var pts = json.data.pontos;
-              graficoCurvaOcupacao.data.labels = pts.map(function (p) { return p.ocupacao_pct; });
-              graficoCurvaOcupacao.data.datasets[0].data = pts.map(function (p) { return p.lucro_anual; });
+            if (!json.success || !json.data || !json.data.pontos) return;
+            var pts = json.data.pontos;
+            var labels = pts.map(function (p) { return p.ocupacao_pct; });
+            var lucros = pts.map(function (p) { return p.lucro_anual; });
+            var zeros = lucros.map(function () { return 0; });
+            if (graficoCurvaOcupacao) {
+              graficoCurvaOcupacao.data.labels = labels;
+              graficoCurvaOcupacao.data.datasets[0].data = lucros;
               graficoCurvaOcupacao.update();
+            }
+            if (chartSensibilidadeOcupacao) {
+              chartSensibilidadeOcupacao.data.labels = labels;
+              chartSensibilidadeOcupacao.data.datasets[0].data = lucros;
+              chartSensibilidadeOcupacao.data.datasets[1].data = zeros;
+              chartSensibilidadeOcupacao.update();
+            }
+            var bePct = estimarBreakEvenOcupacao(pts);
+            var cardBe = document.getElementById('card-breakeven-ocupacao');
+            if (cardBe) {
+              cardBe.textContent = bePct != null ? (bePct.toFixed(1).replace('.', ',') + '%') : '—';
             }
           })
           .catch(function () {});
@@ -577,6 +929,10 @@
             cenarios.forEach(function (c) {
               var li = document.createElement('li');
               li.className = 'list-group-item d-flex align-items-center justify-content-between flex-wrap gap-2';
+              li.setAttribute('data-cenario-id', c.id || '');
+              if (c.id && c.id === cenarioAtivoId) {
+                li.classList.add('list-group-item-primary');
+              }
               var info = document.createElement('span');
               var dataStr = c.criado_em ? new Date(c.criado_em).toLocaleString('pt-BR') : '';
               var lucroStr = c.lucro_anual != null ? formatarMoeda(c.lucro_anual) : '—';
@@ -607,6 +963,9 @@
           .then(function (json) {
             if (!json.success || !json.data) return;
             var c = json.data;
+            cenarioAtivoId = c.id || null;
+            cenarioAtivoNome = (c.nome || '').trim() || null;
+            atualizarUIPerfilCenario();
             aplicarMetas(c.metas_mensais || {});
             var invEl = document.getElementById('investimento_inicial');
             if (invEl) invEl.value = formatarMoeda(c.investimento_inicial != null ? c.investimento_inicial : 0);
@@ -614,9 +973,12 @@
               atualizarTabelaComResultado(c.resultado);
               if (c.resultado.resumo) atualizarCards(c.resultado.resumo);
               atualizarGrafico(c.resultado);
+              atualizarGraficos(c.resultado);
+              atualizarDetalheCustosVar(c.resultado);
             }
             buscarCurvaSensibilidade();
-            mostrarToast('Cenário carregado. Você pode recalcular com os custos atuais.', true);
+            listarCenarios();
+            mostrarToast('Cenário carregado. Use Salvar para atualizar ou Salvar como Novo para criar cópia.', true);
           })
           .catch(function () { mostrarToast('Erro ao carregar cenário.', false); });
       }
@@ -689,6 +1051,8 @@
             inicializarGraficoSensibilidade();
             inicializarGraficoBarras();
             inicializarGraficoCurvaOcupacao();
+            inicializarChartEvolucaoMensal();
+            inicializarChartSensibilidadeOcupacao();
             executarCalculo();
             listarCenarios();
           })
@@ -698,11 +1062,20 @@
           });
       }
 
+      function limparCenarioAtivo() {
+        cenarioAtivoId = null;
+        cenarioAtivoNome = null;
+        atualizarUIPerfilCenario();
+        listarCenarios();
+      }
+
       aplicarMascaraMoeda();
       var btnSalvar = document.getElementById('btn-salvar-cenario');
-      if (btnSalvar) btnSalvar.addEventListener('click', salvarCenario);
+      if (btnSalvar) btnSalvar.addEventListener('click', function () { salvarCenario(false); });
       var btnSalvarNovo = document.getElementById('btn-salvar-cenario-novo');
-      if (btnSalvarNovo) btnSalvarNovo.addEventListener('click', salvarCenario);
+      if (btnSalvarNovo) btnSalvarNovo.addEventListener('click', function () { salvarCenario(true); });
+      var btnLimpar = document.getElementById('btn-limpar-cenario');
+      if (btnLimpar) btnLimpar.addEventListener('click', limparCenarioAtivo);
       carregarDadosBase();
     })();
   </script>
