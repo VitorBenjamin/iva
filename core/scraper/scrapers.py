@@ -282,17 +282,26 @@ def _sequencia_noites_tentativas(preferencial: int, max_tentativas: int) -> list
 
 def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> MarketBruto:
     """Calendário diário 365 dias: gera market_bruto com um registro por dia do ano.
-    Amostra 48 dias/mês (4/mês) para coleta; demais dias recebem placeholder preco_booking=null, status='FALHA'.
+    Amostra em duas fases: normais (4/mês, excluindo especiais) + especiais (1–2 por período).
+    Demais dias recebem placeholder preco_booking=null, status='FALHA'.
     Salva sempre para que a Curadoria tenha os 365 slots."""
     ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
     headless = os.environ.get("HEADLESS", "false").lower() == "true"
+
+    cfg = carregar_config_scraper(id_projeto) or {}
+    n_periodos_config = len(cfg.get("periodos_especiais") or [])
+    logger.info(
+        "Config scraper carregado ([{}] períodos especiais encontrados).",
+        n_periodos_config,
+    )
+
     try:
         projeto = carregar_projeto(id_projeto)
         ano_referencia = projeto.ano_referencia or date.today().year
     except ArquivoProjetoNaoEncontrado:
         ano_referencia = date.today().year
         logger.warning("Projeto não encontrado; usando ano atual {} como ano_referencia", ano_referencia)
-    cfg = carregar_config_scraper(id_projeto) or {}
+
     noites_cfg = cfg.get("noites") or {}
     noites_preferencial = int(noites_cfg.get("preferencial", 2))
     max_tentativas = int(noites_cfg.get("max_tentativas", 4))
@@ -302,21 +311,34 @@ def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> Market
     calendario_completo = gerar_calendario_diario_projeto(
         id_projeto, ano_referencia, rolling=True
     )
-    dias_amostra = definir_calendario_soberano_ano(
+    amostra = definir_calendario_soberano_ano(
         ano_referencia=ano_referencia,
         noites=noites_preferencial,
         id_projeto=id_projeto,
         rolling=True,
     )
-    coletados: dict[str, MarketBrutoRegistro] = {}
-    registros: list[MarketBrutoRegistro] = []
+    lista_normais = amostra["normais"]
+    lista_especiais = amostra["especiais"]
+    lista_final_coleta = lista_normais + lista_especiais
+    total_normais = len(lista_normais)
+    total_especiais = len(lista_especiais)
+    total_coleta = len(lista_final_coleta)
+
     logger.info(
-        "Calendário diário: {} dias totais; amostra de {} para coleta (noites pref={}, max_tent={})",
+        "Plano de Coleta: [{}] normais + [{}] especiais = [{}] check-ins.",
+        total_normais,
+        total_especiais,
+        total_coleta,
+    )
+    logger.info(
+        "Calendário diário: {} dias totais; noites pref={}, max_tent={}",
         len(calendario_completo),
-        len(dias_amostra),
         noites_preferencial,
         max_tentativas,
     )
+
+    coletados: dict[str, MarketBrutoRegistro] = {}
+    registros: list[MarketBrutoRegistro] = []
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
@@ -327,11 +349,28 @@ def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> Market
         )
         page = context.new_page()
 
-        for i, periodo in enumerate(dias_amostra):
+        for i, periodo in enumerate(lista_final_coleta):
+            if i == 0:
+                logger.info(
+                    "Iniciando FASE 1: Datas Normais ([{}] itens)...",
+                    total_normais,
+                )
+            elif i == total_normais:
+                logger.info(
+                    "Iniciando FASE 2: Datas Especiais ([{}] itens)...",
+                    total_especiais,
+                )
+
             checkin_str = periodo["checkin"]
             mes_ano = periodo["mes_ano"]
             tipo_dia = periodo["tipo_dia"]
             categoria_dia = periodo.get("categoria_dia", "normal")
+            periodo_nome = (periodo.get("periodo_nome") or "").strip()
+            if periodo_nome:
+                tipo_label = f"ESPECIAL - {periodo_nome}"
+            else:
+                tipo_label = "NORMAL"
+
             noites_seq = _sequencia_noites_tentativas(noites_preferencial, max_tentativas)
             checkin_date = date.fromisoformat(checkin_str)
             sucesso = False
@@ -339,7 +378,14 @@ def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> Market
                 checkout_date = checkin_date + timedelta(days=noites_reais)
                 checkout_str = checkout_date.strftime("%Y-%m-%d")
                 try:
-                    logger.info(">>> [{}/{}] {} ({} noites) {}", i + 1, len(dias_amostra), checkin_str, noites_reais, tipo_dia)
+                    logger.info(
+                        ">>> [{}/{}] {} ({} noites) [TIPO: {}]",
+                        i + 1,
+                        total_coleta,
+                        checkin_str,
+                        noites_reais,
+                        tipo_label,
+                    )
                     url = _url_com_datas(url_booking, checkin_str, checkout_str)
                     page.goto(url, wait_until="domcontentloaded", timeout=30000)
                     page.wait_for_load_state("networkidle", timeout=15000)
