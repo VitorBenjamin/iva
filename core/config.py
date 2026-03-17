@@ -291,13 +291,14 @@ def definir_calendario_soberano_ano(
     noites: int = 2,
     id_projeto: Optional[str] = None,
     rolling: bool = True,
-) -> list[dict]:
-    """Calendário soberano: 4 datas/mês (2 FDS + 2 dia de semana) na janela de coleta.
+) -> dict:
+    """Calendário soberano: retorna duas listas — normais (4 datas/mês, excluindo especiais) e especiais (1–2 check-ins por período).
 
     Com rolling=True (padrão): janela [date.today(), date.today()+365 dias].
-    4 datas por mês apenas para meses contidos nessa janela; checkins passados excluídos.
-    Com rolling=False: 12 meses do ano_referencia (comportamento legado).
-    Usa periodos_especiais já corrigidos (avanço automático quando data passou).
+    Normais: 4 datas/mês na janela; qualquer data que pertença a período especial é EXCLUÍDA (deduplicação).
+    Especiais: para cada período em periodos_especiais, 1 check-in (primeiro dia) se período ≤5 dias,
+    ou 2 check-ins (primeiro + dia central) se >5 dias; nunca gera datas passadas.
+    Retorno: {"normais": list[dict], "especiais": list[dict]}. Cada dict tem checkin, checkout, mes_ano, tipo_dia, categoria_dia, noites; especiais têm ainda "periodo_nome".
     """
     hoje = date.today()
     ano_fallback = hoje.year if rolling else ano_referencia
@@ -323,7 +324,25 @@ def definir_calendario_soberano_ano(
         return _eh_especial(d, periodos_list, feriados_atuais)
 
     fim_janela = hoje + timedelta(days=365) if rolling else date(ano_referencia, 12, 31)
-    periodos: list[dict] = []
+    lista_normais: list[dict] = []
+    lista_especiais: list[dict] = []
+
+    def _append_normal(checkin: date, mes_ano: str, tipo: str) -> None:
+        if checkin < hoje or checkin > fim_janela:
+            return
+        if eh_especial(checkin):
+            return
+        checkout = checkin + timedelta(days=noites)
+        lista_normais.append({
+            "checkin": checkin.strftime("%Y-%m-%d"),
+            "checkout": checkout.strftime("%Y-%m-%d"),
+            "mes_ano": mes_ano,
+            "tipo_dia": tipo,
+            "categoria_dia": "normal",
+            "noites": noites,
+            "periodo_nome": "",
+        })
+
     if rolling:
         for m in range(12):
             mes = hoje.month + m
@@ -332,56 +351,65 @@ def definir_calendario_soberano_ano(
             if date(ano, mes, 1) > fim_janela:
                 break
             mes_ano = f"{ano}-{mes:02d}"
-            sab1 = _nth_weekday(ano, mes, 5, 1)
-            sab3 = _nth_weekday(ano, mes, 5, 3)
-            ter2 = _nth_weekday(ano, mes, 1, 2)
-            ter4 = _nth_weekday(ano, mes, 1, 4)
             for checkin, tipo in [
-                (sab1, "fim_de_semana"),
-                (sab3, "fim_de_semana"),
-                (ter2, "dia_de_semana"),
-                (ter4, "dia_de_semana"),
+                (_nth_weekday(ano, mes, 5, 1), "fim_de_semana"),
+                (_nth_weekday(ano, mes, 5, 3), "fim_de_semana"),
+                (_nth_weekday(ano, mes, 1, 2), "dia_de_semana"),
+                (_nth_weekday(ano, mes, 1, 4), "dia_de_semana"),
             ]:
-                if checkin < hoje or checkin > fim_janela:
-                    continue
-                checkout = checkin + timedelta(days=noites)
-                categoria = "especial" if eh_especial(checkin) else "normal"
-                periodos.append(
-                    {
-                        "checkin": checkin.strftime("%Y-%m-%d"),
-                        "checkout": checkout.strftime("%Y-%m-%d"),
-                        "mes_ano": mes_ano,
-                        "tipo_dia": tipo,
-                        "categoria_dia": categoria,
-                        "noites": noites,
-                    }
-                )
+                _append_normal(checkin, mes_ano, tipo)
     else:
         for mes in range(1, 13):
             mes_ano = f"{ano_referencia}-{mes:02d}"
-            sab1 = _nth_weekday(ano_referencia, mes, 5, 1)
-            sab3 = _nth_weekday(ano_referencia, mes, 5, 3)
-            ter2 = _nth_weekday(ano_referencia, mes, 1, 2)
-            ter4 = _nth_weekday(ano_referencia, mes, 1, 4)
             for checkin, tipo in [
-                (sab1, "fim_de_semana"),
-                (sab3, "fim_de_semana"),
-                (ter2, "dia_de_semana"),
-                (ter4, "dia_de_semana"),
+                (_nth_weekday(ano_referencia, mes, 5, 1), "fim_de_semana"),
+                (_nth_weekday(ano_referencia, mes, 5, 3), "fim_de_semana"),
+                (_nth_weekday(ano_referencia, mes, 1, 2), "dia_de_semana"),
+                (_nth_weekday(ano_referencia, mes, 1, 4), "dia_de_semana"),
             ]:
+                if checkin > fim_janela:
+                    continue
+                if eh_especial(checkin):
+                    continue
                 checkout = checkin + timedelta(days=noites)
-                categoria = "especial" if eh_especial(checkin) else "normal"
-                periodos.append(
-                    {
-                        "checkin": checkin.strftime("%Y-%m-%d"),
-                        "checkout": checkout.strftime("%Y-%m-%d"),
-                        "mes_ano": mes_ano,
-                        "tipo_dia": tipo,
-                        "categoria_dia": categoria,
-                        "noites": noites,
-                    }
-                )
-    return periodos
+                lista_normais.append({
+                    "checkin": checkin.strftime("%Y-%m-%d"),
+                    "checkout": checkout.strftime("%Y-%m-%d"),
+                    "mes_ano": mes_ano,
+                    "tipo_dia": tipo,
+                    "categoria_dia": "normal",
+                    "noites": noites,
+                    "periodo_nome": "",
+                })
+
+    for d_ini, d_fim, nome in periodos_list:
+        delta_dias = (d_fim - d_ini).days + 1
+        if delta_dias <= 5:
+            checkins_periodo = [d_ini]
+        else:
+            central = d_ini + timedelta(days=(d_fim - d_ini).days // 2)
+            checkins_periodo = [d_ini, central]
+        for d in checkins_periodo:
+            if d < hoje:
+                continue
+            if d > fim_janela:
+                continue
+            if not rolling and d.year != ano_referencia:
+                continue
+            mes_ano = f"{d.year}-{d.month:02d}"
+            tipo_dia = "fim_de_semana" if d.weekday() in (5, 6) else "dia_de_semana"
+            checkout = d + timedelta(days=noites)
+            lista_especiais.append({
+                "checkin": d.strftime("%Y-%m-%d"),
+                "checkout": checkout.strftime("%Y-%m-%d"),
+                "mes_ano": mes_ano,
+                "tipo_dia": tipo_dia,
+                "categoria_dia": "especial",
+                "noites": noites,
+                "periodo_nome": nome or "Especial",
+            })
+
+    return {"normais": lista_normais, "especiais": lista_especiais}
 
 
 def gerar_calendario_diario_projeto(

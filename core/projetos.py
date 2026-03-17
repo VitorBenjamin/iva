@@ -12,7 +12,7 @@ from typing import Any, List, Optional
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from core.financeiro.modelos import DadosFinanceiros
+from core.financeiro.modelos import DadosFinanceiros, Infraestrutura
 
 
 class ArquivoProjetoNaoEncontrado(Exception):
@@ -31,6 +31,10 @@ class Projeto(BaseModel):
     faturamento_anual: float = Field(ge=0)
     ano_referencia: int = Field(ge=2000, le=2100)
     financeiro: DadosFinanceiros = Field(default_factory=DadosFinanceiros)
+    infraestrutura: Optional[Infraestrutura] = Field(
+        default=None,
+        description="Características de infraestrutura para sugestões de custo (opcional, compatível com projetos antigos).",
+    )
     # Será substituído por DadosMercado quando o módulo scraper for implementado.
     dados_mercado: Optional[Any] = None
 

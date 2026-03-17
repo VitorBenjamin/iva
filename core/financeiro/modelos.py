@@ -2,9 +2,30 @@
 modelos - Schemas Pydantic para dados financeiros.
 Responsabilidade: validação de receitas, despesas e métricas financeiras.
 """
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
+
+
+class Infraestrutura(BaseModel):
+    """Características de infraestrutura que impactam custos operacionais (sugestões/benchmarks)."""
+
+    tipo_unidade: Optional[str] = Field(
+        default=None,
+        description="Valores: quarto_standard, chale_com_cozinha, apartamento",
+    )
+    matriz_energetica: Optional[str] = Field(
+        default=None,
+        description="Valores: rede_concessionaria, energia_solar",
+    )
+    matriz_hidrica: Optional[str] = Field(
+        default=None,
+        description="Valores: rede_concessionaria, poco_artesiano",
+    )
+    modelo_lavanderia: Optional[str] = Field(
+        default=None,
+        description="Valores: interna, externa_terceirizada",
+    )
 
 
 class CustosFixosMensais(BaseModel):
@@ -46,6 +67,12 @@ class DadosFinanceiros(BaseModel):
     funcionarios: List[Funcionario] = Field(default_factory=list)
     custos_variaveis: CustosVariaveisPorNoite = Field(
         default_factory=CustosVariaveisPorNoite
+    )
+    media_pessoas_por_diaria: float = Field(
+        default=2.0,
+        ge=0.1,
+        le=10.0,
+        description="Média de pessoas por diária vendida. Usado para calcular custo variável por noite. Default 2.0 (backward compatible).",
     )
     aliquota_impostos: float = Field(default=0.06, ge=0, le=1)
     percentual_contingencia: float = Field(default=0.05, ge=0, le=1)
