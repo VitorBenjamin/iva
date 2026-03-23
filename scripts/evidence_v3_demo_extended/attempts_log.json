@@ -1,0 +1,29 @@
+[
+  {
+    "attempt_id": "001",
+    "ts": "2026-03-20T13:12:38.484488",
+    "selector": "#hp_availability_style_changes [data-testid*=\"date\"]",
+    "idx": 0,
+    "texto": "Data de check-in\n—\nData de check-out",
+    "coords": {
+      "cx": 272.15625381469727,
+      "cy": 445.5
+    },
+    "hit_info": {
+      "tagName": "SPAN",
+      "id": "",
+      "className": "be2db1c937",
+      "outerHTML": "<span class=\"be2db1c937\">Data de check-out</span>"
+    },
+    "hit_is_svg_path": false,
+    "clicked_parent_used": false,
+    "opened_widget": true,
+    "paths": {
+      "before_scroll": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence_v3_demo_extended\\attempt_001_before_scroll.png",
+      "after_scroll": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence_v3_demo_extended\\attempt_001_after_scroll.png",
+      "element": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence_v3_demo_extended\\attempt_001_element.png",
+      "after_click": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence_v3_demo_extended\\attempt_001_after_click.png",
+      "fail_html": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence_v3_demo_extended\\attempt_001_fail.html"
+    }
+  }
+]

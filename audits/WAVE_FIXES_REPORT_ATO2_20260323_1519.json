@@ -1,0 +1,20 @@
+{
+  "ato": "ATO 2",
+  "status": "completed",
+  "arquivos_alterados": [
+    "app.py",
+    "templates/dashboard.html",
+    "tests/test_curadoria_strict_periodos.py",
+    "README.md",
+    "docs/GUIA_ONBOARDING_POUSADA.md"
+  ],
+  "testes_executados": [
+    "python -m unittest tests.test_curadoria_strict_periodos -v",
+    "python -m unittest discover -s tests -p \"test_*.py\" -v"
+  ],
+  "resultado_testes": "OK (37 testes na suíte completa)",
+  "evidencias": {
+    "system_events": "scripts/evidence_stability/SYSTEM_EVENTS.jsonl",
+    "inconsistencia_evento_action": "curadoria_inconsistencias_periodos"
+  }
+}

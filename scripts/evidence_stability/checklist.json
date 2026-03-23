@@ -1,0 +1,45 @@
+{
+  "generated_at": "2026-03-20T13:30:00",
+  "task": "saneamento_estabilidade_scraper_funcional",
+  "status_geral": "parcialmente_concluido_com_sucesso_funcional",
+  "itens": [
+    {
+      "id": "feriados_eventos_config",
+      "status": "corrigido",
+      "detalhe": "Feriados nacionais passaram a ser aplicados junto com periodos_especiais do scraper_config no calendario soberano/diario."
+    },
+    {
+      "id": "desconto_dinamico",
+      "status": "corrigido",
+      "detalhe": "Regra fixa 1.20 removida no scraping funcional; agora usa desconto dinamico de config (global/por_mes)."
+    },
+    {
+      "id": "limpeza_v3_backend",
+      "status": "corrigido",
+      "detalhe": "Reconhecimento por widget/calendario no core scraper ficou desativado por padrao (usar_calendario_widget=false). Fluxo principal segue por URL+tabela."
+    },
+    {
+      "id": "extracao_funcional_url_tabela",
+      "status": "validado",
+      "detalhe": "Execucao real de coletar_dados_mercado para village-arraial: 6 periodos com sucesso, 0 falhas."
+    },
+    {
+      "id": "simulacao_financeira",
+      "status": "nao_executado_nesta_tarefa",
+      "detalhe": "A simulacao nao foi recalculada nesta rodada; foco foi saneamento do scraper e estabilidade da coleta."
+    }
+  ],
+  "riscos_remanescentes": [
+    "Dependencia de layout/seletores do Booking para parsing de tabela.",
+    "Qualidade dos periodos especiais depende da manutencao correta do scraper_config por projeto."
+  ],
+  "recomendacoes": [
+    "Adicionar teste automatizado para validar desconto global e por_mes em 2-3 meses de amostra.",
+    "Adicionar alerta quando preco_direto ficar <= 0 apos desconto configurado.",
+    "Criar fixture de HTML para teste unitario de parsing de quartos e tarifa."
+  ],
+  "arquivos_alterados": [
+    "core/config.py",
+    "core/scraper/scrapers.py"
+  ]
+}

@@ -1,0 +1,18 @@
+Candidatos tentados:
+text="Data de check-in"
+text="Data de check-out"
+[data-testid="date-display-field-start"]
+[data-testid="date-display-field-end"]
+[data-testid="searchbox-dates-container"]
+text="Alterar pesquisa"
+text="Selecionar datas"
+text="Ver disponibilidade"
+text="Datas"
+[data-testid*="date"]
+[data-testid*="calendar"]
+[class*="date"]
+[class*="calendar"]
+input[name*="checkin" i]
+input[name*="checkout" i]
+input
+button

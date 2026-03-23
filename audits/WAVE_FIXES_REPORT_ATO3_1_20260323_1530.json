@@ -1,0 +1,27 @@
+{
+  "ato": "ATO 3.1",
+  "status": "completed",
+  "observacoes": [
+    "Workspace atual não está inicializado como repositório Git; branch feature não pôde ser criada neste ambiente."
+  ],
+  "arquivos_alterados": [
+    "core/projetos.py",
+    "core/analise/desconto.py",
+    "tests/test_desconto_unificado.py"
+  ],
+  "testes_executados": [
+    "python -m unittest tests.test_desconto_unificado -v",
+    "python -m unittest tests.test_curadoria_strict_periodos tests.test_periodo_id_and_resolve tests.test_desconto_unificado -v",
+    "python -m unittest discover -s tests -p \"test_*.py\" -v"
+  ],
+  "resultado_testes": "OK (42 testes na suíte completa)",
+  "evidencias": {
+    "system_events": "scripts/evidence_stability/SYSTEM_EVENTS.jsonl",
+    "eventos_relevantes": [
+      "desconto_fallback_scraper_config",
+      "desconto_fonte_market_curado_meta",
+      "backup_atomico",
+      "project_json_updated"
+    ]
+  }
+}

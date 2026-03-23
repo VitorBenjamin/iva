@@ -1,0 +1,8 @@
+<div class="hp-section-header hp-section-header--with-badge ">
+<h2 id="availability_target" name="availability_target" tabindex="-1" class="hp-dates-summary__header">
+Disponibilidade
+</h2>
+<div id="rate_guarantee">
+<div data-capla-component-boundary="b-property-web-property-page/PriceMatch/ssr/pp-sidebar" data-capla-hydration="0"><span class="a297f43545"><button data-testid="price-match-trigger" type="button" class="de576f5064 b46cd7aad7 e26a59bb37 c295306d66 c7a901b0e7 aaf9b6e287 e7f2b1a356"><span class="ec1ff2f0cb e31845302d"><span class="fc70cba028 ca6ff50764" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="50px"><path d="M.311 2.56v6.257a3.75 3.75 0 0 0 1.098 2.651l11.56 11.562a2.25 2.25 0 0 0 3.182 0l6.88-6.88a2.25 2.25 0 0 0 0-3.181L11.468 1.408A3.75 3.75 0 0 0 8.818.31H2.56A2.25 2.25 0 0 0 .31 2.56zm1.5 0a.75.75 0 0 1 .75-.75h6.257a2.25 2.25 0 0 1 1.59.659l11.562 11.56a.75.75 0 0 1 0 1.06l-6.88 6.88a.75.75 0 0 1-1.06 0L2.47 10.409a2.25 2.25 0 0 1-.659-1.59zm5.25 3.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.5 0a2.25 2.25 0 1 0-4.5 0 2.25 2.25 0 0 0 4.5 0"></path></svg></span></span><span class="ca2ca5203b">Cobrimos o menor preço!</span></button></span></div>
+</div>
+</div>

@@ -1,0 +1,38 @@
+{
+  "ato": "ATO 3.2",
+  "status": "completed",
+  "observacoes": [
+    "Workspace atual sem Git inicializado; branch feature/ato3.2-desconto-integration não pôde ser criada localmente."
+  ],
+  "flags": {
+    "BACKEND_DESCONTO_UNIFICADO": "true",
+    "FRONTEND_DESCONTO_UNIFICADO": "false"
+  },
+  "arquivos_alterados": [
+    "app.py",
+    "core/analise/adr_por_mes.py",
+    "tests/test_adr_por_mes_desconto.py",
+    "README.md"
+  ],
+  "diagnosticos_pre": {
+    "mark_periodo_ids_dryrun_summary": "audits/mark_periodo_ids_dryrun_summary.jsonl",
+    "sample_pre": "audits/sample_market_bruto__pre_ato3.2.json",
+    "scraper_trace": "scripts/evidence_stability/SCRAPER_CONFIG_TRACE.jsonl"
+  },
+  "diagnosticos_pos": {
+    "sample_post": "audits/sample_market_bruto__post_ato3.2.json",
+    "diff_novo_vs_antigo_gt_001": "audits/ato3_2_diff_novo_vs_antigo_gt_001.json"
+  },
+  "testes_executados": [
+    "python -m unittest tests.test_desconto_unificado tests.test_adr_por_mes_desconto tests.test_curadoria_strict_periodos tests.test_periodo_id_and_resolve -v",
+    "python -m unittest discover -s tests -p \"test_*.py\" -v"
+  ],
+  "resultado_testes": "OK (43 testes na suíte completa)",
+  "eventos_system_events": [
+    "start_ato3.2",
+    "migration_mark_periodo_ids_dry_run",
+    "calculo_preco_direto_sample",
+    "adr_fallback_media",
+    "end_ato3.2"
+  ]
+}

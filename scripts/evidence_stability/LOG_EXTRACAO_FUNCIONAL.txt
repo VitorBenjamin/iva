@@ -1,0 +1,15 @@
+2026-03-20 13:26:46 INFO >>> Coletando Alta Temporada - Janeiro
+2026-03-20 13:27:00 INFO Encontrados 2 quartos
+2026-03-20 13:27:00 INFO Calculando diaria media... 680.40/noite (direta 544.32)
+2026-03-20 13:27:13 INFO >>> Coletando Alta Temporada - Julho
+2026-03-20 13:27:13 INFO Calculando diaria media... 241.00/noite (direta 192.80)
+2026-03-20 13:27:24 INFO >>> Coletando Reveillon
+2026-03-20 13:27:24 INFO Calculando diaria media... 1304.20/noite (direta 1043.36)
+2026-03-20 13:27:41 INFO >>> Coletando Carnaval
+2026-03-20 13:27:41 INFO Encontrados 24 quartos
+2026-03-20 13:27:41 INFO Calculando diaria media... 500.00/noite (direta 400.00)
+2026-03-20 13:27:52 INFO >>> Coletando Baixa Temporada - Maio
+2026-03-20 13:27:52 INFO Calculando diaria media... 163.50/noite (direta 130.80)
+2026-03-20 13:28:04 INFO >>> Coletando Baixa Temporada - Setembro
+2026-03-20 13:28:04 INFO Calculando diaria media... 241.00/noite (direta 192.80)
+2026-03-20 13:28:04 INFO Coleta finalizada: 6 sucesso, 0 falha

@@ -3,10 +3,23 @@ config - Configurações e constantes da aplicação.
 Responsabilidade: centralizar variáveis de ambiente e parâmetros de configuração.
 """
 import calendar
+import re
+import unicodedata
 from datetime import date, timedelta
 from typing import Optional
 
 from loguru import logger
+
+
+def canonical_periodo_id(nome: str, inicio: str, fim: str) -> str:
+    """Gera ID canônico estável para período especial."""
+    nome = (nome or "especial").strip().lower()
+    nfd = unicodedata.normalize("NFD", nome)
+    sem_acentos = "".join(c for c in nfd if unicodedata.category(c) != "Mn")
+    slug = re.sub(r"[^a-z0-9]+", "-", sem_acentos).strip("-") or "especial"
+    ini = (inicio or "").strip()
+    fim_ = (fim or "").strip()
+    return f"{slug}-{ini}-{fim_}"
 
 
 def _carnaval_checkin_checkout(ano: int) -> tuple[str, str]:
@@ -171,7 +184,7 @@ def _avancar_periodo_se_passado(
     return novo_ini, novo_fim
 
 
-def _periodos_especiais_de_config(id_projeto: str) -> list[tuple[date, date, str]]:
+def _periodos_especiais_de_config(id_projeto: str) -> list[dict]:
     """Lê periodos_especiais do scraper_config.json do projeto. Lista vazia em caso de erro.
 
     Os anos no config são tratados como template; o ano efetivo é calculado em runtime.
@@ -185,7 +198,7 @@ def _periodos_especiais_de_config(id_projeto: str) -> list[tuple[date, date, str
     if not pe or not isinstance(pe, list):
         return []
     hoje = date.today()
-    result: list[tuple[date, date, str]] = []
+    result: list[dict] = []
     for item in pe:
         if not isinstance(item, dict):
             continue
@@ -202,22 +215,95 @@ def _periodos_especiais_de_config(id_projeto: str) -> list[tuple[date, date, str
         if d_fim < d_ini:
             d_ini, d_fim = d_fim, d_ini
         d_ini, d_fim = _avancar_periodo_se_passado(d_ini, d_fim, hoje)
-        result.append((d_ini, d_fim, nome))
+        inicio_iso = d_ini.isoformat()
+        fim_iso = d_fim.isoformat()
+        result.append(
+            {
+                "periodo_id": canonical_periodo_id(nome, inicio_iso, fim_iso),
+                "nome": nome,
+                "inicio": inicio_iso,
+                "fim": fim_iso,
+                "inicio_date": d_ini,
+                "fim_date": d_fim,
+            }
+        )
     return result
 
 
 def _eh_especial(
     d: date,
-    periodos: list[tuple[date, date, str]],
+    periodos: list,
     feriados: dict[tuple[int, int], str],
 ) -> bool:
     """Verifica se a data está em algum período especial ou é feriado nacional."""
-    for ini, fim, _ in periodos:
-        if ini <= d <= fim:
+    for p in periodos:
+        if isinstance(p, dict):
+            ini = p.get("inicio_date")
+            fim = p.get("fim_date")
+        else:
+            ini, fim, _ = p
+        if ini and fim and ini <= d <= fim:
             return True
     if (d.month, d.day) in feriados:
         return True
     return False
+
+
+def resolve_periodo_por_checkin(id_projeto: str, checkin_date: str) -> dict | None:
+    """Mapeia check-in para período especial do config (se houver)."""
+    d = None
+    try:
+        d = date.fromisoformat((checkin_date or "")[:10])
+    except (TypeError, ValueError):
+        d = _parse_ddmmyyyy(str(checkin_date or ""))
+    if d is None:
+        return None
+    for p in _periodos_especiais_de_config(id_projeto):
+        ini = p.get("inicio_date")
+        fim = p.get("fim_date")
+        if ini and fim and ini <= d <= fim:
+            return p
+    return None
+
+
+def _normalizar_valor_desconto(v) -> float:
+    """Converte valor de desconto para decimal (0..1).
+    Aceita formato decimal (0.15) ou percentual (15).
+    """
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return 0.20
+    if f < 0:
+        return 0.0
+    if f > 1:
+        return min(1.0, f / 100.0)
+    return f
+
+
+def obter_desconto_dinamico(cfg: dict | None, mes_ano: str | None) -> float:
+    """Retorna desconto percentual (0..1) com prioridade por mês, depois global.
+    Aceita formatos decimais (0.15) e percentuais (15) no scraper_config.json.
+    """
+    descontos = (cfg or {}).get("descontos") or {}
+    global_desc = descontos.get("global", 0.20)
+    por_mes = descontos.get("por_mes") or {}
+    mes = ""
+    if mes_ano and isinstance(mes_ano, str) and "-" in mes_ano:
+        mes = mes_ano.split("-")[1]
+    v = por_mes.get(mes, global_desc)
+    return _normalizar_valor_desconto(v)
+
+
+def descontos_config_para_template(cfg: dict | None) -> dict:
+    """Retorna dict de descontos normalizado (0..1) para exibição no template.
+    Garante que valores percentuais (15) no config sejam convertidos para decimal (0.15).
+    """
+    descontos = (cfg or {}).get("descontos") or {}
+    global_val = _normalizar_valor_desconto(descontos.get("global", 0.20))
+    por_mes_raw = descontos.get("por_mes") or {}
+    por_mes = {k: _normalizar_valor_desconto(v) for k, v in por_mes_raw.items()}
+    return {"global": global_val, "por_mes": por_mes}
 
 
 def definir_periodos_12meses(noites: int = 2, id_projeto: Optional[str] = None) -> list[dict]:
@@ -241,7 +327,8 @@ def definir_periodos_12meses(noites: int = 2, id_projeto: Optional[str] = None) 
                 periodos_list.extend(_periodos_especiais_fallback(a))
             feriados_atuais = FERIADOS_NACIONAIS
         else:
-            feriados_atuais = {}  # Config tem prioridade; feriados ficam no config se necessário
+            # Feriados nacionais também devem ser considerados junto da configuração.
+            feriados_atuais = FERIADOS_NACIONAIS
     except Exception as e:
         logger.warning("Erro ao carregar periodos_especiais, usando fallback: {}", e)
         for a in (hoje.year, hoje.year + 1):
@@ -313,7 +400,7 @@ def definir_calendario_soberano_ano(
                 periodos_list.extend(_periodos_especiais_fallback(a))
             feriados_atuais = FERIADOS_NACIONAIS
         else:
-            feriados_atuais = {}
+            feriados_atuais = FERIADOS_NACIONAIS
     except Exception as e:
         logger.warning("Erro ao carregar periodos_especiais (calendário soberano), usando fallback: {}", e)
         for a in (ano_fallback, ano_fallback + 1):
@@ -382,7 +469,15 @@ def definir_calendario_soberano_ano(
                     "periodo_nome": "",
                 })
 
-    for d_ini, d_fim, nome in periodos_list:
+    for p in periodos_list:
+        if isinstance(p, dict):
+            d_ini = p.get("inicio_date")
+            d_fim = p.get("fim_date")
+            nome = p.get("nome", "")
+        else:
+            d_ini, d_fim, nome = p
+        if not d_ini or not d_fim:
+            continue
         delta_dias = (d_fim - d_ini).days + 1
         if delta_dias <= 5:
             checkins_periodo = [d_ini]
@@ -435,6 +530,8 @@ def gerar_calendario_diario_projeto(
             for a in (ano_fallback, ano_fallback + 1):
                 periodos_list.extend(_periodos_especiais_fallback(a))
             feriados_atuais = FERIADOS_NACIONAIS
+        else:
+            feriados_atuais = FERIADOS_NACIONAIS
     except Exception as e:
         logger.warning("Erro ao carregar periodos_especiais (calendário diário), usando fallback: {}", e)
         for a in (ano_fallback, ano_fallback + 1):
@@ -471,6 +568,134 @@ def gerar_calendario_diario_projeto(
     return calendario
 
 
+def generate_scaffold_from_metadata(metadata: dict) -> dict:
+    """Gera scraper_config.json mínimo a partir de metadados.
+    metadata: nome, booking_url, timezone (opcional), noites_preferencial (default 2),
+    max_tentativas (default 5), descontos (default 0.20).
+    Reutiliza _normalizar_valor_desconto para descontos.
+    """
+    noites = int(metadata.get("noites_preferencial", 2))
+    noites = max(1, min(7, noites))
+    max_tent = int(metadata.get("max_tentativas", 5))
+    max_tent = max(1, min(10, max_tent))
+    desc_raw = metadata.get("descontos")
+    if isinstance(desc_raw, dict):
+        global_desc = _normalizar_valor_desconto(desc_raw.get("global", 0.20))
+    else:
+        global_desc = _normalizar_valor_desconto(desc_raw if desc_raw is not None else 0.20)
+    return {
+        "periodos_especiais": [],
+        "amostragem": {
+            "datas_normais_por_mes": 4,
+            "incluir_fds": True,
+            "incluir_dias_uteis": True,
+        },
+        "parametros_tecnicos": {
+            "timeout_ms": 60000,
+            "delay_min_s": 8,
+            "delay_max_s": 18,
+            "headless": True,
+            "stealth": True,
+            "timezone": metadata.get("timezone") or "America/Sao_Paulo",
+        },
+        "noites": {"preferencial": noites, "max_tentativas": max_tent},
+        "descontos": {"global": global_desc, "por_mes": {}},
+    }
+
+
+def _get_scraper_config_template() -> dict:
+    """Retorna o template padrão de scraper_config (feriados nacionais e estrutura mínima)."""
+    return {
+        "periodos_especiais": [
+            {"inicio": "28/12/2026", "fim": "02/01/2027", "nome": "Réveillon"},
+            {"inicio": "14/02/2026", "fim": "18/02/2026", "nome": "Carnaval"},
+            {"inicio": "28/03/2026", "fim": "05/04/2026", "nome": "Semana Santa / Páscoa"},
+            {"inicio": "10/07/2026", "fim": "25/07/2026", "nome": "Férias de Julho"},
+            {"inicio": "07/09/2026", "fim": "07/09/2026", "nome": "Independência"},
+            {"inicio": "12/10/2026", "fim": "12/10/2026", "nome": "Nossa Sra. Aparecida"},
+            {"inicio": "02/11/2026", "fim": "02/11/2026", "nome": "Finados"},
+            {"inicio": "15/11/2026", "fim": "15/11/2026", "nome": "Proclamação da República"},
+            {"inicio": "25/12/2026", "fim": "25/12/2026", "nome": "Natal"},
+        ],
+        "amostragem": {
+            "datas_normais_por_mes": 4,
+            "incluir_fds": True,
+            "incluir_dias_uteis": True,
+        },
+        "parametros_tecnicos": {
+            "timeout_ms": 60000,
+            "delay_min_s": 8,
+            "delay_max_s": 18,
+            "headless": True,
+            "stealth": True,
+        },
+        "noites": {"preferencial": 2, "max_tentativas": 4},
+        "descontos": {"global": 0.20, "por_mes": {}},
+    }
+
+
+def asegurar_scraper_config(id_projeto: str) -> bool:
+    """Cria scraper_config.json a partir do template se não existir. Nunca sobrescreve existente.
+    Retorna True se criou, False se já existia. Registra criação em SYSTEM_EVENTS.jsonl."""
+    import json
+    from pathlib import Path
+
+    from core.projetos import get_projeto_dir, get_scraper_config_path
+
+    path = get_scraper_config_path(id_projeto)
+    if path.exists() and path.is_file():
+        return False
+    dir_projeto = get_projeto_dir(id_projeto)
+    if not dir_projeto.exists():
+        dir_projeto.mkdir(parents=True, exist_ok=True)
+    template = _get_scraper_config_template()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(template, ensure_ascii=False, indent=2), encoding="utf-8")
+        ev_dir = Path(__file__).resolve().parent.parent / "scripts" / "evidence_stability"
+        ev_dir.mkdir(parents=True, exist_ok=True)
+        ev_path = ev_dir / "SYSTEM_EVENTS.jsonl"
+        with open(ev_path, "a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "timestamp": __import__("datetime").datetime.now().isoformat(),
+                        "evento": "scraper_config_scaffold",
+                        "id_projeto": id_projeto,
+                        "path": str(path),
+                        "mensagem": "scraper_config.json criado automaticamente a partir do template",
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
+        logger.info("Scaffolding: scraper_config.json criado para projeto {}", id_projeto)
+        return True
+    except OSError as e:
+        logger.warning("Falha ao criar scraper_config para {}: {}", id_projeto, e)
+        ev_dir = Path(__file__).resolve().parent.parent / "scripts" / "evidence_stability"
+        ev_path = ev_dir / "SYSTEM_EVENTS.jsonl"
+        try:
+            ev_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(ev_path, "a", encoding="utf-8") as f:
+                f.write(
+                    json.dumps(
+                        {
+                            "timestamp": __import__("datetime").datetime.now().isoformat(),
+                            "evento": "scraper_config_scaffold_falha",
+                            "id_projeto": id_projeto,
+                            "path": str(path),
+                            "erro": str(e),
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+        except Exception:
+            pass
+        return False
+
+
 def carregar_config_scraper(id_projeto: str) -> dict | None:
     """Lê scraper_config do projeto (projects/<id>/scraper_config.json ou legado). Retorna None se não existir."""
     from core.projetos import PROJECTS_DIR, get_scraper_config_path
@@ -502,36 +727,4 @@ def obter_config_scraper_com_defaults(id_projeto: str) -> dict:
     cfg = carregar_config_scraper(id_projeto)
     if cfg:
         return cfg
-    return {
-        "periodos_especiais": [
-            {"inicio": "28/12/2026", "fim": "02/01/2027", "nome": "Réveillon"},
-            {"inicio": "14/02/2026", "fim": "18/02/2026", "nome": "Carnaval"},
-            {"inicio": "28/03/2026", "fim": "05/04/2026", "nome": "Semana Santa / Páscoa"},
-            {"inicio": "10/07/2026", "fim": "25/07/2026", "nome": "Férias de Julho"},
-            {"inicio": "07/09/2026", "fim": "07/09/2026", "nome": "Independência"},
-            {"inicio": "12/10/2026", "fim": "12/10/2026", "nome": "Nossa Sra. Aparecida"},
-            {"inicio": "02/11/2026", "fim": "02/11/2026", "nome": "Finados"},
-            {"inicio": "15/11/2026", "fim": "15/11/2026", "nome": "Proclamação da República"},
-            {"inicio": "25/12/2026", "fim": "25/12/2026", "nome": "Natal"},
-        ],
-        "amostragem": {
-            "datas_normais_por_mes": 4,
-            "incluir_fds": True,
-            "incluir_dias_uteis": True,
-        },
-        "parametros_tecnicos": {
-            "timeout_ms": 60000,
-            "delay_min_s": 8,
-            "delay_max_s": 18,
-            "headless": True,
-            "stealth": True,
-        },
-        "noites": {
-            "preferencial": 2,
-            "max_tentativas": 4,
-        },
-        "descontos": {
-            "global": 0.20,
-            "por_mes": {},
-        },
-    }
+    return _get_scraper_config_template()

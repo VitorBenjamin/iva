@@ -1,0 +1,402 @@
+[
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-03-23",
+    "checkout": "2026-03-24",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-03-24",
+    "checkout": "2026-03-26",
+    "preco_booking": 243.0,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-03-25",
+    "checkout": "2026-03-26",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-03-26",
+    "checkout": "2026-03-27",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-03-27",
+    "checkout": "2026-03-28",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-03-28",
+    "checkout": "2026-03-30",
+    "preco_booking": 351.0,
+    "categoria_dia": "especial",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-03-29",
+    "checkout": "2026-03-30",
+    "preco_booking": null,
+    "categoria_dia": "especial",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-03-30",
+    "checkout": "2026-03-31",
+    "preco_booking": null,
+    "categoria_dia": "especial",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-03-31",
+    "checkout": "2026-04-01",
+    "preco_booking": null,
+    "categoria_dia": "especial",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-04-01",
+    "checkout": "2026-04-03",
+    "preco_booking": 261.0,
+    "categoria_dia": "especial",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-03-15",
+    "checkout": "2026-03-16",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-03-16",
+    "checkout": "2026-03-17",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-03-17",
+    "checkout": "2026-03-18",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-03-18",
+    "checkout": "2026-03-19",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-03-19",
+    "checkout": "2026-03-20",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-03-20",
+    "checkout": "2026-03-21",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-03-21",
+    "checkout": "2026-03-24",
+    "preco_booking": 270.67,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-03-22",
+    "checkout": "2026-03-23",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-03-23",
+    "checkout": "2026-03-24",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-03-24",
+    "checkout": "2026-03-27",
+    "preco_booking": 270.67,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-03-21",
+    "checkout": "2026-03-24",
+    "preco_booking": 86.67,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-03-22",
+    "checkout": "2026-03-23",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-03-23",
+    "checkout": "2026-03-24",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-03-24",
+    "checkout": "2026-03-27",
+    "preco_booking": 325.0,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-03-25",
+    "checkout": "2026-03-26",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-03-26",
+    "checkout": "2026-03-27",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-03-27",
+    "checkout": "2026-03-28",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-03-28",
+    "checkout": "2026-03-31",
+    "preco_booking": 300.0,
+    "categoria_dia": "especial",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-03-29",
+    "checkout": "2026-03-30",
+    "preco_booking": null,
+    "categoria_dia": "especial",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-03-30",
+    "checkout": "2026-03-31",
+    "preco_booking": null,
+    "categoria_dia": "especial",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-03-21",
+    "checkout": "2026-03-23",
+    "preco_booking": 142.5,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-03-22",
+    "checkout": "2026-03-23",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-03-23",
+    "checkout": "2026-03-24",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-03-24",
+    "checkout": "2026-03-26",
+    "preco_booking": 264.5,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-03-25",
+    "checkout": "2026-03-26",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-03-26",
+    "checkout": "2026-03-27",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-03-27",
+    "checkout": "2026-03-28",
+    "preco_booking": null,
+    "categoria_dia": "normal",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-03-28",
+    "checkout": "2026-03-30",
+    "preco_booking": 241.0,
+    "categoria_dia": "especial",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-03-29",
+    "checkout": "2026-03-30",
+    "preco_booking": null,
+    "categoria_dia": "especial",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-03-30",
+    "checkout": "2026-03-31",
+    "preco_booking": null,
+    "categoria_dia": "especial",
+    "meta.periodo_source": null,
+    "meta.periodo_id": null,
+    "mes_ano": "2026-03"
+  }
+]

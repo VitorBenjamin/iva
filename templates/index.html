@@ -12,15 +12,28 @@
     <header class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom pb-3 mb-4">
       <h1 class="h4 mb-0">Gestão de Ativos — IVA</h1>
       <div class="d-flex align-items-center gap-2">
-        <label class="form-label mb-0 text-muted">Projeto:</label>
+        <label class="form-label mb-0 text-muted">Pousada:</label>
         <select id="seletor-projeto" class="form-select form-select-sm" style="min-width: 220px;">
-          <option value="">— Selecionar projeto —</option>
+          <option value="">— Selecionar pousada —</option>
         </select>
+        <button type="button" id="btn-criar-pousada" class="btn btn-sm btn-primary">Criar Pousada</button>
         <a id="link-curadoria" href="#" class="btn btn-sm btn-outline-secondary text-nowrap" style="display: none;">Abrir Curadoria</a>
       </div>
     </header>
 
-    <section class="card mb-4">
+    <section class="card mb-4 d-none" id="secao-checklist-onboarding">
+      <div class="card-header">Checklist de Onboarding</div>
+      <div class="card-body">
+        <div id="checklist-itens" class="d-flex flex-wrap gap-3"></div>
+        <div class="mt-2 d-flex gap-2 flex-wrap">
+          <a id="link-checklist-curadoria" href="#" class="btn btn-sm btn-outline-primary">Abrir Curadoria</a>
+          <a id="link-checklist-scraper" href="#" class="btn btn-sm btn-outline-secondary">Executar Scraper (dry-run)</a>
+          <button type="button" id="btn-checklist-editar-config" class="btn btn-sm btn-outline-secondary">Editar Configuração</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card mb-4" id="card-gestao-ativo">
       <div class="card-header">Gestão de Ativo</div>
       <div class="card-body">
         <form id="form-criar-projeto">
@@ -179,6 +192,53 @@
         </div>
       </div>
     </section>
+  </div>
+
+  <div class="modal fade" id="modal-criar-pousada" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Criar Pousada</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="form-criar-pousada">
+            <div class="mb-3">
+              <label for="pousada-nome" class="form-label">Nome (obrigatório)</label>
+              <input type="text" id="pousada-nome" class="form-control" required placeholder="Ex: Pousada do Sol">
+            </div>
+            <div class="mb-3">
+              <label for="pousada-booking-url" class="form-label">URL Booking (obrigatório)</label>
+              <input type="url" id="pousada-booking-url" class="form-control" required placeholder="https://www.booking.com/hotel/br/...">
+            </div>
+            <div class="mb-3">
+              <label for="pousada-cidade" class="form-label">Cidade</label>
+              <input type="text" id="pousada-cidade" class="form-control" placeholder="Ex: Arraial do Cabo">
+            </div>
+            <div class="mb-3">
+              <label for="pousada-timezone" class="form-label">Timezone</label>
+              <input type="text" id="pousada-timezone" class="form-control" placeholder="America/Sao_Paulo" value="America/Sao_Paulo">
+            </div>
+            <div class="form-check mb-3">
+              <input type="checkbox" id="pousada-executar-scrape" class="form-check-input" value="1">
+              <label for="pousada-executar-scrape" class="form-check-label">Executar scrape agora</label>
+            </div>
+          </form>
+          <div id="resultado-criar-pousada" class="d-none mt-3 p-3 bg-light rounded">
+            <h6 class="mb-2">Checklist</h6>
+            <div id="checklist-resultado" class="small"></div>
+            <div class="mt-2 d-flex gap-2 flex-wrap">
+              <a id="link-resultado-curadoria" href="#" class="btn btn-sm btn-primary">Abrir Curadoria</a>
+              <a id="link-resultado-scraper" href="#" class="btn btn-sm btn-outline-secondary">Executar Scraper</a>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" id="btn-submit-pousada" class="btn btn-primary">Criar</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container"></div>

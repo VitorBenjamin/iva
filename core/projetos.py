@@ -4,8 +4,10 @@ Responsabilidade: persistência e recuperação de projetos em data/projects/.
 """
 import json
 import re
+import shutil
 import unicodedata
 import uuid
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, List, Optional
 
@@ -62,6 +64,16 @@ def get_market_curado_path(id_projeto: str) -> Path:
     return get_projeto_dir(id_projeto) / "market_curado.json"
 
 
+def get_backups_dir(id_projeto: str) -> Path:
+    """Retorna o diretório de backups: data/projects/<id>/backups/."""
+    return get_projeto_dir(id_projeto) / "backups"
+
+
+def get_backup_audit_path(id_projeto: str) -> Path:
+    """Retorna o path do log de auditoria de gravações: data/projects/<id>/backups/audit_market_curado.jsonl."""
+    return get_backups_dir(id_projeto) / "audit_market_curado.jsonl"
+
+
 def get_scraper_config_path(id_projeto: str) -> Path:
     """Retorna o path da config do scraper: data/projects/<id>/scraper_config.json."""
     return get_projeto_dir(id_projeto) / "scraper_config.json"
@@ -75,6 +87,11 @@ def get_simulacao_salva_path(id_projeto: str) -> Path:
 def get_simulacao_cenarios_path(id_projeto: str) -> Path:
     """Retorna o path da lista de cenários salvos: data/projects/<id>/simulacao_cenarios.json."""
     return get_projeto_dir(id_projeto) / "simulacao_cenarios.json"
+
+
+def get_cenarios_path(id_projeto: str) -> Path:
+    """Retorna o path padrão dos cenários: data/projects/<id>/cenarios.json."""
+    return get_projeto_dir(id_projeto) / "cenarios.json"
 
 
 def _assegurar_dir_projetos() -> None:
@@ -151,6 +168,291 @@ def listar_projetos() -> List[Projeto]:
         except ArquivoProjetoNaoEncontrado:
             continue
     return sorted(projetos, key=lambda x: x.nome)
+
+
+def _log_system_event(evento: str, **kwargs: Any) -> None:
+    """Registra evento em SYSTEM_EVENTS.jsonl."""
+    from datetime import datetime
+
+    ev_dir = Path(__file__).resolve().parent.parent / "scripts" / "evidence_stability"
+    ev_dir.mkdir(parents=True, exist_ok=True)
+    ev_path = ev_dir / "SYSTEM_EVENTS.jsonl"
+    try:
+        with open(ev_path, "a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {"timestamp": datetime.now().isoformat(), "evento": evento, **kwargs},
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
+    except OSError as e:
+        logger.warning("Falha ao gravar SYSTEM_EVENTS: {}", e)
+
+
+def read_project_json(id_projeto: str) -> dict | None:
+    """Lê projeto.json bruto (dict), com fallback legado <id>.json."""
+    path = get_projeto_json_path(id_projeto)
+    if not path.exists() or not path.is_file():
+        path_legado = PROJECTS_DIR / f"{id_projeto}.json"
+        if path_legado.exists() and path_legado.is_file():
+            path = path_legado
+        else:
+            return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _backup_atomico_arquivo(id_projeto: str, origem: Path, action: str) -> Path:
+    """Cria backup atômico de arquivo do projeto em backups/."""
+    backups_dir = get_backups_dir(id_projeto)
+    backups_dir.mkdir(parents=True, exist_ok=True)
+    ts = __import__("datetime").datetime.now().strftime("%Y%m%d_%H%M%S")
+    destino = backups_dir / f"{origem.stem}_before_{action}_{ts}{origem.suffix}"
+    tmp = destino.with_suffix(destino.suffix + ".tmp")
+    shutil.copy2(origem, tmp)
+    tmp.replace(destino)
+    _log_system_event(
+        "backup_atomico",
+        action=action,
+        id_projeto=id_projeto,
+        arquivos=[str(origem), str(destino)],
+        time=__import__("datetime").datetime.now().isoformat(),
+        user="cursor-job",
+    )
+    return destino
+
+
+def write_project_json(id_projeto: str, payload: dict, action: str = "write_project_json") -> None:
+    """Grava projeto.json com backup atômico prévio quando já existe."""
+    path = get_projeto_json_path(id_projeto)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() and path.is_file():
+        _backup_atomico_arquivo(id_projeto, path, action=action)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(path)
+    _log_system_event(
+        "project_json_updated",
+        action=action,
+        id_projeto=id_projeto,
+        arquivos=[str(path)],
+        time=__import__("datetime").datetime.now().isoformat(),
+        user="cursor-job",
+    )
+
+
+def read_curadoria_desconto(id_projeto: str) -> Optional[Decimal]:
+    """Lê projeto.json.curadoria.desconto_padrao como Decimal (0..1), se existir."""
+    data = read_project_json(id_projeto)
+    if not isinstance(data, dict):
+        return None
+    curadoria = data.get("curadoria")
+    if not isinstance(curadoria, dict):
+        return None
+    raw = curadoria.get("desconto_padrao")
+    if raw is None:
+        return None
+    try:
+        d = Decimal(str(raw).replace(",", "."))
+    except Exception:
+        return None
+    if d > 1:
+        d = d / Decimal("100")
+    if d < 0:
+        d = Decimal("0")
+    if d >= 1:
+        d = Decimal("0.99")
+    return d
+
+
+def write_curadoria_desconto(id_projeto: str, valor: Decimal) -> None:
+    """Escreve projeto.json.curadoria.desconto_padrao com backup atômico."""
+    data = read_project_json(id_projeto)
+    if not isinstance(data, dict):
+        raise ArquivoProjetoNaoEncontrado(f"Projeto '{id_projeto}' não encontrado para salvar desconto.")
+    curadoria = data.get("curadoria")
+    if not isinstance(curadoria, dict):
+        curadoria = {}
+    # Persistimos float para compatibilidade com JSON atual do projeto.
+    curadoria["desconto_padrao"] = float(valor)
+    data["curadoria"] = curadoria
+    write_project_json(id_projeto, data, action="write_curadoria_desconto")
+
+
+def create_project_scaffold(id_projeto: str, metadata: dict) -> dict:
+    """Cria estrutura completa do projeto (pousada) se não existir.
+    - Cria pasta data/projects/<id_projeto>/
+    - Cria projeto.json com metadados básicos se não existir
+    - Cria scraper_config.json via generate_scaffold_from_metadata se não existir
+    - Cria market_bruto.json, market_curado.json, cenarios.json e pasta backups/ vazios se não existirem
+    Nunca sobrescreve arquivos existentes.
+    Retorna dict: { created: list[str], already_existed: list[str], missing: list[str], errors: list[str] }
+    """
+    from datetime import date
+
+    created: List[str] = []
+    already_existed: List[str] = []
+    missing: List[str] = []
+    errors: List[str] = []
+
+    dir_projeto = get_projeto_dir(id_projeto)
+    dir_projeto.mkdir(parents=True, exist_ok=True)
+
+    # projeto.json
+    path_projeto = get_projeto_json_path(id_projeto)
+    if not path_projeto.exists():
+        try:
+            from core.financeiro.modelos import DadosFinanceiros
+
+            ano = int(metadata.get("ano_referencia", date.today().year))
+            ano = max(2000, min(2100, ano))
+            financeiro = metadata.get("financeiro")
+            if financeiro is not None and hasattr(financeiro, "model_dump"):
+                financeiro = financeiro.model_dump(mode="json")
+            elif not isinstance(financeiro, dict):
+                financeiro = DadosFinanceiros().model_dump(mode="json")
+            infr = metadata.get("infraestrutura")
+            if isinstance(infr, dict):
+                infr = Infraestrutura.model_validate(infr)
+            projeto = Projeto(
+                id=id_projeto,
+                nome=str(metadata.get("nome", id_projeto)),
+                url_booking=str(metadata.get("booking_url", metadata.get("url_booking", ""))),
+                numero_quartos=max(1, int(metadata.get("numero_quartos", 1))),
+                faturamento_anual=float(metadata.get("faturamento_anual", 0)),
+                ano_referencia=ano,
+                financeiro=DadosFinanceiros.model_validate(financeiro),
+                infraestrutura=infr,
+                dados_mercado=None,
+            )
+            salvar_projeto(projeto)
+            created.append("projeto.json")
+            _log_system_event("project_scaffold_created", id_projeto=id_projeto, item="projeto.json")
+        except Exception as e:
+            errors.append(f"projeto.json: {e}")
+            missing.append("projeto.json")
+    else:
+        already_existed.append("projeto.json")
+
+    # scraper_config.json
+    path_scraper = get_scraper_config_path(id_projeto)
+    if not path_scraper.exists():
+        try:
+            from core.config import generate_scaffold_from_metadata, salvar_config_scraper
+
+            cfg = generate_scaffold_from_metadata(metadata)
+            salvar_config_scraper(id_projeto, cfg)
+            created.append("scraper_config.json")
+            _log_system_event("project_scaffold_created", id_projeto=id_projeto, item="scraper_config.json")
+        except Exception as e:
+            errors.append(f"scraper_config.json: {e}")
+            missing.append("scraper_config.json")
+    else:
+        already_existed.append("scraper_config.json")
+
+    # market_bruto.json
+    path_bruto = get_market_bruto_path(id_projeto)
+    if not path_bruto.exists():
+        try:
+            url = metadata.get("booking_url", metadata.get("url_booking", ""))
+            bruto = {
+                "id_projeto": id_projeto,
+                "url": url,
+                "ano": date.today().year,
+                "registros": [],
+            }
+            with open(path_bruto, "w", encoding="utf-8") as f:
+                json.dump(bruto, f, ensure_ascii=False, indent=2)
+            created.append("market_bruto.json")
+        except Exception as e:
+            errors.append(f"market_bruto.json: {e}")
+            missing.append("market_bruto.json")
+    else:
+        already_existed.append("market_bruto.json")
+
+    # market_curado.json
+    path_curado = get_market_curado_path(id_projeto)
+    if not path_curado.exists():
+        try:
+            url = metadata.get("booking_url", metadata.get("url_booking", ""))
+            curado = {
+                "id_projeto": id_projeto,
+                "url": url,
+                "ano": date.today().year,
+                "registros": [],
+            }
+            with open(path_curado, "w", encoding="utf-8") as f:
+                json.dump(curado, f, ensure_ascii=False, indent=2)
+            created.append("market_curado.json")
+        except Exception as e:
+            errors.append(f"market_curado.json: {e}")
+            missing.append("market_curado.json")
+    else:
+        already_existed.append("market_curado.json")
+
+    # cenarios.json
+    path_cenarios = get_cenarios_path(id_projeto)
+    if not path_cenarios.exists():
+        try:
+            with open(path_cenarios, "w", encoding="utf-8") as f:
+                json.dump({"cenarios": []}, f, ensure_ascii=False, indent=2)
+            created.append("cenarios.json")
+        except Exception as e:
+            errors.append(f"cenarios.json: {e}")
+            missing.append("cenarios.json")
+    else:
+        already_existed.append("cenarios.json")
+
+    # backups/
+    dir_backups = get_backups_dir(id_projeto)
+    if not dir_backups.exists():
+        try:
+            dir_backups.mkdir(parents=True, exist_ok=True)
+            created.append("backups/")
+        except Exception as e:
+            errors.append(f"backups/: {e}")
+            missing.append("backups/")
+    else:
+        already_existed.append("backups/")
+
+    # README_ONBOARDING.md
+    path_readme = dir_projeto / "README_ONBOARDING.md"
+    if not path_readme.exists():
+        try:
+            nome = metadata.get("nome", id_projeto)
+            readme_content = f"""# Onboarding — {nome}
+
+## Passos iniciais
+
+1. **Executar Scraper**: Rode a coleta de dados do Booking para popular `market_bruto.json`:
+   ```
+   python -m core.scraper.cli --url "<booking_url>" --id "{id_projeto}" --ano <ano>
+   ```
+
+2. **Curadoria**: Acesse a Curadoria na interface para revisar e ajustar preços manualmente.
+
+3. **Backups**: Os ajustes salvos geram backups automáticos em `backups/`.
+
+4. **Logs**: Traces do scraper em `scripts/evidence_stability/SCRAPER_CONFIG_TRACE.jsonl` e `LOG_AFTER.jsonl`.
+
+5. **Documentação**: Veja `docs/GUIA_ONBOARDING_POUSADA.md` para o guia completo.
+"""
+            path_readme.write_text(readme_content, encoding="utf-8")
+            created.append("README_ONBOARDING.md")
+        except Exception as e:
+            errors.append(f"README_ONBOARDING.md: {e}")
+    else:
+        already_existed.append("README_ONBOARDING.md")
+
+    return {
+        "created": created,
+        "already_existed": already_existed,
+        "missing": missing,
+        "errors": errors,
+    }
 
 
 def migrar_estrutura_legada() -> None:

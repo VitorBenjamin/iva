@@ -1,0 +1,22 @@
+{
+  "ato": "ATO 1",
+  "status": "completed",
+  "arquivos_alterados": [
+    "core/config.py",
+    "core/scraper/scrapers.py",
+    "core/scraper/modelos.py",
+    "app.py",
+    "scripts/migrations/mark_periodo_ids.py",
+    "tests/test_periodo_id_and_resolve.py"
+  ],
+  "testes": [
+    "python -m unittest tests.test_periodo_id_and_resolve -v",
+    "python -m unittest discover -s tests -p \"test_*.py\" -v"
+  ],
+  "resultado_testes": "OK (34 testes na suíte completa)",
+  "evidencias": {
+    "system_events": "scripts/evidence_stability/SYSTEM_EVENTS.jsonl",
+    "scraper_trace": "scripts/evidence_stability/SCRAPER_CONFIG_TRACE.jsonl",
+    "migration_report": "audits/mark_periodo_ids_report.json"
+  }
+}

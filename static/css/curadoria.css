@@ -1,0 +1,30 @@
+.iva-curadoria-audit-col {
+  min-width: 90px;
+}
+
+.iva-audit-btn {
+  min-height: 36px;
+  min-width: 44px;
+  padding: 0.2rem 0.45rem;
+}
+
+.iva-audit-label {
+  font-size: 0.72rem;
+  margin-left: 0.25rem;
+}
+
+.iva-audit-badge {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 0.25rem;
+}
+
+.iva-curadoria-corrigida {
+  background-color: rgba(255, 235, 205, 0.6) !important;
+}
+
+@media (max-width: 767px) {
+  .iva-curadoria-audit-col {
+    display: none;
+  }
+}

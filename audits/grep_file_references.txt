@@ -1,0 +1,80 @@
+# grep -RIn --exclude-dir=.git -E "scraper_config\.json|market_bruto\.json|market_curado\.json|simulacao_cenarios\.json"
+# Gerado em auditoria Curadoria Datas Especiais
+
+scripts/evidence_stability/RELATORIO_AUDITORIA_JSONS.md:7:- C:\Users\vitor_3fyrepz\OneDrive\Área de Trabalho\iva\data\projects\don-quixote\market_bruto.json (127038 bytes)
+scripts/evidence_stability/RELATORIO_AUDITORIA_JSONS.md:8:- C:\Users\vitor_3fyrepz\OneDrive\Área de Trabalho\iva\data\projects\don-quixote\market_curado.json (17389 bytes)
+scripts/evidence_stability/RELATORIO_AUDITORIA_JSONS.md:10:- C:\Users\vitor_3fyrepz\OneDrive\Área de Trabalho\iva\data\projects\don-quixote\scraper_config.json (1392 bytes)
+scripts/evidence_stability/RELATORIO_AUDITORIA_JSONS.md:12:- C:\Users\vitor_3fyrepz\OneDrive\Área de Trabalho\iva\data\projects\porto-bahia-hotel\market_bruto.json (126012 bytes)
+scripts/evidence_stability/RELATORIO_AUDITORIA_JSONS.md:14:- C:\Users\vitor_3fyrepz\OneDrive\Área de Trabalho\iva\data\projects\porto-bahia-hotel\scraper_config.json (1392 bytes)
+scripts/evidence_stability/RELATORIO_AUDITORIA_JSONS.md:16:- C:\Users\vitor_3fyrepz\OneDrive\Área de Trabalho\iva\data\projects\village-arraial\market_bruto.json (126701 bytes)
+
+core/projetos.py:56:    """Retorna o path do market bruto: data/projects/<id>/market_bruto.json."""
+core/projetos.py:57:    return get_projeto_dir(id_projeto) / "market_bruto.json"
+core/projetos.py:61:    """Retorna o path do market curado: data/projects/<id>/market_curado.json."""
+core/projetos.py:62:    return get_projeto_dir(id_projeto) / "market_curado.json"
+core/projetos.py:71:    """Retorna o path do log de auditoria de gravações: data/projects/<id>/backups/audit_market_curado.jsonl."""
+core/projetos.py:72:    return get_backups_dir(id_projeto) / "audit_market_curado.jsonl"
+core/projetos.py:76:    """Retorna o path do scraper config: data/projects/<id>/scraper_config.json."""
+core/projetos.py:77:    return get_projeto_dir(id_projeto) / "scraper_config.json"
+core/projetos.py:86:    """Retorna o path da lista de cenários salvos: data/projects/<id>/simulacao_cenarios.json."""
+core/projetos.py:87:    return get_projeto_dir(id_projeto) / "simulacao_cenarios.json"
+core/projetos.py:172:    """Migra arquivos do formato legado para projects/<id>/projeto.json, market_bruto.json, etc."""
+
+docs/DIAGNOSTICO_CUSTOS_VARIAVEIS_POR_PESSOA.md:120:3. **Cenários salvos:** `simulacao_cenarios.json` guarda `resultado`
+
+core/config.py:175:    """Lê periodos_especiais do scraper_config.json do projeto.
+core/config.py:518:    """Lê scraper_config do projeto (projects/<id>/scraper_config.json ou legado).
+core/config.py:534:    """Salva scraper_config em projects/<id>/scraper_config.json."""
+
+core/backup.py:2:backup - Backup e versionamento de market_curado.json.
+core/backup.py:30:    """Salva market_curado.json com backup versionado
+
+scripts/evidence_stability/LEGACY_CLEANUP_LOG.jsonl:1:{"timestamp": "2026-03-20T14:59:19.143678", "projeto": "don-quixote", "acao": "migrado_para_cenarios", "from": "...\\simulacao_cenarios.json"
+scripts/evidence_stability/LEGACY_CLEANUP_LOG.jsonl:2:{"timestamp": "2026-03-20T14:59:19.144679", "projeto": "don-quixote", "acao": "removido_legado", "path": "...\\simulacao_cenarios.json"}
+
+README.md:6:- `data/projects/<id_projeto>/scraper_config.json`
+README.md:7:- `data/projects/<id_projeto>/market_bruto.json`
+README.md:8:- `data/projects/<id_projeto>/market_curado.json`
+
+scripts/evidence_stability/AUDITORIA_ARQUIVOS.json:5:      "path": "...don-quixote\\market_bruto.json"
+scripts/evidence_stability/AUDITORIA_ARQUIVOS.json:9:      "path": "...don-quixote\\market_curado.json"
+scripts/evidence_stability/AUDITORIA_ARQUIVOS.json:17:      "path": "...don-quixote\\scraper_config.json"
+scripts/evidence_stability/AUDITORIA_ARQUIVOS.json:21:      "path": "...don-quixote\\simulacao_cenarios.json"
+scripts/evidence_stability/AUDITORIA_ARQUIVOS.json:29:      "path": "...porto-bahia-hotel\\market_bruto.json"
+scripts/evidence_stability/AUDITORIA_ARQUIVOS.json:37:      "path": "...porto-bahia-hotel\\scraper_config.json"
+scripts/evidence_stability/AUDITORIA_ARQUIVOS.json:45:      "path": "...village-arraial\\market_bruto.json"
+
+tests/test_desconto_e_backup.py:81:            path_curado = dir_projeto / "market_curado.json"
+tests/test_desconto_e_backup.py:109:                path_audit = root / pid / "backups" / "audit_market_curado.jsonl"
+tests/test_desconto_e_backup.py:128:                path_curado = root / pid / "market_curado.json"
+
+docs/ANALISE_IMPACTO_SCRAPER_CRUD_CENARIOS.md:20:periodos_especiais (ou feriado)
+docs/ANALISE_IMPACTO_SCRAPER_CRUD_CENARIOS.md:38:O resultado final ... market_bruto.json
+docs/ANALISE_IMPACTO_SCRAPER_CRUD_CENARIOS.md:97:Compatibilidade com market_bruto.json
+docs/ANALISE_IMPACTO_SCRAPER_CRUD_CENARIOS.md:101:leitores de market_bruto.json
+docs/ANALISE_IMPACTO_SCRAPER_CRUD_CENARIOS.md:110:simulacao_cenarios.json
+
+templates/dashboard.html:40:          <p class="text-muted small">... Salvos em <code>scraper_config.json</code>
+
+scripts/evidence_stability/RELATORIO_ESTABILIDADE.md:38:regrava `market_bruto.json`
+
+tests/test_paths_and_scraper_config.py:22:        self.assertTrue(str(get_scraper_config_path(pid)).replace("\\", "/").endswith(f"data/projects/{pid}/scraper_config.json"))
+tests/test_paths_and_scraper_config.py:23:        self.assertTrue(str(get_market_bruto_path(pid)).replace("\\", "/").endswith(f"data/projects/{pid}/market_bruto.json"))
+tests/test_paths_and_scraper_config.py:24:        self.assertTrue(str(get_market_curado_path(pid)).replace("\\", "/").endswith(f"data/projects/{pid}/market_curado.json"))
+tests/test_paths_and_scraper_config.py:34:            cfg_path = root / pid / "scraper_config.json"
+tests/test_paths_and_scraper_config.py:67:            cfg_path = Path(td) / "data" / "projects" / "pousada-z" / "scraper_config.json"
+tests/test_paths_and_scraper_config.py:78:            self.assertTrue(payload["scraper_config_path"].endswith("scraper_config.json"))
+
+docs/PROCEDIMENTO_SCRAPER.md:3:market_bruto.json e market_curado.json
+docs/PROCEDIMENTO_SCRAPER.md:9:scraper_config.json
+docs/PROCEDIMENTO_SCRAPER.md:33:scraper_config.json
+docs/PROCEDIMENTO_SCRAPER.md:34:market_bruto.json
+docs/PROCEDIMENTO_SCRAPER.md:40:scraper_config.json
+docs/PROCEDIMENTO_SCRAPER.md:43:Descontos no scraper_config.json
+docs/PROCEDIMENTO_SCRAPER.md:61:market_curado.json
+docs/PROCEDIMENTO_SCRAPER.md:63:market_curado.json
+docs/PROCEDIMENTO_SCRAPER.md:66:audit_market_curado.jsonl
+docs/PROCEDIMENTO_SCRAPER.md:70:market_bruto.json
+
+app.py:1104:    """Carrega lista de cenários de cenarios.json (fallback legado simulacao_cenarios.json)."""
+app.py:1134:    """Se simulacao_cenarios.json não existir

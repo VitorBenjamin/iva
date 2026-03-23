@@ -1,0 +1,227 @@
+{
+  "ano_mes": "2026-04",
+  "url_hotel": "https://www.booking.com/hotel/br/travel-inn-village-arraial.pt-br.html",
+  "seletor_container": null,
+  "seletor_celulas": "[data-date]",
+  "seletor_campo_data": "[data-testid=\"searchbox-dates-container\"]",
+  "seletor_botao_proximo": null,
+  "dias": [
+    {
+      "data": "2026-04-01",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-01\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"4ª 1 abril 2026\"><span>1</span></span>"
+    },
+    {
+      "data": "2026-04-02",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-02\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"5ª 2 abril 2026\"><span>2</span></span>"
+    },
+    {
+      "data": "2026-04-03",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-03\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"6ª 3 abril 2026\"><span>3</span></span>"
+    },
+    {
+      "data": "2026-04-04",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-04\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"Sa. 4 abril 2026\"><span>4</span></span>"
+    },
+    {
+      "data": "2026-04-05",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-05\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"Do. 5 abril 2026\"><span>5</span></span>"
+    },
+    {
+      "data": "2026-04-06",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-06\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"2ª 6 abril 2026\"><span>6</span></span>"
+    },
+    {
+      "data": "2026-04-07",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-07\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"3ª 7 abril 2026\"><span>7</span></span>"
+    },
+    {
+      "data": "2026-04-08",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-08\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"4ª 8 abril 2026\"><span>8</span></span>"
+    },
+    {
+      "data": "2026-04-09",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-09\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"5ª 9 abril 2026\"><span>9</span></span>"
+    },
+    {
+      "data": "2026-04-10",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-10\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"6ª 10 abril 2026\"><span>10</span></span>"
+    },
+    {
+      "data": "2026-04-11",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-11\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"Sa. 11 abril 2026\"><span>11</span></span>"
+    },
+    {
+      "data": "2026-04-12",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-12\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"Do. 12 abril 2026\"><span>12</span></span>"
+    },
+    {
+      "data": "2026-04-13",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-13\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"2ª 13 abril 2026\"><span>13</span></span>"
+    },
+    {
+      "data": "2026-04-14",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-14\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"3ª 14 abril 2026\"><span>14</span></span>"
+    },
+    {
+      "data": "2026-04-15",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-15\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"4ª 15 abril 2026\"><span>15</span></span>"
+    },
+    {
+      "data": "2026-04-16",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-16\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"5ª 16 abril 2026\"><span>16</span></span>"
+    },
+    {
+      "data": "2026-04-17",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-17\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"6ª 17 abril 2026\"><span>17</span></span>"
+    },
+    {
+      "data": "2026-04-18",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-18\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"Sa. 18 abril 2026\"><span>18</span></span>"
+    },
+    {
+      "data": "2026-04-19",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-19\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"Do. 19 abril 2026\"><span>19</span></span>"
+    },
+    {
+      "data": "2026-04-20",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-20\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"2ª 20 abril 2026\"><span>20</span></span>"
+    },
+    {
+      "data": "2026-04-21",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-21\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"3ª 21 abril 2026\"><span>21</span></span>"
+    },
+    {
+      "data": "2026-04-22",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-22\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"4ª 22 abril 2026\"><span>22</span></span>"
+    },
+    {
+      "data": "2026-04-23",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-23\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"5ª 23 abril 2026\"><span>23</span></span>"
+    },
+    {
+      "data": "2026-04-24",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-24\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"6ª 24 abril 2026\"><span>24</span></span>"
+    },
+    {
+      "data": "2026-04-25",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-25\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"Sa. 25 abril 2026\"><span>25</span></span>"
+    },
+    {
+      "data": "2026-04-26",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-26\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"Do. 26 abril 2026\"><span>26</span></span>"
+    },
+    {
+      "data": "2026-04-27",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-27\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"2ª 27 abril 2026\"><span>27</span></span>"
+    },
+    {
+      "data": "2026-04-28",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-28\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"3ª 28 abril 2026\"><span>28</span></span>"
+    },
+    {
+      "data": "2026-04-29",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-29\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"4ª 29 abril 2026\"><span>29</span></span>"
+    },
+    {
+      "data": "2026-04-30",
+      "disponivel": true,
+      "preco_visivel": null,
+      "motivo_indisponivel": null,
+      "html_raw": "<span tabindex=\"-1\" class=\"ecb788f3b7 c0b8f1e8f8\" data-date=\"2026-04-30\" aria-checked=\"false\" role=\"checkbox\" aria-label=\"5ª 30 abril 2026\"><span>30</span></span>"
+    }
+  ],
+  "resumo": {
+    "total": 30,
+    "disponiveis": 30,
+    "indisponiveis": 0,
+    "incertos": 0,
+    "com_preco_visivel": 0
+  }
+}

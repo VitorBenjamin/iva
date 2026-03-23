@@ -1,0 +1,962 @@
+[
+  {
+    "tag": "button",
+    "role": null,
+    "text": "BRL",
+    "className": "de576f5064 b46cd7aad7 e26a59bb37 dda427e6b5 acb3638563 e7f2b1a356",
+    "rect": {
+      "x": 619.3500366210938,
+      "y": -1231.2000732421875,
+      "w": 51.45000076293945,
+      "h": 48
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 b46cd7aad7 e26a59bb37 dda427e6b5 acb3638563 e7f2b1a356",
+    "rect": {
+      "x": 678.7999877929688,
+      "y": -1231.2000732421875,
+      "w": 48,
+      "h": 48
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Mais",
+    "className": "f63e3c83f3",
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064",
+    "rect": {
+      "x": 403.0500183105469,
+      "y": -1092.800048828125,
+      "w": 16,
+      "h": 16
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Data de check-in\n—\nData de check-out",
+    "className": "de576f5064 dc15842869 f1f96fdf10 d10abb4e59",
+    "rect": {
+      "x": 447.0500183105469,
+      "y": -1101.5999755859375,
+      "w": 278.8374938964844,
+      "h": 33.60000228881836
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "2 adultos · 0 criança · 1 cômodo",
+    "className": "de576f5064 dc15842869 b3d1de1c28",
+    "rect": {
+      "x": 745.8875122070312,
+      "y": -1101.5999755859375,
+      "w": 278.8374938964844,
+      "h": 33.60000228881836
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Pesquisar",
+    "className": "de576f5064 b46cd7aad7 ced67027e5 dda427e6b5 f3e59d528f ca8e0b9533 cfd71fb584 a9d40b8d51",
+    "rect": {
+      "x": 1036.7249755859375,
+      "y": -1111.5999755859375,
+      "w": 141.6750030517578,
+      "h": 53.60000228881836
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "sliding-view__close",
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Comodidades",
+    "className": "de576f5064 f63e3c83f3 e7f2b1a356",
+    "rect": {
+      "x": 452.3999938964844,
+      "y": -991.6000366210938,
+      "w": 185,
+      "h": 72
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Mais",
+    "className": "f63e3c83f3",
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 b46cd7aad7 e26a59bb37 c295306d66 dda427e6b5 eed37d6a9d aaf9b6e287 e7f2b1a356 a0ddd706cc",
+    "rect": {
+      "x": 957.9125366210938,
+      "y": -902.6000366210938,
+      "w": 48,
+      "h": 48
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 b46cd7aad7 e26a59bb37 c295306d66 dda427e6b5 aaf9b6e287 e7f2b1a356",
+    "rect": {
+      "x": 1009.75,
+      "y": -902.6000366210938,
+      "w": 48,
+      "h": 48
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Reservar agora",
+    "className": "txp-bui-header-pp bui-button bui-button--primary \nbook_now_button_handler\n",
+    "rect": {
+      "x": 1065.5875244140625,
+      "y": -896.6000366210938,
+      "w": 126.8125,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Cobrimos o menor preço!",
+    "className": "de576f5064 b46cd7aad7 e26a59bb37 c295306d66 c7a901b0e7 aaf9b6e287 e7f2b1a356",
+    "rect": {
+      "x": 992.4000244140625,
+      "y": -848.4500122070312,
+      "w": 200,
+      "h": 48
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 f2c354f969",
+    "rect": {
+      "x": 82.4000015258789,
+      "y": -902.6000366210938,
+      "w": 40,
+      "h": 12
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Rua Jequitibá, 73, Arraial d'Ajuda, CEP 45816-000, Brasil\nLocalização excelente — nota 9.3/10!(nota de 307 avaliações)\nNotas dadas pelos hóspedes depois de sua estadia em: Village ",
+    "className": "de576f5064",
+    "rect": {
+      "x": 104.4000015258789,
+      "y": -846.6000366210938,
+      "w": 342.13751220703125,
+      "h": 20
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 e8e06b23a3",
+    "rect": {
+      "x": 82.4000015258789,
+      "y": -778.2999877929688,
+      "w": 547.1000366210938,
+      "h": 359
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 e8e06b23a3",
+    "rect": {
+      "x": 637.5,
+      "y": -778.2999877929688,
+      "w": 273.3999938964844,
+      "h": 175.5
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 e8e06b23a3",
+    "rect": {
+      "x": 637.5,
+      "y": -594.7999877929688,
+      "w": 273.3999938964844,
+      "h": 175.5
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 e8e06b23a3",
+    "rect": {
+      "x": 82.4000015258789,
+      "y": -411.3000183105469,
+      "w": 159.3000030517578,
+      "h": 103
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 e8e06b23a3",
+    "rect": {
+      "x": 249.6999969482422,
+      "y": -411.3000183105469,
+      "w": 159.3000030517578,
+      "h": 103
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 e8e06b23a3",
+    "rect": {
+      "x": 417,
+      "y": -411.3000183105469,
+      "w": 159.3000030517578,
+      "h": 103
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 e8e06b23a3",
+    "rect": {
+      "x": 584.2999877929688,
+      "y": -411.3000183105469,
+      "w": 159.3000030517578,
+      "h": 103
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 e8e06b23a3",
+    "rect": {
+      "x": 751.6000366210938,
+      "y": -411.3000183105469,
+      "w": 159.3000030517578,
+      "h": 103
+    }
+  },
+  {
+    "tag": "div",
+    "role": "button",
+    "text": "Mostrar no mapa",
+    "className": "de576f5064 d0a449df99 c204bd507e c92bc4739d d5acc35573",
+    "rect": {
+      "x": 927.7000122070312,
+      "y": -624.2999877929688,
+      "w": 263.8999938964844,
+      "h": 315.20001220703125
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Mostrar no mapa",
+    "className": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 ca8e0b9533 f0a25f2aec",
+    "rect": {
+      "x": 992.8500366210938,
+      "y": -462.25,
+      "w": 133.58750915527344,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Ver todas as 28 instalações",
+    "className": "de576f5064",
+    "rect": {
+      "x": 455.0375061035156,
+      "y": 54.20000076293945,
+      "w": 205.3249969482422,
+      "h": 34.5
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Reservar agora",
+    "className": " txp-sidebar-cta bui-button bui-button--primary \ncall_to_action--wide\npx--fw-cta\njs-ph__cta\n ",
+    "rect": {
+      "x": 889.7999877929688,
+      "y": -32.587501525878906,
+      "w": 286.5874938964844,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Salvar acomodação",
+    "className": "de576f5064 b46cd7aad7 d0a01e3d83 c7a901b0e7 f3e59d528f bbf83acb81 a9d40b8d51",
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Cobrimos o menor preço!",
+    "className": "de576f5064 b46cd7aad7 e26a59bb37 c295306d66 c7a901b0e7 aaf9b6e287 e7f2b1a356",
+    "rect": {
+      "x": 989.6875,
+      "y": 310.1000061035156,
+      "w": 202.71250915527344,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "sex., 20 de mar.",
+    "className": "dc15842869 f1f96fdf10 a3cdf1ae27",
+    "rect": {
+      "x": 118.4000015258789,
+      "y": 401.8999938964844,
+      "w": 113.3375015258789,
+      "h": 28
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "seg., 23 de mar.",
+    "className": "dc15842869 f1f96fdf10 a3cdf1ae27",
+    "rect": {
+      "x": 245.7375030517578,
+      "y": 401.8999938964844,
+      "w": 114.76250457763672,
+      "h": 28
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "2 adultos · 0 criança · 1 cômodo",
+    "className": "de576f5064 dc15842869 b3d1de1c28",
+    "rect": {
+      "x": 416.9125061035156,
+      "y": 399.1000061035156,
+      "w": 315.125,
+      "h": 33.60000228881836
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Aplicar alterações",
+    "className": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 f3e59d528f ca8e0b9533 cfd71fb584 a9d40b8d51",
+    "rect": {
+      "x": 736.0375366210938,
+      "y": 397.1000061035156,
+      "w": 184.3625030517578,
+      "h": 37.60000228881836
+    }
+  },
+  {
+    "tag": "span",
+    "role": "button",
+    "text": "",
+    "className": "e4816f9213",
+    "rect": {
+      "x": 828.2750244140625,
+      "y": 495.6000061035156,
+      "w": 14,
+      "h": 18.399999618530273
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Visualizar preços",
+    "className": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 f3e59d528f ca8e0b9533 js-legacy-price-button a9d40b8d51",
+    "rect": {
+      "x": 922.4874877929688,
+      "y": 492.3000183105469,
+      "w": 130.22500610351562,
+      "h": 36
+    }
+  },
+  {
+    "tag": "span",
+    "role": "button",
+    "text": "",
+    "className": "e4816f9213",
+    "rect": {
+      "x": 812.75,
+      "y": 572.7999877929688,
+      "w": 14,
+      "h": 18.399999618530273
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Visualizar preços",
+    "className": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 f3e59d528f ca8e0b9533 js-legacy-price-button a9d40b8d51",
+    "rect": {
+      "x": 922.4874877929688,
+      "y": 569.5,
+      "w": 130.22500610351562,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Veja a disponibilidade",
+    "className": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 ca8e0b9533",
+    "rect": {
+      "x": 1029.125,
+      "y": 744.7000122070312,
+      "w": 163.27500915527344,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Ver todas as 28 instalações",
+    "className": "de576f5064 b46cd7aad7 d0a01e3d83 c7a901b0e7 bbf83acb81",
+    "rect": {
+      "x": 82.4000015258789,
+      "y": 903.2000122070312,
+      "w": 193.72500610351562,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Sim",
+    "className": "de576f5064 bef8628e61 e0d8514d4d",
+    "rect": {
+      "x": 1118.362548828125,
+      "y": 945.2000122070312,
+      "w": 24.662500381469727,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Não",
+    "className": "de576f5064 bef8628e61 e0d8514d4d",
+    "rect": {
+      "x": 1157.237548828125,
+      "y": 945.2000122070312,
+      "w": 27.162500381469727,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Veja a disponibilidade",
+    "className": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 ca8e0b9533",
+    "rect": {
+      "x": 1029.125,
+      "y": 1007.2000122070312,
+      "w": 163.27500915527344,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Com nota 7.1\n7,1\nAvaliação bom\nBom · 308 avaliações",
+    "className": "de576f5064",
+    "rect": {
+      "x": 82.4000015258789,
+      "y": 1088.800048828125,
+      "w": 190.8625030517578,
+      "h": 32
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Ler todas as avaliações",
+    "className": "de576f5064",
+    "rect": {
+      "x": 281.26251220703125,
+      "y": 1095.2000732421875,
+      "w": 140.40000915527344,
+      "h": 20
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Ler todas as avaliações",
+    "className": "de576f5064 b46cd7aad7 d0a01e3d83 c7a901b0e7 bbf83acb81",
+    "rect": {
+      "x": 82.4000015258789,
+      "y": 1352.800048828125,
+      "w": 168,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "b586f3a18d",
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Veja a disponibilidade",
+    "className": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 ca8e0b9533",
+    "rect": {
+      "x": 1029.125,
+      "y": 1420.800048828125,
+      "w": 163.27500915527344,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Posso estacionar ali?",
+    "className": "de576f5064 ba013af738",
+    "rect": {
+      "x": 98.4000015258789,
+      "y": 1496.800048828125,
+      "w": 321.9875183105469,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "A acomodação serve café da manhã?",
+    "className": "de576f5064 ba013af738",
+    "rect": {
+      "x": 98.4000015258789,
+      "y": 1589.5999755859375,
+      "w": 321.9875183105469,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Tem restaurante?",
+    "className": "de576f5064 ba013af738",
+    "rect": {
+      "x": 98.4000015258789,
+      "y": 1646.4000244140625,
+      "w": 321.9875183105469,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Quais são os horários de check-in e check-out?",
+    "className": "de576f5064 ba013af738",
+    "rect": {
+      "x": 98.4000015258789,
+      "y": 1703.2000732421875,
+      "w": 321.9875183105469,
+      "h": 40
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "A piscina está aberta?",
+    "className": "de576f5064 ba013af738",
+    "rect": {
+      "x": 98.4000015258789,
+      "y": 1776,
+      "w": 321.9875183105469,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Quais são os restaurantes, atrações e opções de transporte público por perto?",
+    "className": "de576f5064 ba013af738",
+    "rect": {
+      "x": 476.38751220703125,
+      "y": 1496.800048828125,
+      "w": 321.9875183105469,
+      "h": 60
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Tem spa?",
+    "className": "de576f5064 ba013af738",
+    "rect": {
+      "x": 476.38751220703125,
+      "y": 1589.5999755859375,
+      "w": 321.9875183105469,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Posso levar meu pet?",
+    "className": "de576f5064 ba013af738",
+    "rect": {
+      "x": 476.38751220703125,
+      "y": 1646.4000244140625,
+      "w": 321.9875183105469,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Tem quartos com banheiro privativo?",
+    "className": "de576f5064 ba013af738",
+    "rect": {
+      "x": 476.38751220703125,
+      "y": 1703.2000732421875,
+      "w": 321.9875183105469,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Tem quartos com varanda?",
+    "className": "de576f5064 ba013af738",
+    "rect": {
+      "x": 476.38751220703125,
+      "y": 1776,
+      "w": 321.9875183105469,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Faça uma pergunta",
+    "className": "de576f5064 b46cd7aad7 d0a01e3d83 c7a901b0e7 bbf83acb81 c2a03e7d08",
+    "rect": {
+      "x": 942.6749877929688,
+      "y": 1638.4000244140625,
+      "w": 145.41250610351562,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Ver outras perguntas (6)",
+    "className": "de576f5064 b46cd7aad7 d0a01e3d83 c7a901b0e7 bbf83acb81 c2a03e7d08",
+    "rect": {
+      "x": 82.4000015258789,
+      "y": 1864,
+      "w": 177.58750915527344,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Veja a disponibilidade",
+    "className": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 ca8e0b9533",
+    "rect": {
+      "x": 1029.125,
+      "y": 1932,
+      "w": 163.27500915527344,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Os hóspedes adoraram caminhar pelo bairro!",
+    "className": "de576f5064",
+    "rect": {
+      "x": 82.4000015258789,
+      "y": 1976,
+      "w": 248.8249969482422,
+      "h": 21.600000381469727
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Sim",
+    "className": "de576f5064 bef8628e61 e0d8514d4d",
+    "rect": {
+      "x": 1118.362548828125,
+      "y": 2477.60009765625,
+      "w": 24.662500381469727,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Não",
+    "className": "de576f5064 bef8628e61 e0d8514d4d",
+    "rect": {
+      "x": 1157.237548828125,
+      "y": 2477.60009765625,
+      "w": 27.162500381469727,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 b46cd7aad7 e26a59bb37 c295306d66 c7a901b0e7 daf5d4cb1c e7f2b1a356",
+    "rect": {
+      "x": 1147.5999755859375,
+      "y": 2550.400146484375,
+      "w": 36,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Veja a disponibilidade",
+    "className": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 ca8e0b9533",
+    "rect": {
+      "x": 1029.125,
+      "y": 2857.199951171875,
+      "w": 163.27500915527344,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Veja a disponibilidade",
+    "className": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 ca8e0b9533",
+    "rect": {
+      "x": 1029.125,
+      "y": 3805.199951171875,
+      "w": 163.27500915527344,
+      "h": 36
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Que tipo de café da manhã é servido em Village Arraial BY MN Hoteis?",
+    "className": "cec0620c60",
+    "rect": {
+      "x": 99.20000457763672,
+      "y": 4035.60009765625,
+      "w": 509.3999938964844,
+      "h": 48
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Village Arraial BY MN Hoteis tem piscina?",
+    "className": "cec0620c60",
+    "rect": {
+      "x": 99.20000457763672,
+      "y": 4116.60009765625,
+      "w": 509.3999938964844,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Que tipo de quarto eu posso reservar em Village Arraial BY MN Hoteis?",
+    "className": "cec0620c60",
+    "rect": {
+      "x": 99.20000457763672,
+      "y": 4173.60009765625,
+      "w": 509.3999938964844,
+      "h": 48
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Quais são os horários de check-in e check-out em Village Arraial BY MN Hoteis?",
+    "className": "cec0620c60",
+    "rect": {
+      "x": 99.20000457763672,
+      "y": 4254.60009765625,
+      "w": 509.3999938964844,
+      "h": 48
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Quanto custa ficar em Village Arraial BY MN Hoteis?",
+    "className": "cec0620c60",
+    "rect": {
+      "x": 99.20000457763672,
+      "y": 4335.60009765625,
+      "w": 509.3999938964844,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Que atividades estão disponíveis em Village Arraial BY MN Hoteis?",
+    "className": "cec0620c60",
+    "rect": {
+      "x": 666.2000122070312,
+      "y": 4035.60009765625,
+      "w": 509.3999938964844,
+      "h": 48
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "O centro de Arraial d'Ajuda fica a que distância de Village Arraial BY MN Hoteis?",
+    "className": "cec0620c60",
+    "rect": {
+      "x": 666.2000122070312,
+      "y": 4116.60009765625,
+      "w": 509.3999938964844,
+      "h": 48
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Village Arraial BY MN Hoteis fica a que distância da praia?",
+    "className": "cec0620c60",
+    "rect": {
+      "x": 666.2000122070312,
+      "y": 4197.60009765625,
+      "w": 509.3999938964844,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "Village Arraial BY MN Hoteis é popular entre famílias?",
+    "className": "cec0620c60",
+    "rect": {
+      "x": 666.2000122070312,
+      "y": 4254.60009765625,
+      "w": 509.3999938964844,
+      "h": 24
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "O melhor de: Arraial d'Ajuda\nClique aqui para ver mais hotéis e acomodações próximos a locais de interesse em: Arraial d'Ajuda",
+    "className": "cec0620c60",
+    "rect": {
+      "x": 77.4000015258789,
+      "y": 4440.39990234375,
+      "w": 1130,
+      "h": 72
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "",
+    "className": "de576f5064 b46cd7aad7 e26a59bb37 dda427e6b5 acb3638563 e7f2b1a356",
+    "rect": {
+      "x": 78.4000015258789,
+      "y": 4985.2001953125,
+      "w": 48,
+      "h": 48
+    }
+  },
+  {
+    "tag": "button",
+    "role": null,
+    "text": "BRL",
+    "className": "de576f5064 b46cd7aad7 e26a59bb37 dda427e6b5 acb3638563 e7f2b1a356",
+    "rect": {
+      "x": 138.40000915527344,
+      "y": 4985.2001953125,
+      "w": 51.45000076293945,
+      "h": 48
+    }
+  },
+  {
+    "tag": "a",
+    "role": "button",
+    "text": "Acessar sua conta",
+    "className": "iam_login_btn--email bui-button bui-button--large bui-button--wide bui-spacer",
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0
+    }
+  }
+]

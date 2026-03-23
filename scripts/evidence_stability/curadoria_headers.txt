@@ -1,0 +1,8 @@
+# Headers obtidos via Flask test_client (simula curl -I)
+# Para ambiente real: curl -I -s "http://localhost:5000/projeto/<id>/curadoria" > audits/curadoria_headers.txt
+# Substituir 5000 pela porta configurada (FLASK_RUN_PORT ou --port)
+
+HTTP/1.1 200
+Content-Type: text/html; charset=utf-8
+Content-Length: 68924
+Cache-Control: no-store, no-cache, must-revalidate

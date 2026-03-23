@@ -1,0 +1,55 @@
+{
+  "total_json": 12,
+  "files": [
+    {
+      "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\don-quixote\\market_bruto.json",
+      "size_bytes": 127038
+    },
+    {
+      "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\don-quixote\\market_curado.json",
+      "size_bytes": 17389
+    },
+    {
+      "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\don-quixote\\projeto.json",
+      "size_bytes": 1042
+    },
+    {
+      "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\don-quixote\\scraper_config.json",
+      "size_bytes": 1392
+    },
+    {
+      "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\don-quixote\\simulacao_cenarios.json",
+      "size_bytes": 6344
+    },
+    {
+      "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\don-quixote\\simulacao_salva.json",
+      "size_bytes": 889
+    },
+    {
+      "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\porto-bahia-hotel\\market_bruto.json",
+      "size_bytes": 126012
+    },
+    {
+      "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\porto-bahia-hotel\\projeto.json",
+      "size_bytes": 1042
+    },
+    {
+      "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\porto-bahia-hotel\\scraper_config.json",
+      "size_bytes": 1392
+    },
+    {
+      "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\village-arraial\\cenarios.json",
+      "size_bytes": 231
+    },
+    {
+      "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\village-arraial\\market_bruto.json",
+      "size_bytes": 126701
+    },
+    {
+      "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\village-arraial\\projeto.json",
+      "size_bytes": 1061
+    }
+  ],
+  "legacy_root_files": [],
+  "possible_duplicates": []
+}

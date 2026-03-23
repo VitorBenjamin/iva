@@ -1,0 +1,54 @@
+{
+  "attempt_id": "003",
+  "clicked_element_detail": {
+    "outerHTML": "<button data-testid=\"searchbox-dates-container\" type=\"button\" class=\"de576f5064 dc15842869 f1f96fdf10 d10abb4e59\"><span class=\"be2db1c937\"><span class=\"fc70cba028 e1f1de0f5d c2a70a5db2 bc7d708ceb\" aria-hidden=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"50px\"><path d=\"M22.5 13.5v8.25a.75.75 0 0 1-.75.75H2.25a.75.75 0 0 1-.75-.75V5.25a.75.75 0 0 1 .75-.75h19.5a.75.75 0 0 1 .75.75zm1.5 0V5.25A2.25 2.25 0 0 0 21.75 3H2.25A2.25 2.25 0 0 0 0 5.25v16.5A2.25 2.25 0 0 0 2.25 24h19.5A2.25 2.25 0 0 0 24 21.75zm-23.25-3h22.5a.75.75 0 0 0 0-1.5H.75a.75.75 0 0 0 0 1.5M7.5 6V.75a.75.75 0 0 0-1.5 0V6a.75.75 0 0 0 1.5 0M18 6V.75a.75.75 0 0 0-1.5 0V6A.75.75 0 0 0 18 6M5.095 14.03a.75.75 0 1 0 1.06-1.06.75.75 0 0 0-1.06 1.06m.53-1.28a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25.75.75 0 0 0 0 1.5.375.375 0 1 1 0-.75.375.375 0 0 1 0 .75.75.75 0 0 0 0-1.5m-.53 6.53a.75.75 0 1 0 1.06-1.06.75.75 0 0 0-1.06 1.06m.53-1.28a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25.75.75 0 0 0 0 1.5.375.375 0 1 1 0-.75.375.375 0 0 1 0 .75.75.75 0 0 0 0-1.5m5.845-3.97a.75.75 0 1 0 1.06-1.06.75.75 0 0 0-1.06 1.06m.53-1.28A1.125 1.125 0 1 0 12 15a1.125 1.125 0 0 0 0-2.25.75.75 0 0 0 0 1.5.375.375 0 1 1 0-.75.375.375 0 0 1 0 .75.75.75 0 0 0 0-1.5m-.53 6.53a.75.75 0 1 0 1.06-1.06.75.75 0 0 0-1.06 1.06M12 18a1.125 1.125 0 1 0 0 2.25A1.125 1.125 0 0 0 12 18a.75.75 0 0 0 0 1.5.375.375 0 1 1 0-.75.375.375 0 0 1 0 .75.75.75 0 0 0 0-1.5m5.845-3.97a.75.75 0 1 0 1.06-1.06.75.75 0 0 0-1.06 1.06m.53-1.28a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25.75.75 0 0 0 0 1.5.375.375 0 1 1 0-.75.375.375 0 0 1 0 .75.75.75 0 0 0 0-1.5m-.53 6.53a.75.75 0 1 0 1.06-1.06.75.75 0 0 0-1.06 1.06m.53-1.28a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25.75.75 0 0 0 0 1.5.375.375 0 1 1 0-.75.375.375 0 0 1 0 .75.75.75 0 0 0 0-1.5\"></path></svg></span><span data-testid=\"date-display-field-start\">Data de check-in</span><span class=\"eca9157be5\"> — </span><span data-testid=\"date-display-field-end\">Data de check-out</span></span></button>",
+    "sugestao_seletor_css_robusto": "#hp_availability_style_changes [data-testid='searchbox-dates-container']",
+    "caminho_dom": [
+      {
+        "tag": "button",
+        "id": null,
+        "classes": [],
+        "data-testid": "searchbox-dates-container"
+      }
+    ],
+    "bounding_box_estimado_css": {
+      "x": 86.15625381469727,
+      "y": 114.60000228881836,
+      "width": 372.0,
+      "height": 33.0
+    },
+    "recomendacao_acao": "Usar V1: clicar no elemento alvo; se o hit-test cair em svg/path, clicar ancestor via elementFromPoint(cx,cy).closest('button,a').",
+    "notas_fragilidade": [
+      "O seletor `[data-testid*='date']` pode capturar múltiplos nós (container do range e botões start/end); por isso o seletor recomendado ancora no `data-testid` específico do container.",
+      "BBox é estimada a partir do tamanho do screenshot e das coordenadas (cx,cy); pode variar com devicePixelRatio.",
+      "Se o DOM variar, alternativa é ancorar em `date-display-field-start/end` dentro do container `#hp_availability_style_changes`."
+    ],
+    "observacao": "O hit-test que originou `hit_info` caiu em um span interno com classe `be2db1c937` (texto de check-out). O elemento clicado é o container do range com data-testid `searchbox-dates-container`."
+  },
+  "hit_test_span": {
+    "outerHTML": "<span class=\"be2db1c937\">Data de check-out</span>",
+    "className": "be2db1c937"
+  },
+  "candidatos_encontrados": [
+    {
+      "data-testid": "searchbox-dates-container",
+      "tag": "button",
+      "score": 3
+    },
+    {
+      "data-testid": "date-display-field-end",
+      "tag": "span",
+      "score": 2
+    },
+    {
+      "data-testid": "date-display-field-start",
+      "tag": "span",
+      "score": 2
+    }
+  ],
+  "evidence_paths": {
+    "attempts_log_json": "scripts\\evidence\\attempts_log.json",
+    "attempt_003_fail_html": "scripts\\evidence\\attempt_003_fail.html",
+    "attempt_003_element_png": "scripts\\evidence\\attempt_003_element.png"
+  }
+}

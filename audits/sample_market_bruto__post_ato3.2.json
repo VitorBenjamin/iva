@@ -1,0 +1,322 @@
+[
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-03-24",
+    "preco_booking": 243.0,
+    "preco_direto_backend": 243.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-04-14",
+    "preco_booking": 405.0,
+    "preco_direto_backend": 405.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-04-18",
+    "preco_booking": 140.0,
+    "preco_direto_backend": 140.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-04-28",
+    "preco_booking": 360.0,
+    "preco_direto_backend": 360.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-05-02",
+    "preco_booking": 540.0,
+    "preco_direto_backend": 540.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-05-12",
+    "preco_booking": 360.0,
+    "preco_direto_backend": 360.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-05-16",
+    "preco_booking": 360.0,
+    "preco_direto_backend": 360.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-05-26",
+    "preco_booking": 360.0,
+    "preco_direto_backend": 360.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-06-06",
+    "preco_booking": 99.0,
+    "preco_direto_backend": 99.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-06"
+  },
+  {
+    "project_id": "cottage-bahia",
+    "checkin": "2026-06-09",
+    "preco_booking": 360.0,
+    "preco_direto_backend": 360.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-06"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-03-24",
+    "preco_booking": 270.67,
+    "preco_direto_backend": 243.6,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-04-14",
+    "preco_booking": 270.67,
+    "preco_direto_backend": 243.6,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-04-18",
+    "preco_booking": 316.0,
+    "preco_direto_backend": 284.4,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-04-28",
+    "preco_booking": 270.67,
+    "preco_direto_backend": 243.6,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-05-02",
+    "preco_booking": null,
+    "preco_direto_backend": null,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-05-12",
+    "preco_booking": 270.67,
+    "preco_direto_backend": 243.6,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-05-16",
+    "preco_booking": 270.67,
+    "preco_direto_backend": 243.6,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-05-26",
+    "preco_booking": 270.67,
+    "preco_direto_backend": 243.6,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-06-06",
+    "preco_booking": 332.67,
+    "preco_direto_backend": 299.4,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-06"
+  },
+  {
+    "project_id": "don-quixote",
+    "checkin": "2026-06-09",
+    "preco_booking": 270.67,
+    "preco_direto_backend": 243.6,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-06"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-03-24",
+    "preco_booking": 325.0,
+    "preco_direto_backend": 325.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-04-14",
+    "preco_booking": 300.0,
+    "preco_direto_backend": 300.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-04-18",
+    "preco_booking": 350.0,
+    "preco_direto_backend": 350.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-04-28",
+    "preco_booking": 316.67,
+    "preco_direto_backend": 316.67,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-05-02",
+    "preco_booking": 93.33,
+    "preco_direto_backend": 93.33,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-05-12",
+    "preco_booking": 156.0,
+    "preco_direto_backend": 156.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-05-16",
+    "preco_booking": 177.67,
+    "preco_direto_backend": 177.67,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-05-26",
+    "preco_booking": 164.33,
+    "preco_direto_backend": 164.33,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-06-06",
+    "preco_booking": 300.0,
+    "preco_direto_backend": 300.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-06"
+  },
+  {
+    "project_id": "porto-bahia-hotel",
+    "checkin": "2026-06-09",
+    "preco_booking": 300.0,
+    "preco_direto_backend": 300.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-06"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-03-24",
+    "preco_booking": 264.5,
+    "preco_direto_backend": 211.6,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-03"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-04-01",
+    "preco_booking": null,
+    "preco_direto_backend": null,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-04-14",
+    "preco_booking": 371.0,
+    "preco_direto_backend": 296.8,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-04-18",
+    "preco_booking": 140.0,
+    "preco_direto_backend": 112.0,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-04-28",
+    "preco_booking": 163.5,
+    "preco_direto_backend": 130.8,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-04"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-05-02",
+    "preco_booking": 292.0,
+    "preco_direto_backend": 233.6,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-05-12",
+    "preco_booking": 163.5,
+    "preco_direto_backend": 130.8,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-05-16",
+    "preco_booking": 163.5,
+    "preco_direto_backend": 130.8,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-05-26",
+    "preco_booking": 163.5,
+    "preco_direto_backend": 130.8,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-05"
+  },
+  {
+    "project_id": "village-arraial",
+    "checkin": "2026-06-06",
+    "preco_booking": 292.0,
+    "preco_direto_backend": 233.6,
+    "categoria_dia": "normal",
+    "mes_ano": "2026-06"
+  }
+]

@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from datetime import date, datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 from flask import Flask, jsonify, render_template, request
 from loguru import logger
@@ -18,10 +19,14 @@ from core.projetos import (
     ArquivoProjetoNaoEncontrado,
     Projeto,
     carregar_projeto,
+    create_project_scaffold,
     gerar_id_projeto,
+    get_backups_dir,
     get_market_bruto_path,
     get_market_curado_path,
     get_projeto_json_path,
+    get_scraper_config_path,
+    get_cenarios_path,
     get_simulacao_cenarios_path,
     get_simulacao_salva_path,
     listar_projetos,
@@ -33,10 +38,151 @@ from core.analise.engenharia_reversa import (
     gerar_relatorio_engenharia_reversa,
     gerar_relatorio_engenharia_reversa_registros,
 )
+from core.backup import salvar_market_curado_com_backup
+from core.analise.desconto import obter_desconto_para_curadoria
 from core.scraper.modelos import DadosMercado, MarketBruto, MarketCurado, MarketCuradoRegistro
-from core.scraper.scrapers import coletar_dados_mercado, coletar_dados_mercado_expandido
+from core.scraper.scrapers import (
+    EVIDENCE_STABILITY_DIR,
+    coletar_dados_mercado,
+    coletar_dados_mercado_expandido,
+)
 
 app = Flask(__name__)
+IO_LOG_JSONL = app.root_path + "/scripts/evidence_stability/IO_ERRORS.jsonl"
+
+
+class CenarioPayload(BaseModel):
+    nome: str = Field(min_length=1)
+    ocupacao_alvo: float = Field(ge=0, le=1)
+    adr_projetado: float = Field(ge=0)
+    lucro_estimado: float
+
+
+def _log_io_error(evento: str, id_projeto: str, erro: str) -> None:
+    try:
+        from pathlib import Path
+        path = Path(IO_LOG_JSONL)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "timestamp": datetime.now().isoformat(),
+            "evento": evento,
+            "id_projeto": id_projeto,
+            "erro": str(erro)[:400],
+        }
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
+def _log_system_event(action: str, id_projeto: str, extra: dict | None = None) -> None:
+    """Registra eventos de auditoria no SYSTEM_EVENTS.jsonl."""
+    try:
+        path = EVIDENCE_STABILITY_DIR / "SYSTEM_EVENTS.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "timestamp": datetime.now().isoformat(),
+            "action": action,
+            "id_projeto": id_projeto,
+            "time": datetime.now().isoformat(),
+            "user": "cursor-job",
+        }
+        if extra:
+            payload.update(extra)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
+def _strict_periodos_ativo(id_projeto: str) -> bool:
+    """Retorna estado de STRICT_PERIODOS (env) com override opcional por projeto."""
+    env_val = os.environ.get("STRICT_PERIODOS", "false").strip().lower()
+    strict_env = env_val in {"1", "true", "yes", "on"}
+    path_projeto = get_projeto_json_path(id_projeto)
+    if not path_projeto.exists():
+        return strict_env
+    try:
+        raw = json.loads(path_projeto.read_text(encoding="utf-8"))
+        if isinstance(raw.get("strict_periodos"), bool):
+            return bool(raw.get("strict_periodos"))
+        curadoria = raw.get("curadoria") or {}
+        if isinstance(curadoria, dict) and isinstance(curadoria.get("strict_periodos"), bool):
+            return bool(curadoria.get("strict_periodos"))
+    except Exception:
+        return strict_env
+    return strict_env
+
+
+def _backend_desconto_unificado_ativo() -> bool:
+    """Flag backend para cálculo unificado de desconto (default true)."""
+    env_val = os.environ.get("BACKEND_DESCONTO_UNIFICADO", "true").strip().lower()
+    return env_val in {"1", "true", "yes", "on"}
+
+
+def _frontend_desconto_unificado_ativo(id_projeto: str) -> bool:
+    """Flag frontend para desconto unificado (default false), com override por projeto."""
+    env_val = os.environ.get("FRONTEND_DESCONTO_UNIFICADO", "false").strip().lower()
+    frontend_env = env_val in {"1", "true", "yes", "on"}
+    path_projeto = get_projeto_json_path(id_projeto)
+    if not path_projeto.exists():
+        return frontend_env
+    try:
+        raw = json.loads(path_projeto.read_text(encoding="utf-8"))
+        curadoria = raw.get("curadoria") or {}
+        if isinstance(curadoria, dict) and isinstance(curadoria.get("frontend_desconto_unificado"), bool):
+            return bool(curadoria.get("frontend_desconto_unificado"))
+    except Exception:
+        return frontend_env
+    return frontend_env
+
+
+def safe_decimal_from(v) -> Decimal | None:
+    """Converte valor para Decimal de forma segura."""
+    if v is None:
+        return None
+    try:
+        return Decimal(str(v).replace(",", "."))
+    except Exception:
+        return None
+
+
+def format_decimal_for_display(v: Decimal | None) -> float | None:
+    """Converte Decimal em float para payload/template."""
+    if v is None:
+        return None
+    return float(v)
+
+
+def _calcular_preco_direto_por_data(id_projeto: str, mes_ano: str | None, preco_booking) -> float | None:
+    """Calcula preço direto unitário usando a regra canônica de desconto."""
+    bruto_dec = safe_decimal_from(preco_booking)
+    if bruto_dec is None:
+        return None
+    desconto_dec = obter_desconto_para_curadoria(id_projeto, mes_ano)
+    preco_direto_dec = (bruto_dec * (Decimal("1") - desconto_dec)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return format_decimal_for_display(preco_direto_dec)
+
+
+def _calcular_media_decimal(valores) -> float | None:
+    """Calcula média numérica com Decimal para consistência de arredondamento."""
+    if not valores:
+        return None
+    decs = [safe_decimal_from(v) for v in valores]
+    decs = [d for d in decs if d is not None]
+    if not decs:
+        return None
+    media = (sum(decs) / Decimal(len(decs))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return format_decimal_for_display(media)
+
+
+def _resolver_preco_exibicao_preferida(preco_direto_por_data, preco_direto_media_periodo) -> tuple[str, float | None]:
+    """Define origem e valor exibido de preço direto no dashboard."""
+    if preco_direto_por_data is not None:
+        return "por_data", preco_direto_por_data
+    if preco_direto_media_periodo is not None:
+        return "media_periodo", preco_direto_media_periodo
+    return "nao_disponivel", None
 
 
 @app.before_request
@@ -80,6 +226,29 @@ class CriarProjetoBody(BaseModel):
     infraestrutura: Infraestrutura | None = None
 
 
+class CriarPousadaBody(BaseModel):
+    """Payload para POST /api/pousada."""
+
+    id: str | None = None
+    nome: str = Field(min_length=1)
+    booking_url: str = ""
+    cidade: str | None = None
+    timezone: str | None = None
+    executar_scrape_imediato: bool = False
+
+
+def _validar_booking_url(url: str) -> tuple[bool, str]:
+    """Valida booking_url: esquema http/https, domínio esperado. Retorna (ok, mensagem)."""
+    if not url or not isinstance(url, str) or not url.strip():
+        return False, "URL do Booking é obrigatória."
+    url = url.strip()
+    if not (url.startswith("http://") or url.startswith("https://")):
+        return False, "URL deve iniciar com http:// ou https://"
+    if "booking.com" not in url.lower():
+        return False, "URL deve ser do domínio booking.com"
+    return True, ""
+
+
 class AtualizarProjetoBody(BaseModel):
     """Payload para PUT /api/projeto/<id> (campos opcionais)."""
 
@@ -104,6 +273,21 @@ def api_listar_projetos():
     projetos = listar_projetos()
     dados = [p.model_dump(mode="json") for p in projetos]
     return jsonify({"success": True, "message": "Projetos listados.", "data": dados})
+
+
+@app.post("/api/system-events/frontend")
+def api_system_events_frontend():
+    """Endpoint leve para eventos de UX do frontend (fire-and-forget)."""
+    body = request.get_json(force=True, silent=True) or {}
+    if not isinstance(body, dict):
+        return jsonify({"success": False, "message": "Payload inválido"}), 400
+    action = str(body.get("action") or "").strip()
+    if not action:
+        return jsonify({"success": False, "message": "Campo 'action' é obrigatório"}), 400
+    id_projeto = str(body.get("id_projeto") or "unknown").strip() or "unknown"
+    extra = {k: v for k, v in body.items() if k not in {"action", "id_projeto"}}
+    _log_system_event(action=action, id_projeto=id_projeto, extra=extra)
+    return jsonify({"success": True}), 202
 
 
 @app.get("/api/presets-infraestrutura")
@@ -135,6 +319,128 @@ def api_presets_infraestrutura():
     except Exception as e:
         logger.warning("Erro ao obter presets: {}", e)
         return jsonify({"success": False, "message": str(e), "data": None}), 400
+
+
+def _obter_checklist_pousada(id_projeto: str) -> dict:
+    """Retorna checklist de validação para uma pousada/projeto."""
+    path_projeto = get_projeto_json_path(id_projeto)
+    path_scraper = get_scraper_config_path(id_projeto)
+    path_bruto = get_market_bruto_path(id_projeto)
+    path_backups = get_backups_dir(id_projeto)
+    try:
+        proj = carregar_projeto(id_projeto)
+        url = proj.url_booking or ""
+    except ArquivoProjetoNaoEncontrado:
+        proj = None
+        url = ""
+    booking_url_valid = False
+    if url:
+        ok, _ = _validar_booking_url(url)
+        booking_url_valid = ok
+    return {
+        "scraper_config_exists": path_scraper.exists() and path_scraper.is_file(),
+        "booking_url_valid": booking_url_valid,
+        "market_bruto_exists": path_bruto.exists() and path_bruto.is_file(),
+        "permissions_ok": True,
+        "backups_dir_exists": path_backups.exists() and path_backups.is_dir(),
+    }
+
+
+def _criar_pousada_internal(body: dict):
+    """Lógica interna de criação de pousada. body já deve ter booking_url se houver url_booking."""
+    payload = CriarPousadaBody.model_validate(body)
+    url = (payload.booking_url or "").strip()
+    ok, msg = _validar_booking_url(url)
+    if not ok:
+        return jsonify({"success": False, "message": msg, "data": None}), 400
+
+    id_projeto = payload.id
+    if not id_projeto or not str(id_projeto).strip():
+        id_projeto = gerar_id_projeto(payload.nome)
+    id_projeto = str(id_projeto).strip().lower()
+    import re
+    id_projeto = re.sub(r"[^a-z0-9\-]", "-", id_projeto).strip("-") or gerar_id_projeto(payload.nome)
+    n = 1
+    id_base = id_projeto
+    while get_projeto_json_path(id_projeto).exists() or (PROJECTS_DIR / f"{id_projeto}.json").exists():
+        id_projeto = f"{id_base}-{n}"
+        n += 1
+
+    metadata = {
+        "nome": payload.nome,
+        "booking_url": url,
+        "url_booking": url,
+        "timezone": payload.timezone or "America/Sao_Paulo",
+        "cidade": payload.cidade,
+        "noites_preferencial": 2,
+        "max_tentativas": 5,
+        "numero_quartos": 1,
+        "faturamento_anual": 0,
+        "ano_referencia": date.today().year,
+    }
+    scaffold = create_project_scaffold(id_projeto, metadata)
+    checklist = _obter_checklist_pousada(id_projeto)
+    created_files = scaffold["created"]
+
+    if payload.executar_scrape_imediato:
+        try:
+            proj = carregar_projeto(id_projeto)
+            market = coletar_dados_mercado_expandido(proj.url_booking, id_projeto)
+            created_files.append("market_bruto.json (atualizado pelo scrape)")
+            checklist = _obter_checklist_pousada(id_projeto)
+        except Exception as e:
+            logger.warning("Scrape imediato falhou para {}: {}", id_projeto, e)
+            scaffold["errors"].append(f"Scrape: {e}")
+
+    return jsonify({
+        "success": True,
+        "message": "Pousada criada.",
+        "data": {
+            "id": id_projeto,
+            "created_files": created_files,
+            "checklist": checklist,
+            "scaffold": {
+                "created": scaffold["created"],
+                "already_existed": scaffold["already_existed"],
+                "missing": scaffold["missing"],
+                "errors": scaffold["errors"],
+            },
+        },
+    }), 201
+
+
+@app.post("/api/pousada")
+def api_criar_pousada():
+    """Cria nova pousada com scaffold completo."""
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        return _criar_pousada_internal(body)
+    except Exception as e:
+        logger.warning("Validação POST /api/pousada falhou: {}", e)
+        return jsonify({"success": False, "message": str(e), "data": None}), 400
+
+
+@app.post("/api/projeto")
+def api_criar_projeto():
+    """Alias de POST /api/pousada para compatibilidade. Aceita booking_url ou url_booking."""
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        if "url_booking" in body and "booking_url" not in body:
+            body = {**body, "booking_url": body["url_booking"]}
+        return _criar_pousada_internal(body)
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e), "data": None}), 400
+
+
+@app.get("/api/pousada/<id>/validate")
+def api_validate_pousada(id: str):
+    """Retorna checklist de validação da pousada."""
+    try:
+        carregar_projeto(id)
+    except ArquivoProjetoNaoEncontrado:
+        return jsonify({"success": False, "message": "Pousada não encontrada", "data": None}), 404
+    checklist = _obter_checklist_pousada(id)
+    return jsonify({"success": True, "data": {"checklist": checklist}})
 
 
 @app.post("/projeto")
@@ -374,14 +680,22 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
             logger.warning("Market curado inválido, ignorando: {} - {}", path_curado, e)
 
     from datetime import date
-    from core.config import obter_config_scraper_com_defaults, _periodos_especiais_de_config
+    from core.config import asegurar_scraper_config, obter_config_scraper_com_defaults, obter_desconto_dinamico, _periodos_especiais_de_config
+    asegurar_scraper_config(id_projeto)
     scraper_cfg = obter_config_scraper_com_defaults(id_projeto)
-    descontos_cfg = scraper_cfg.get("descontos") or {}
-    desconto_global = descontos_cfg.get("global")
-    if desconto_global is None:
-        desconto_global = 0.20
-    descontos_por_mes = descontos_cfg.get("por_mes") or {}
     periodos_especiais = _periodos_especiais_de_config(id_projeto)
+    strict_periodos = _strict_periodos_ativo(id_projeto)
+    backend_unificado = _backend_desconto_unificado_ativo()
+    periodo_intervalo: dict[str, tuple[str, str]] = {
+        p.get("nome"): (p.get("inicio"), p.get("fim"))
+        for p in periodos_especiais
+        if isinstance(p, dict) and p.get("nome") and p.get("inicio") and p.get("fim")
+    }
+    periodos_validos_ids: set[str] = {
+        p.get("periodo_id")
+        for p in periodos_especiais
+        if isinstance(p, dict) and p.get("periodo_id")
+    }
 
     MESES_PT = {
         "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril",
@@ -406,8 +720,13 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
             d = date.fromisoformat(checkin_str[:10])
         except (ValueError, TypeError):
             return None
-        for ini, fim, nome in periodos_especiais:
-            if ini <= d <= fim:
+        for p in periodos_especiais:
+            if not isinstance(p, dict):
+                continue
+            ini = p.get("inicio_date")
+            fim = p.get("fim_date")
+            nome = p.get("nome")
+            if ini and fim and ini <= d <= fim:
                 return nome
         return None
 
@@ -421,10 +740,15 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
         rolling=True,
     )
     checkins_amostra = {p["checkin"] for p in amostra["normais"] + amostra["especiais"]}
-    coletados = [r for r in bruto.registros if r.checkin in checkins_amostra]
+    # Incluir sempre registros de Datas Especiais já coletados, mesmo fora da janela rolling atual
+    coletados = [
+        r for r in bruto.registros
+        if r.checkin in checkins_amostra or getattr(r, "categoria_dia", "normal") == "especial"
+    ]
 
     registros_normais: list[dict] = []
     registros_especiais_raw: list[dict] = []
+    inconsistencias_especiais: list[dict] = []
     for r in coletados:
         tem_curado = r.checkin in curado_por_checkin
         preco_curado = curado_por_checkin[r.checkin].get("preco_curado") if tem_curado else None
@@ -433,10 +757,30 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
         ano, mes = partes[0], partes[1]
         mes_ano_label = f"{MESES_PT.get(mes, mes)}/{ano}" if mes and ano else r.mes_ano
         categoria = getattr(r, "categoria_dia", "normal") or "normal"
-        mes_key = mes if mes else ""
-        desconto = descontos_por_mes.get(mes_key) if mes_key in descontos_por_mes else desconto_global
-        if r.preco_booking is not None and desconto is not None:
-            preco_direto_exibicao = round(float(r.preco_booking) * (1 - float(desconto)), 2)
+        if r.preco_booking is not None:
+            if backend_unificado:
+                desconto_dec = obter_desconto_para_curadoria(id_projeto, r.mes_ano)
+                bruto_dec = safe_decimal_from(r.preco_booking)
+                if bruto_dec is not None:
+                    preco_direto_dec = (bruto_dec * (Decimal("1") - desconto_dec)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                    preco_direto_exibicao = format_decimal_for_display(preco_direto_dec)
+                    if len(registros_normais) + len(registros_especiais_raw) < 5:
+                        _log_system_event(
+                            action="calculo_preco_direto_sample",
+                            id_projeto=id_projeto,
+                            extra={
+                                "checkin": r.checkin,
+                                "desconto_source": "unificado_backend",
+                                "desconto_value": str(desconto_dec),
+                                "preco_booking": str(bruto_dec),
+                                "preco_direto": str(preco_direto_dec),
+                            },
+                        )
+                else:
+                    preco_direto_exibicao = r.preco_direto
+            else:
+                desconto = obter_desconto_dinamico(scraper_cfg, r.mes_ano)
+                preco_direto_exibicao = round(float(r.preco_booking) * (1 - desconto), 2)
         else:
             preco_direto_exibicao = r.preco_direto
         preco_falha = r.preco_booking is None or (r.preco_booking == 0)
@@ -451,6 +795,10 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
             "categoria_dia": categoria,
             "preco_booking": r.preco_booking,
             "preco_direto": preco_direto_exibicao,
+            "preco_booking_por_data": r.preco_booking,
+            "preco_direto_por_data": preco_direto_exibicao,
+            "preco_direto_media_periodo": None,
+            "preco_exibicao_preferida": "por_data" if preco_direto_exibicao is not None else "nao_disponivel",
             "preco_curado": preco_curado,
             "status": status,
             "nome_quarto": r.nome_quarto or "",
@@ -462,10 +810,34 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
             "preco_curado_fmt": _moeda_br(preco_curado) if preco_curado is not None else None,
             "periodo_nome": _periodo_para_checkin(r.checkin) if categoria == "especial" else None,
         }
+        meta = getattr(r, "meta", {}) or {}
+        if not isinstance(meta, dict):
+            meta = {}
+        row["meta_periodo_id"] = meta.get("periodo_id")
+        row["meta_periodo_source"] = meta.get("periodo_source")
+        row["meta_periodo_nome"] = meta.get("periodo_nome")
         if categoria == "especial":
-            registros_especiais_raw.append(row)
+            if strict_periodos:
+                pid = row.get("meta_periodo_id")
+                psrc = row.get("meta_periodo_source")
+                if psrc == "config" and pid in periodos_validos_ids:
+                    registros_especiais_raw.append(row)
+                else:
+                    inconsistencias_especiais.append(row)
+            else:
+                registros_especiais_raw.append(row)
         else:
             registros_normais.append(row)
+
+    if strict_periodos and inconsistencias_especiais:
+        _log_system_event(
+            action="curadoria_inconsistencias_periodos",
+            id_projeto=id_projeto,
+            extra={
+                "total_inconsistencias": len(inconsistencias_especiais),
+                "checkins": [r.get("checkin") for r in inconsistencias_especiais[:30]],
+            },
+        )
 
     periodos_agrupados: dict[str, list[dict]] = {}
     for row in registros_especiais_raw:
@@ -475,12 +847,38 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
     registros_especiais: list[dict] = []
     for periodo_nome, grupo in sorted(periodos_agrupados.items(), key=lambda x: (x[1][0]["checkin"] if x[1] else "")):
         checkins = [r["checkin"] for r in grupo]
-        checkin_ini = min(g["checkin"] for g in grupo)
-        checkout_fim = max(g["checkout"] for g in grupo)
+        intervalo_config = periodo_intervalo.get(periodo_nome) if periodo_nome else None
+        if intervalo_config:
+            checkin_ini, checkout_fim = intervalo_config[0], intervalo_config[1]
+        else:
+            checkin_ini = min(g["checkin"] for g in grupo)
+            checkout_fim = max(g["checkout"] for g in grupo)
+            try:
+                ev_path = EVIDENCE_STABILITY_DIR / "Curadoria_INTERVALO_FALLBACK.jsonl"
+                ev_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(ev_path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps({
+                        "timestamp": datetime.now().isoformat(),
+                        "evento": "intervalo_fallback",
+                        "id_projeto": id_projeto,
+                        "periodo_nome": periodo_nome or "",
+                        "checkin_ini": checkin_ini,
+                        "checkout_fim": checkout_fim,
+                    }, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
         precos_direto = [g["preco_direto"] for g in grupo if g["preco_direto"] is not None]
         precos_curado = [g["preco_curado"] for g in grupo if g["preco_curado"] is not None]
-        adr_medio = sum(precos_direto) / len(precos_direto) if precos_direto else 0.0
-        preco_curado_periodo = sum(precos_curado) / len(precos_curado) if precos_curado else None
+        adr_medio = _calcular_media_decimal(precos_direto)
+        preco_curado_periodo = _calcular_media_decimal(precos_curado)
+        preco_booking_por_data = grupo[0].get("preco_booking") if grupo else None
+        preco_direto_por_data = None
+        if grupo:
+            preco_direto_por_data = _calcular_preco_direto_por_data(id_projeto, grupo[0].get("mes_ano"), preco_booking_por_data)
+        preco_direto_media_periodo = adr_medio if adr_medio is not None else None
+        preco_exibicao_preferida, preco_direto_exibicao = _resolver_preco_exibicao_preferida(
+            preco_direto_por_data, preco_direto_media_periodo
+        )
         status = "Editado (Manual)" if all(g["status"] == "Editado (Manual)" for g in grupo) else ("Original (Booking)" if any(g.get("preco_booking") for g in grupo) else "Faltando")
         preco_falha_agregado = not any(g.get("preco_booking") for g in grupo)
         registros_especiais.append({
@@ -491,17 +889,32 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
             "checkout_br": _data_br(checkout_fim),
             "checkins": checkins,
             "mes_ano_label": grupo[0]["mes_ano_label"] if grupo else "",
-            "preco_direto": adr_medio if precos_direto else None,
+            "preco_direto": preco_direto_exibicao,
             "preco_curado": preco_curado_periodo,
-            "preco_direto_fmt": _moeda_br(adr_medio) if precos_direto else None,
+            "preco_direto_fmt": _moeda_br(preco_direto_exibicao) if preco_direto_exibicao is not None else None,
             "preco_curado_fmt": _moeda_br(preco_curado_periodo) if preco_curado_periodo is not None else None,
             "preco_booking_fmt": _moeda_br(grupo[0]["preco_booking"]) if grupo and grupo[0].get("preco_booking") else None,
+            "preco_booking_por_data": preco_booking_por_data,
+            "preco_direto_por_data": preco_direto_por_data,
+            "preco_direto_media_periodo": preco_direto_media_periodo,
+            "preco_exibicao_preferida": preco_exibicao_preferida,
             "preco_falha": preco_falha_agregado,
             "status": status,
             "nome_quarto": grupo[0].get("nome_quarto", "") if grupo else "",
             "tipo_tarifa": grupo[0].get("tipo_tarifa", "") if grupo else "",
             "noites": grupo[0].get("noites", 0) if grupo else 0,
         })
+    if registros_especiais:
+        _log_system_event(
+            action="curadoria_display_fix_applied",
+            id_projeto=id_projeto,
+            extra={
+                "registros_especiais": len(registros_especiais),
+                "por_data": len([r for r in registros_especiais if r.get("preco_exibicao_preferida") == "por_data"]),
+                "media_periodo": len([r for r in registros_especiais if r.get("preco_exibicao_preferida") == "media_periodo"]),
+                "nao_disponivel": len([r for r in registros_especiais if r.get("preco_exibicao_preferida") == "nao_disponivel"]),
+            },
+        )
 
     from itertools import groupby
     registros_normais_ordenados = sorted(registros_normais, key=lambda x: x["checkin"])
@@ -538,6 +951,8 @@ def _carregar_registros_dashboard(id_projeto: str) -> list | dict:
         "grupos_normais": grupos_normais,
         "grupos_especiais": grupos_especiais,
         "meses_sem_normais": meses_sem_normais_labels,
+        "inconsistencias_especiais": inconsistencias_especiais,
+        "strict_periodos_ativo": strict_periodos,
     }
 
 
@@ -551,11 +966,16 @@ def curadoria_mercado(id: str):
     dados = _carregar_registros_dashboard(id)
     if isinstance(dados, list):
         dados = {"registros": dados, "grupos_mes": [], "grupos_normais": [], "grupos_especiais": [], "meses_sem_normais": []}
-    from core.config import obter_config_scraper_com_defaults
-    descontos_config = obter_config_scraper_com_defaults(id).get("descontos") or {"global": 0.20, "por_mes": {}}
-    dg = descontos_config.get("global")
-    desconto_exibicao = f"{float(dg or 0.20) * 100:.1f}".replace(".", ",")
-    return render_template(
+    from core.config import (
+        descontos_config_para_template,
+        obter_config_scraper_com_defaults,
+        obter_desconto_dinamico,
+    )
+    scraper_cfg_curadoria = obter_config_scraper_com_defaults(id)
+    descontos_config = descontos_config_para_template(scraper_cfg_curadoria)
+    desconto_exibicao = f"{obter_desconto_dinamico(scraper_cfg_curadoria, None) * 100:.1f}".replace(".", ",")
+    frontend_desconto_unificado_ativo = _frontend_desconto_unificado_ativo(id)
+    resp = render_template(
         "dashboard.html",
         projeto=projeto.model_dump(mode="json"),
         nav_active="curadoria",
@@ -563,10 +983,17 @@ def curadoria_mercado(id: str):
         grupos_normais=dados.get("grupos_normais", []),
         grupos_especiais=dados.get("grupos_especiais", []),
         meses_sem_normais=dados.get("meses_sem_normais", []),
+        inconsistencias_especiais=dados.get("inconsistencias_especiais", []),
+        strict_periodos_ativo=dados.get("strict_periodos_ativo", False),
         registros=dados.get("registros", []),
         descontos_config=descontos_config,
         desconto_exibicao=desconto_exibicao,
+        frontend_desconto_unificado_ativo=frontend_desconto_unificado_ativo,
     )
+    # Evitar cache do navegador para garantir dados atualizados (desconto, etc.)
+    r = app.make_response(resp)
+    r.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    return r
 
 
 @app.post("/api/projeto/<id>/curadoria")
@@ -596,61 +1023,149 @@ def api_salvar_curadoria(id: str):
     registros_payload = body.get("registros") if isinstance(body, dict) else []
     if not isinstance(registros_payload, list):
         return jsonify({"success": False, "message": "Payload deve conter lista 'registros'.", "data": None}), 400
+
+    _log_system_event(
+        action="curadoria_save_start",
+        id_projeto=id,
+        extra={"total_payload": len(registros_payload), "backend_unificado": _backend_desconto_unificado_ativo()},
+    )
+
+    backend_unificado = _backend_desconto_unificado_ativo()
     bruto_por_checkin = {r.checkin: r for r in bruto.registros}
-    curado_registros = []
-    for item in registros_payload:
+    curado_registros: list[MarketCuradoRegistro] = []
+    itens_corrigidos: list[dict] = []
+    itens_invalidos: list[dict] = []
+    audit_registros: list[dict] = []
+    threshold_correcao = Decimal("0.02")
+
+    for idx, item in enumerate(registros_payload):
         if not isinstance(item, dict):
+            itens_invalidos.append({"idx": idx, "erro": "item_nao_objeto"})
             continue
         checkin = item.get("checkin")
         if not checkin or checkin not in bruto_por_checkin:
+            itens_invalidos.append({"idx": idx, "erro": "checkin_invalido", "checkin": checkin})
             continue
         base = bruto_por_checkin[checkin]
-        preco_curado = item.get("preco_curado")
-        if preco_curado is not None and not isinstance(preco_curado, (int, float)):
+
+        preco_sugerido_raw = item.get("preco_curado_sugerido", item.get("preco_curado"))
+        if preco_sugerido_raw is None:
+            # Mantém compatibilidade: sem valor curado explícito, não persiste registro.
             continue
-        # Persistir APENAS registros com preco_curado numérico válido (linhas realmente editadas)
-        if preco_curado is None:
+        preco_sugerido_dec = safe_decimal_from(preco_sugerido_raw)
+        if preco_sugerido_dec is None:
+            itens_invalidos.append({"idx": idx, "erro": "preco_curado_invalido", "checkin": checkin})
             continue
-        try:
-            valor = float(preco_curado)
-        except (TypeError, ValueError):
-            continue
+        preco_sugerido_dec = preco_sugerido_dec.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
         status = item.get("status")
         if status is not None and not isinstance(status, str):
             status = "Editado (Manual)"
-        curado_registros.append(MarketCuradoRegistro(
-            checkin=base.checkin,
-            checkout=base.checkout,
-            mes_ano=base.mes_ano,
-            tipo_dia=base.tipo_dia,
-            preco_booking=base.preco_booking,
-            preco_direto=base.preco_direto,
-            preco_curado=valor,
-            status=(status or "Editado (Manual)")[:80],
-            nome_quarto=base.nome_quarto,
-            tipo_tarifa=base.tipo_tarifa,
-            noites=base.noites,
-        ))
+
+        preco_final_dec = preco_sugerido_dec
+        desconto_aplicado = None
+        preco_booking_base_dec = safe_decimal_from(base.preco_booking)
+        if backend_unificado and preco_booking_base_dec is not None:
+            desconto_dec = obter_desconto_para_curadoria(id, base.mes_ano)
+            desconto_aplicado = str(desconto_dec)
+            preco_backend_dec = (
+                preco_booking_base_dec * (Decimal("1") - desconto_dec)
+            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            if abs(preco_backend_dec - preco_sugerido_dec) > threshold_correcao:
+                preco_final_dec = preco_backend_dec
+                item_corrigido = {
+                    "checkin": checkin,
+                    "preco_sugerido": float(preco_sugerido_dec),
+                    "preco_backend": float(preco_backend_dec),
+                    "delta": float((preco_backend_dec - preco_sugerido_dec).copy_abs()),
+                    "desconto_aplicado": str(desconto_dec),
+                }
+                itens_corrigidos.append(item_corrigido)
+                _log_system_event(
+                    action="curadoria_saving_corrected",
+                    id_projeto=id,
+                    extra=item_corrigido,
+                )
+
+        curado_registros.append(
+            MarketCuradoRegistro(
+                checkin=base.checkin,
+                checkout=base.checkout,
+                mes_ano=base.mes_ano,
+                tipo_dia=base.tipo_dia,
+                preco_booking=base.preco_booking,
+                preco_direto=base.preco_direto,
+                preco_curado=float(preco_final_dec),
+                status=(status or "Editado (Manual)")[:80],
+                nome_quarto=base.nome_quarto,
+                tipo_tarifa=base.tipo_tarifa,
+                noites=base.noites,
+                categoria_dia=base.categoria_dia,
+            )
+        )
+        audit_registros.append(
+            {
+                "checkin": base.checkin,
+                "source": "curadoria_ui",
+                "version": "ato3.3",
+                "saved_by": "cursor-job",
+                "timestamp": datetime.now().isoformat(),
+                "preco_booking_base": float(preco_booking_base_dec) if preco_booking_base_dec is not None else None,
+                "preco_curado_sugerido": float(preco_sugerido_dec),
+                "preco_curado_salvo": float(preco_final_dec),
+                "desconto_aplicado": desconto_aplicado,
+                "preco_exibicao_origem": item.get("preco_exibicao_origem"),
+                "preco_base_usado": item.get("preco_base_usado"),
+            }
+        )
+
+    if len(curado_registros) == 0 and len(registros_payload) > 0:
+        return jsonify(
+            {
+                "success": False,
+                "message": "Nenhum registro válido para salvar.",
+                "data": {"itens_invalidos": itens_invalidos[:50]},
+            }
+        ), 400
+
     market_curado = MarketCurado(
         id_projeto=id,
         url=bruto.url,
         ano=bruto.ano,
-        criado_em=datetime.utcnow(),
+        criado_em=datetime.now(),
         registros=curado_registros,
     )
-    path_curado = get_market_curado_path(id)
-    path_curado.parent.mkdir(parents=True, exist_ok=True)
-    with open(path_curado, "w", encoding="utf-8") as f:
-        json.dump(market_curado.model_dump(mode="json"), f, ensure_ascii=False, indent=2)
-    logger.info("Market curado salvo: {} ({} registros)", path_curado, len(curado_registros))
-    data_response = {"registros_salvos": len(curado_registros)}
+    market_curado_payload = market_curado.model_dump(mode="json")
+    market_curado_payload["meta"] = {
+        "source": "curadoria_ui",
+        "version": "ato3.3",
+        "backend_desconto_unificado": backend_unificado,
+        "audit": audit_registros,
+        "itens_corrigidos_count": len(itens_corrigidos),
+    }
+    salvar_market_curado_com_backup(id, market_curado_payload)
+    logger.info("Market curado salvo: {} ({} registros)", get_market_curado_path(id), len(curado_registros))
+    _log_system_event(
+        action="market_curado_written",
+        id_projeto=id,
+        extra={
+            "registros_salvos": len(curado_registros),
+            "itens_corrigidos": len(itens_corrigidos),
+            "itens_invalidos": len(itens_invalidos),
+        },
+    )
+    data_response = {
+        "registros_salvos": len(curado_registros),
+        "itens_corrigidos": itens_corrigidos,
+        "itens_invalidos": itens_invalidos,
+    }
     regs_efetivo = _carregar_registros_com_valor_efetivo(id)
     if regs_efetivo:
         analise = gerar_analise_curado(projeto, regs_efetivo)
         data_response["analise"] = analise.model_dump(mode="json")
     return jsonify({
         "success": True,
-        "message": "Ajustes salvos.",
+        "message": "Ajustes salvos e validados.",
         "data": data_response,
     })
 
@@ -800,26 +1315,29 @@ def scraper_config_post(id_projeto: str):
     body = request.get_json(force=True, silent=True) or {}
     # Atualização apenas de descontos (merge com config existente)
     if set(body.keys()) <= {"descontos"} and "descontos" in body:
+        from core.config import _normalizar_valor_desconto
+
         descontos = body.get("descontos") or {}
         global_desc = descontos.get("global")
         if global_desc is not None:
             try:
-                val = float(global_desc)
+                val = _normalizar_valor_desconto(global_desc)
                 if val < 0 or val > 1:
-                    return jsonify({"success": False, "message": "Desconto global deve estar entre 0 e 1."}), 400
+                    return jsonify({"success": False, "message": "Desconto global inválido."}), 400
             except (TypeError, ValueError):
                 return jsonify({"success": False, "message": "Desconto global inválido."}), 400
         por_mes = descontos.get("por_mes") or {}
         for mes, v in list(por_mes.items()):
             try:
-                val = float(v)
+                val = _normalizar_valor_desconto(v)
                 if val < 0 or val > 1:
                     return jsonify({"success": False, "message": f"Desconto inválido para mês {mes}."}), 400
                 por_mes[mes] = val
             except (TypeError, ValueError):
                 return jsonify({"success": False, "message": f"Desconto inválido para mês {mes}."}), 400
         cfg = obter_config_scraper_com_defaults(id_projeto)
-        cfg["descontos"] = {"global": descontos.get("global", cfg.get("descontos", {}).get("global", 0.20)), "por_mes": por_mes}
+        cfg_global = _normalizar_valor_desconto(descontos.get("global", cfg.get("descontos", {}).get("global", 0.20)))
+        cfg["descontos"] = {"global": cfg_global, "por_mes": por_mes}
         salvar_config_scraper(id_projeto, cfg)
         return jsonify({"success": True, "message": "Descontos salvos."})
 
@@ -835,23 +1353,25 @@ def scraper_config_post(id_projeto: str):
                 return jsonify({"success": False, "message": f"Data início maior que fim em: {p.get('nome', '')}"}), 400
         except (KeyError, ValueError) as e:
             return jsonify({"success": False, "message": f"Data inválida: {e}"}), 400
-    # Validar descontos (se existirem)
+    # Validar descontos (se existirem); aceita decimal (0.15) ou percentual (15)
+    from core.config import _normalizar_valor_desconto
+
     descontos = body.get("descontos") or {}
     global_desc = descontos.get("global")
     if global_desc is not None:
         try:
-            val = float(global_desc)
+            val = _normalizar_valor_desconto(global_desc)
             if val < 0 or val > 1:
-                return jsonify({"success": False, "message": "Desconto global deve estar entre 0 e 1."}), 400
+                return jsonify({"success": False, "message": "Desconto global inválido."}), 400
             descontos["global"] = val
         except (TypeError, ValueError):
             return jsonify({"success": False, "message": "Desconto global inválido."}), 400
     por_mes = descontos.get("por_mes") or {}
     for mes, v in list(por_mes.items()):
         try:
-            val = float(v)
+            val = _normalizar_valor_desconto(v)
             if val < 0 or val > 1:
-                return jsonify({"success": False, "message": f"Desconto inválido para mês {mes} (deve estar entre 0 e 1)."}), 400
+                return jsonify({"success": False, "message": f"Desconto inválido para mês {mes}."}), 400
             por_mes[mes] = val
         except (TypeError, ValueError):
             return jsonify({"success": False, "message": f"Desconto inválido para mês {mes}."}), 400
@@ -959,6 +1479,13 @@ def api_simulacao_dados_base(id: str):
             "aliquota_impostos": fin.aliquota_impostos,
             "outros_impostos_taxas_percentual": fin.outros_impostos_taxas_percentual,
         }
+    logger.info(
+        "Simulacao dados-base projeto {}: custos_fixos={}, custos_variaveis={}, media_pessoas={}",
+        id,
+        bool(financeiro and financeiro.get("custos_fixos")),
+        bool(financeiro and financeiro.get("custos_variaveis")),
+        media_pessoas_por_diaria,
+    )
     return jsonify({
         "success": True,
         "data": {
@@ -1038,30 +1565,38 @@ def api_simulacao_curva_sensibilidade(id: str):
 
 
 def _carregar_cenarios(id_projeto: str) -> list[dict]:
-    """Carrega lista de cenários de simulacao_cenarios.json. Retorna lista vazia se não existir."""
-    path = get_simulacao_cenarios_path(id_projeto)
+    """Carrega lista de cenários de cenarios.json (fallback legado simulacao_cenarios.json)."""
+    path = get_cenarios_path(id_projeto)
+    path_legado = get_simulacao_cenarios_path(id_projeto)
+    if (not path.exists() or not path.is_file()) and path_legado.exists() and path_legado.is_file():
+        path = path_legado
     if not path.exists() or not path.is_file():
         return []
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         return data.get("cenarios") if isinstance(data.get("cenarios"), list) else []
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as e:
+        _log_io_error("carregar_cenarios", id_projeto, str(e))
         return []
 
 
 def _salvar_cenarios(id_projeto: str, cenarios: list[dict]) -> None:
-    """Persiste lista de cenários em simulacao_cenarios.json com escrita atômica."""
-    path = get_simulacao_cenarios_path(id_projeto)
+    """Persiste lista de cenários em cenarios.json com escrita atômica."""
+    path = get_cenarios_path(id_projeto)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.parent / (path.name + ".tmp")
     content = json.dumps({"cenarios": cenarios}, ensure_ascii=False, indent=2)
-    tmp.write_text(content, encoding="utf-8")
-    os.replace(tmp, path)
+    try:
+        tmp.write_text(content, encoding="utf-8")
+        os.replace(tmp, path)
+    except OSError as e:
+        _log_io_error("salvar_cenarios", id_projeto, str(e))
+        raise
 
 
 def _migrar_simulacao_salva_para_cenarios(id_projeto: str) -> list[dict]:
     """Se simulacao_cenarios.json não existir mas simulacao_salva.json existir, cria cenário inicial."""
-    path_cenarios = get_simulacao_cenarios_path(id_projeto)
+    path_cenarios = get_cenarios_path(id_projeto)
     if path_cenarios.exists():
         return _carregar_cenarios(id_projeto)
     path_salva = get_simulacao_salva_path(id_projeto)
@@ -1114,6 +1649,52 @@ def api_simulacao_listar_cenarios(id: str):
             "payback_status": resumo.get("payback_status"),
         })
     return jsonify({"success": True, "data": {"cenarios": lista}})
+
+
+@app.get("/api/projeto/<id>/cenarios")
+def api_cenarios_listar(id: str):
+    """Lista cenários persistidos em data/projects/<id>/cenarios.json."""
+    try:
+        carregar_projeto(id)
+    except ArquivoProjetoNaoEncontrado:
+        return jsonify({"success": False, "message": "Projeto não encontrado", "data": None}), 404
+    cenarios = _carregar_cenarios(id)
+    resp = jsonify({"success": True, "data": {"cenarios": cenarios}})
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
+
+
+@app.post("/api/projeto/<id>/cenarios")
+def api_cenarios_salvar(id: str):
+    """Salva novo cenário validando payload mínimo via Pydantic."""
+    try:
+        carregar_projeto(id)
+    except ArquivoProjetoNaoEncontrado:
+        return jsonify({"success": False, "message": "Projeto não encontrado", "data": None}), 404
+
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        payload = CenarioPayload.model_validate(body)
+    except ValidationError as e:
+        return jsonify({"success": False, "message": "Payload de cenário inválido", "errors": e.errors()}), 400
+
+    import uuid
+    cenario = {
+        "id": str(uuid.uuid4())[:8],
+        "criado_em": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "nome": payload.nome,
+        "ocupacao_alvo": payload.ocupacao_alvo,
+        "adr_projetado": payload.adr_projetado,
+        "lucro_estimado": payload.lucro_estimado,
+    }
+    cenarios = _carregar_cenarios(id)
+    cenarios.append(cenario)
+    try:
+        _salvar_cenarios(id, cenarios)
+    except OSError:
+        return jsonify({"success": False, "message": "Erro de IO ao salvar cenário"}), 500
+    return jsonify({"success": True, "message": "Cenário salvo com sucesso.", "data": cenario}), 201
 
 
 @app.post("/api/projeto/<id>/simulacao/cenarios")

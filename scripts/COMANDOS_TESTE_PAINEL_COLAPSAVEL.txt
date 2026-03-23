@@ -1,0 +1,21 @@
+# Comandos para validar correções do painel colapsável (calendário inferior)
+# Executar a partir da raiz do projeto: c:\Users\vitor_3fyrepz\OneDrive\Área de Trabalho\iva
+
+# --- Testes manuais ---
+# 1) Exploração V3 (calendário inferior) — sem headless
+set HEADLESS=false
+python scripts/explorar_calendario_booking.py
+
+# 2) Auditoria do calendário inferior
+python scripts/auditar_calendario_booking_disponibilidade.py
+
+# 3) Ver evidências geradas
+dir scripts\debug_v3_*.png scripts\debug_disponibilidade_*.png scripts\debug_*overlap*.txt scripts\debug_*attempt*.png
+
+# --- Teste com timeout (detectar loop) ---
+# Se o script travar, após 60s o timeout encerra
+python -c "import subprocess, sys; r = subprocess.run([sys.executable, 'scripts/explorar_calendario_booking.py'], timeout=60, capture_output=True, text=True); print('returncode', r.returncode); print(r.stdout[-800:] if r.stdout else ''); sys.exit(0 if r.returncode in (0,1) else r.returncode)"
+
+# --- Critérios de aceitação ---
+# - Calendário inferior abre em <= 10s sem loop visível.
+# - Se falhar: log [OVERLAP] ou timeout e screenshot em scripts/; script termina sem travar.

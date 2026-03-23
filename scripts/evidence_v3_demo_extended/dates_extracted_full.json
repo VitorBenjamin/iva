@@ -1,0 +1,19 @@
+[
+  {
+    "month_index": 0,
+    "month_ref": "2026-03",
+    "checkin_date": "2026-03-20",
+    "checkout_date": "2026-03-23",
+    "selector_used": "#hp_availability_style_changes [data-testid*=\"date\"]",
+    "screenshot_paths": {
+      "before_select": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence_v3_demo_extended\\cand_00_before_select.png",
+      "after_select": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence_v3_demo_extended\\cand_00_after_select.png",
+      "checkin_ok": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence_v3_demo_extended\\cand_00_checkin_ok.png",
+      "checkout_ok": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence_v3_demo_extended\\cand_00_checkout_ok.png",
+      "range_confirmed": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence_v3_demo_extended\\range_azul_confirmado.png"
+    },
+    "range_formed": false,
+    "notes": "Range: check-in primeira célula disponível; check-out +3 dias ou próxima no mês. | avanço de mês: falha após tentativas.",
+    "month_advance": "fail"
+  }
+]

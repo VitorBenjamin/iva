@@ -1,0 +1,98 @@
+{
+  "generated_at": "2026-03-20T00:00:00",
+  "scope": "diagnostico_scraper_e_experimento_calendario_v3",
+  "status_por_etapa": {
+    "abertura_widget_disponibilidade": {
+      "status": "instavel",
+      "evidencia": [
+        "attempts_log.json",
+        "attempt_001_after_click.png",
+        "fail.html"
+      ],
+      "observacao": "Em execucoes recentes houve intermitencia: algumas abriram o widget, outras falharam no gatilho da secao Disponibilidade."
+    },
+    "selecao_datas_range": {
+      "status": "parcial",
+      "evidencia": [
+        "cand_00_before_select.png",
+        "cand_00_after_select.png",
+        "cand_00_checkin_ok.png"
+      ],
+      "observacao": "Check-in e check-out foram extraidos em pelo menos uma execucao, mas range_formed permaneceu false."
+    },
+    "avanco_mes": {
+      "status": "falha",
+      "evidencia": [
+        "cand_00_month_after_next_t1.png",
+        "cand_00_month_after_next_t2.png",
+        "cand_00_month_after_next_t3.png",
+        "cand_00_next_not_found_full.png",
+        "dom_dump.json"
+      ],
+      "observacao": "Nao houve mudanca consistente de header/mes apos tentativas limitadas."
+    },
+    "extracao_precos_funcional_core": {
+      "status": "operacional_com_risco",
+      "evidencia": [
+        "core/scraper/scrapers.py",
+        "core/scraper/parsing.py"
+      ],
+      "observacao": "Fluxo principal por URL parametrizada e parsing de tabela esta implementado; risco em heuristicas de seletores e desconto fixo."
+    }
+  },
+  "problemas_detectados": [
+    {
+      "id": "P1",
+      "titulo": "Intermitencia na abertura do widget V3",
+      "prioridade": "alta",
+      "impacto": "Bloqueia cadeia de testes do calendario."
+    },
+    {
+      "id": "P2",
+      "titulo": "Avanco de mes nao confirma mudanca de header",
+      "prioridade": "alta",
+      "impacto": "Impede cobertura multi-mes."
+    },
+    {
+      "id": "P3",
+      "titulo": "range_formed frequentemente false",
+      "prioridade": "media",
+      "impacto": "Nao comprova visualmente selecao completa."
+    },
+    {
+      "id": "P4",
+      "titulo": "Heuristica preco_direto = booking/1.20 fixa",
+      "prioridade": "media",
+      "impacto": "Pode divergir de desconto real por periodo/tarifa."
+    },
+    {
+      "id": "P5",
+      "titulo": "Feriados/eventos dependem de configuracao e calendario soberano",
+      "prioridade": "media",
+      "impacto": "Pode nao refletir variacoes reais se configuracao estiver incompleta."
+    }
+  ],
+  "recomendacoes_proximos_passos": [
+    "Separar definitivamente o experimento de calendario V3 do scraper funcional do core.",
+    "Adicionar fixture de pagina e teste automatizado para validar abertura/widget/next sem variacao de layout.",
+    "Persistir dump de header e coordenadas por tentativa em toda falha de avanco.",
+    "Validar regra de desconto com fonte de negocio (nao apenas divisao fixa por 1.20).",
+    "Criar smoke test diario para 1 projeto e 3 datas com assert de preco > 0."
+  ],
+  "calendario_experimento": {
+    "status": "standby",
+    "motivo": "Instabilidade de automacao visual no widget da secao Disponibilidade.",
+    "retomada_sugerida": "Depois de estabilizar abertura e avanco de mes com testes repetiveis."
+  },
+  "confiabilidade_estabilidade_geral": {
+    "avaliacao": "moderada",
+    "riscos_criticos": [
+      "Dependencia de seletor/layout dinamico do Booking.",
+      "Intermitencia em abertura do widget no V3.",
+      "Ausencia de confirmacao robusta do range visual."
+    ],
+    "integridade_codigo": "Sem indicio de corrupcao estrutural; ha alta complexidade em funcoes de laboratorio.",
+    "git_repo_detectado": false,
+    "commits_pendentes_avaliacao": "Nao aplicavel neste workspace sem repositorio Git."
+  }
+}

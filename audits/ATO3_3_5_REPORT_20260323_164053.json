@@ -1,0 +1,51 @@
+{
+  "ato": "3.3.5",
+  "status": "completed",
+  "ambiente": "staging",
+  "arquivos_modificados": [
+    "static/js/curadoria.js",
+    "templates/dashboard.html",
+    "tests/js/test_curadoria_save_integration.js"
+  ],
+  "funcionalidades": [
+    "sendCuradoriaSave com timeout, disable/enable de botão e tratamento de rede",
+    "handleSaveResponse com atualização canônica de UI e destaque de correções",
+    "modal de correções no dashboard com tabela de itens corrigidos",
+    "atributos de auditoria por linha: data-audit-user, data-audit-time, data-desconto-aplicado",
+    "logs frontend: curadoria_save_request_sent e curadoria_save_response_received"
+  ],
+  "eventos_backend": [
+    "start_ato3.3.5",
+    "curadoria_save_start",
+    "curadoria_saving_corrected",
+    "market_curado_written"
+  ],
+  "testes_executados": [
+    {
+      "comando": "node tests/js/test_curadoria_save_integration.js",
+      "resultado": "OK"
+    },
+    {
+      "comando": "python -m unittest tests/test_curadoria_save_validation.py -v",
+      "resultado": "OK (3 testes)"
+    },
+    {
+      "comando": "node tests/js/test_curadoria_utils.js; node tests/js/test_curadoria_preview.js",
+      "resultado": "OK"
+    },
+    {
+      "comando": "python -m unittest discover -s tests -p \"test_*.py\" -v",
+      "resultado": "OK (49 testes)"
+    }
+  ],
+  "smoke": {
+    "cenario_consistente": "sugestão 850.00 mantida",
+    "cenario_inconsistente": "sugestão 700.00 corrigida para 850.00",
+    "limiar_10_percento": "não ultrapassado nos cenários executados"
+  },
+  "screenshots": [],
+  "observacoes": [
+    "O endpoint /api/system-events/frontend não foi alterado neste passo; logs frontend usam sendBeacon/fetch fire-and-forget com fallback console.",
+    "Warnings de acessibilidade no dashboard já existiam e permanecem fora do escopo deste ato."
+  ]
+}

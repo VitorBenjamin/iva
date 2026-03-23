@@ -1,0 +1,130 @@
+{
+  "title": "ATO 3.3.7 - Corrigir Exibição do Preço Direto na Curadoria",
+  "environment": "staging",
+  "branch": "feature/curadoria-fix-preco-direto",
+  "status": "completed_for_review",
+  "modified_files": [
+    "app.py",
+    "templates/dashboard.html",
+    "static/js/curadoria.js",
+    "tests/js/test_curadoria_preview.js",
+    "tests/js/test_curadoria_save_integration.js",
+    "tests/test_curadoria_display_periods.py",
+    "README.md"
+  ],
+  "highlights": [
+    "Backend adiciona campos opcionais de exibição: preco_booking_por_data, preco_direto_por_data, preco_direto_media_periodo, preco_exibicao_preferida.",
+    "Curadoria especial prioriza preço direto por data; média do período vira fallback.",
+    "Template exibe origem do preço direto (por data vs média do período) com indicador visual.",
+    "Frontend envia payload com preco_exibicao_origem e preco_base_usado sem quebrar contrato da rota.",
+    "Save mantém backend autoritativo; response/contrato legado preservado.",
+    "Eventos de auditoria registrados: curadoria_display_fix_applied e curadoria_display_fix_tested."
+  ],
+  "diff_stats": {
+    "tracked_numstat": [
+      "README.md: +71/-0",
+      "app.py: +655/-74",
+      "templates/dashboard.html: +152/-46"
+    ],
+    "notes": "Há arquivos já existentes no workspace em estado dirty/untracked de etapas anteriores; este relatório lista somente os arquivos tocados neste ato."
+  },
+  "tests_executed": [
+    {
+      "command": "node tests/js/test_curadoria_utils.js",
+      "result": "OK: test_curadoria_utils.js"
+    },
+    {
+      "command": "node tests/js/test_curadoria_preview.js",
+      "result": "OK: test_curadoria_preview.js"
+    },
+    {
+      "command": "node tests/js/test_curadoria_save_integration.js",
+      "result": "OK: test_curadoria_save_integration.js"
+    },
+    {
+      "command": "python -m unittest discover -s tests -p \"test_*.py\" -v",
+      "result": "Ran 52 tests in 0.394s - OK"
+    }
+  ],
+  "smoke_test": {
+    "project": "cottage-bahia",
+    "target_checkins": [
+      "2026-03-28",
+      "2026-07-10"
+    ],
+    "display_assertions": [
+      {
+        "checkin": "2026-03-28",
+        "preco_booking_por_data": 351.0,
+        "preco_direto_por_data": 351.0,
+        "preco_direto_media_periodo": 306.0,
+        "preco_exibicao_preferida": "por_data",
+        "preco_direto_exibido": 351.0
+      },
+      {
+        "checkin": "2026-07-10",
+        "preco_booking_por_data": 105.0,
+        "preco_direto_por_data": 105.0,
+        "preco_direto_media_periodo": 123.25,
+        "preco_exibicao_preferida": "por_data",
+        "preco_direto_exibido": 105.0
+      }
+    ],
+    "payload_example": {
+      "registros": [
+        {
+          "checkin": "2026-03-28",
+          "preco_curado_sugerido": 351.0,
+          "desconto_pct_sugerido": 0,
+          "preco_booking_base": 351.0,
+          "preco_exibicao_origem": "por_data",
+          "preco_base_usado": 351.0
+        },
+        {
+          "checkin": "2026-07-10",
+          "preco_curado_sugerido": 105.0,
+          "desconto_pct_sugerido": 0,
+          "preco_booking_base": 105.0,
+          "preco_exibicao_origem": "por_data",
+          "preco_base_usado": 105.0
+        }
+      ]
+    },
+    "save_response_summary": {
+      "status_code": 200,
+      "registros_salvos": 2,
+      "itens_corrigidos": 0,
+      "max_delta_corrigidos": 0.0
+    },
+    "guardrail_status": "pass"
+  },
+  "system_events_samples": [
+    {
+      "event": "curadoria_display_fix_applied",
+      "id_projeto": "cottage-bahia",
+      "snapshot": {
+        "registros_especiais": 10,
+        "por_data": 9,
+        "media_periodo": 0,
+        "nao_disponivel": 1
+      }
+    },
+    {
+      "event": "curadoria_display_fix_tested",
+      "id_projeto": "cottage-bahia",
+      "snapshot": {
+        "scope": "ato3.3.7",
+        "status": "ok"
+      }
+    }
+  ],
+  "screenshots": {
+    "e2e_executed": false,
+    "paths": []
+  },
+  "rollback_instructions": [
+    "Restaurar arquivo curado a partir de data/projects/<id>/backups/market_curado_YYYYMMDD_HHMMSS.json.",
+    "Desfazer branch local: git checkout <branch_anterior> e descartar branch feature/curadoria-fix-preco-direto se necessário.",
+    "Os contratos de rota não foram alterados; rollback não requer migração de API."
+  ]
+}

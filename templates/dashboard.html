@@ -6,6 +6,7 @@
   <title>Dashboard Curadoria — {{ projeto.nome }}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="/static/css/curadoria.css" rel="stylesheet">
   <style>
     .badge-fim-semana { background-color: #0d6efd; }
     .badge-dia-semana { background-color: #6c757d; }
@@ -13,6 +14,8 @@
     .badge-editado { background-color: #ffc107; color: #212529; }
     th { white-space: nowrap; }
     .table-section-header { font-weight: 600; background-color: #e9ecef !important; }
+    .curadoria-disabled { opacity: 0.55; }
+    .curadoria-corrigida { outline: 2px solid #fd7e14; background-color: #fff4e6 !important; }
   </style>
 </head>
 <body>
@@ -22,9 +25,13 @@
       <h1 class="h5 mb-0">Curadoria — {{ projeto.nome }}</h1>
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-desconto">Aplicar desconto %</button>
+        <button type="button" class="btn btn-outline-warning btn-sm" id="btn-reset-preview">Reset preview</button>
         <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-scraper">📋 Ver Comandos do Scraper</button>
         <button type="button" id="btn-salvar-ajustes" class="btn btn-primary btn-sm">Salvar Ajustes</button>
       </div>
+    </div>
+    <div class="alert alert-info py-2 small" id="alert-backend-autoridade">
+      O backend recalcula e valida os valores ao salvar. O preview é informativo.
     </div>
 
     <!-- Configuração de Descontos da Curadoria -->
@@ -67,6 +74,16 @@
     </div>
 
     <h5 class="mb-2">Datas Comemorativas e Alta Demanda</h5>
+    {% if frontend_desconto_unificado_ativo %}
+    <div class="alert alert-success py-2 small">
+      <strong>Modo desconto unificado (frontend) ativo:</strong> previews baseados em <code>Preço Booking</code>.
+    </div>
+    {% endif %}
+    {% if strict_periodos_ativo %}
+    <div class="alert alert-info py-2 small">
+      <strong>STRICT_PERIODOS ativo:</strong> apenas especiais com origem <code>config</code> e <code>periodo_id</code> válido são exibidos na tabela principal.
+    </div>
+    {% endif %}
     <div class="table-responsive mb-4">
       <table class="table table-sm table-hover table-bordered">
         <thead class="table-light">
@@ -77,16 +94,17 @@
             <th>Preço Direto (-{{ desconto_exibicao|default('20,0') }}%)</th>
             <th>Preço de Ajuste</th>
             <th>Status</th>
+            <th class="text-center">Audit</th>
             <th title="Check-in e Check-out">Datas</th>
           </tr>
         </thead>
         <tbody id="tbody-registros-especiais">
           {% for grupo in grupos_especiais %}
           <tr class="table-section-header table-warning">
-            <td colspan="7">{{ grupo.mes_ano_label }}</td>
+            <td colspan="8">{{ grupo.mes_ano_label }}</td>
           </tr>
           {% for r in grupo.registros %}
-          <tr data-checkin="{{ r.checkin }}" data-checkins="{{ r.checkins|join(',') if r.checkins is defined else r.checkin }}" class="table-warning">
+          <tr data-checkin="{{ r.checkin }}" data-checkins="{{ r.checkins|join(',') if r.checkins is defined else r.checkin }}" data-preco-booking="{{ r.preco_booking if r.preco_booking is not none else '' }}" data-preco-direto-por-data="{{ r.preco_direto_por_data if r.preco_direto_por_data is not none else '' }}" data-preco-direto-media-periodo="{{ r.preco_direto_media_periodo if r.preco_direto_media_periodo is not none else '' }}" data-preco-exibicao-preferida="{{ r.preco_exibicao_preferida or 'nao_disponivel' }}" class="table-warning">
             <td><strong>{{ r.periodo_nome|default(r.mes_ano_label) }}</strong></td>
             <td>{{ r.nome_quarto }}{% if r.tipo_tarifa %} — {{ r.tipo_tarifa }}{% endif %}</td>
             <td>
@@ -100,12 +118,23 @@
               {% if r.preco_falha %}
               <span class="text-muted">—</span>
               {% else %}
-              {{ r.preco_direto_fmt or '—' }}
+                {% if r.preco_exibicao_preferida == 'por_data' and r.preco_direto_por_data is not none %}
+                <span>{{ r.preco_direto_por_data|format_moeda }}</span>
+                <span class="text-muted small ms-1" title="Origem: preço direto por data">ⓘ</span>
+                {% elif r.preco_exibicao_preferida == 'media_periodo' and r.preco_direto_media_periodo is not none %}
+                <span>{{ r.preco_direto_media_periodo|format_moeda }}</span>
+                <small class="text-muted ms-1">(Média do período)</small>
+                <span class="text-muted small ms-1" title="Origem: média do período especial">ⓘ</span>
+                {% else %}
+                <span class="text-muted" title="Sem dados">—</span>
+                {% endif %}
               {% endif %}
             </td>
             <td>
               <input type="text" class="form-control form-control-sm input-preco-curado moeda-dashboard" style="max-width: 130px;"
-                     data-checkin="{{ r.checkin }}" data-bruto="{{ r.preco_direto or '' }}"
+                     data-checkin="{{ r.checkin }}" data-bruto="{{ r.preco_direto or '' }}" data-preco-booking="{{ r.preco_booking if r.preco_booking is not none else '' }}"
+                     data-preco-exibicao-origem="{{ r.preco_exibicao_preferida or 'nao_disponivel' }}"
+                     data-preco-base-usado="{{ r.preco_booking_por_data if r.preco_booking_por_data is not none else (r.preco_direto_media_periodo if r.preco_direto_media_periodo is not none else '') }}"
                      value="{{ r.preco_curado_fmt if r.preco_curado_fmt else '' }}"
                      placeholder="{{ r.preco_direto_fmt if r.preco_direto_fmt else 'Informe o valor' }}">
             </td>
@@ -118,6 +147,12 @@
               <span class="badge badge-original">Original (Booking)</span>
               {% endif %}
             </td>
+            <td class="text-center iva-curadoria-audit-col" data-checkin="{{ r.checkin }}">
+              <button type="button" class="btn btn-sm btn-outline-secondary iva-audit-btn" aria-label="Ver auditoria da linha {{ r.checkin }}">
+                <i class="bi bi-info-circle"></i>
+                <span class="iva-audit-label">—</span>
+              </button>
+            </td>
             <td>
               <span class="text-muted small" title="Check-in: {{ r.checkin_br }} · Check-out: {{ r.checkout_br }}">ℹ️</span>
               <span class="d-inline-block ms-1 small text-muted">{{ r.checkin_br }} → {{ r.checkout_br }}</span>
@@ -128,6 +163,38 @@
         </tbody>
       </table>
     </div>
+
+    {% if inconsistencias_especiais %}
+    <h5 class="mb-2 text-danger">Inconsistências — registros especiais sem match no config</h5>
+    <div class="table-responsive mb-4">
+      <table class="table table-sm table-hover table-bordered border-danger">
+        <thead class="table-danger">
+          <tr>
+            <th>Check-in</th>
+            <th>Check-out</th>
+            <th>Mês/Ano</th>
+            <th>Origem Meta</th>
+            <th>Periodo ID</th>
+            <th>Preço Booking</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in inconsistencias_especiais %}
+          <tr class="table-warning">
+            <td>{{ r.checkin_br }}</td>
+            <td>{{ r.checkout_br }}</td>
+            <td>{{ r.mes_ano_label }}</td>
+            <td>{{ r.meta_periodo_source or '—' }}</td>
+            <td><code>{{ r.meta_periodo_id or '—' }}</code></td>
+            <td>{{ r.preco_booking_fmt or '—' }}</td>
+            <td><span class="badge bg-danger">Inconsistente</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
 
     {% if meses_sem_normais %}
     <div class="alert alert-warning py-2">
@@ -147,16 +214,17 @@
             <th>Preço Direto (-{{ desconto_exibicao|default('20,0') }}%)</th>
             <th>Preço de Ajuste</th>
             <th>Status</th>
+            <th class="text-center">Audit</th>
             <th title="Check-in e Check-out">Datas</th>
           </tr>
         </thead>
         <tbody id="tbody-registros">
           {% for grupo in grupos_normais %}
           <tr class="table-section-header">
-            <td colspan="7">{{ grupo.mes_ano_label }}</td>
+            <td colspan="8">{{ grupo.mes_ano_label }}</td>
           </tr>
           {% for r in grupo.registros %}
-          <tr data-checkin="{{ r.checkin }}">
+          <tr data-checkin="{{ r.checkin }}" data-preco-booking="{{ r.preco_booking if r.preco_booking is not none else '' }}" data-preco-direto-por-data="{{ r.preco_direto_por_data if r.preco_direto_por_data is not none else '' }}" data-preco-direto-media-periodo="{{ r.preco_direto_media_periodo if r.preco_direto_media_periodo is not none else '' }}" data-preco-exibicao-preferida="{{ r.preco_exibicao_preferida or 'nao_disponivel' }}">
             <td>{{ r.mes_ano_label }}</td>
             <td>{{ r.nome_quarto }}{% if r.tipo_tarifa %} — {{ r.tipo_tarifa }}{% endif %}</td>
             <td>
@@ -170,12 +238,23 @@
               {% if r.preco_falha %}
               <span class="text-muted">—</span>
               {% else %}
-              {{ r.preco_direto_fmt or '—' }}
+                {% if r.preco_exibicao_preferida == 'por_data' and r.preco_direto_por_data is not none %}
+                <span>{{ r.preco_direto_por_data|format_moeda }}</span>
+                <span class="text-muted small ms-1" title="Origem: preço direto por data">ⓘ</span>
+                {% elif r.preco_exibicao_preferida == 'media_periodo' and r.preco_direto_media_periodo is not none %}
+                <span>{{ r.preco_direto_media_periodo|format_moeda }}</span>
+                <small class="text-muted ms-1">(Média do período)</small>
+                <span class="text-muted small ms-1" title="Origem: média do período">ⓘ</span>
+                {% else %}
+                <span class="text-muted" title="Sem dados">—</span>
+                {% endif %}
               {% endif %}
             </td>
             <td>
               <input type="text" class="form-control form-control-sm input-preco-curado moeda-dashboard" style="max-width: 130px;"
-                     data-checkin="{{ r.checkin }}" data-bruto="{{ r.preco_direto or '' }}"
+                     data-checkin="{{ r.checkin }}" data-bruto="{{ r.preco_direto or '' }}" data-preco-booking="{{ r.preco_booking if r.preco_booking is not none else '' }}"
+                     data-preco-exibicao-origem="{{ r.preco_exibicao_preferida or 'nao_disponivel' }}"
+                     data-preco-base-usado="{{ r.preco_booking_por_data if r.preco_booking_por_data is not none else (r.preco_direto_media_periodo if r.preco_direto_media_periodo is not none else '') }}"
                      value="{{ r.preco_curado_fmt if r.preco_curado_fmt else '' }}"
                      placeholder="{{ r.preco_direto_fmt if r.preco_direto_fmt else 'Informe o valor' }}">
             </td>
@@ -187,6 +266,12 @@
               {% else %}
               <span class="badge badge-original">Original (Booking)</span>
               {% endif %}
+            </td>
+            <td class="text-center iva-curadoria-audit-col" data-checkin="{{ r.checkin }}">
+              <button type="button" class="btn btn-sm btn-outline-secondary iva-audit-btn" aria-label="Ver auditoria da linha {{ r.checkin }}">
+                <i class="bi bi-info-circle"></i>
+                <span class="iva-audit-label">—</span>
+              </button>
             </td>
             <td>
               <span class="text-muted small" title="Check-in: {{ r.checkin_br }} · Check-out: {{ r.checkout_br }}">ℹ️</span>
@@ -208,7 +293,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <p class="text-muted small">Desconto será aplicado sobre o Preço Direto e preenchido em Preço de Ajuste. Não salva automaticamente.</p>
+          <p class="text-muted small">Preview aplicado sobre o Preço Booking e preenchido em Preço de Ajuste. Não salva automaticamente.</p>
           <label for="input-desconto-pct" class="form-label">Percentual de desconto (0–100)</label>
           <input type="number" id="input-desconto-pct" class="form-control" min="0" max="100" step="0.5" value="10" placeholder="10">
         </div>
@@ -252,13 +337,51 @@
     </div>
   </div>
 
+  <div class="modal fade" id="modal-correcoes-curadoria" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Correções aplicadas pelo backend</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small mb-2">Os valores abaixo são os canônicos após revalidação do backend.</p>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Check-in</th>
+                  <th>Preço sugerido</th>
+                  <th>Preço canônico</th>
+                  <th>Desconto aplicado</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-correcoes-curadoria"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Entendi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container"></div>
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" id="iva-toast-container" aria-live="polite" aria-atomic="true"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    window.CURADORIA_PROJECT_ID = "{{ projeto.id }}";
+    window.FRONTEND_DESCONTO_UNIFICADO = {{ frontend_desconto_unificado_ativo|tojson }};
+  </script>
+  <script src="/static/js/utils.js"></script>
+  <script src="/static/js/curadoria.js"></script>
   <script>
     (function () {
       var idProjeto = "{{ projeto.id }}";
       var toastContainer = document.getElementById('toast-container');
+      var curadoriaController = null;
 
       function formatarMoedaBR(valor) {
         var n = Number(valor);
@@ -300,38 +423,14 @@
         t.show();
         toastEl.addEventListener('hidden.bs.toast', function () { toastEl.remove(); });
       }
+      window.mostrarToast = mostrarToast;
 
       document.getElementById('btn-salvar-ajustes').addEventListener('click', function () {
-        var rows = document.querySelectorAll('#tbody-registros tr[data-checkin], #tbody-registros-especiais tr[data-checkin]');
-        var registros = [];
-        rows.forEach(function (tr) {
-          var checkinsAttr = tr.getAttribute('data-checkins') || tr.getAttribute('data-checkin');
-          var checkins = checkinsAttr ? checkinsAttr.split(',').map(function (c) { return c.trim(); }).filter(Boolean) : [];
-          if (checkins.length === 0) return;
-          var inputPreco = tr.querySelector('.input-preco-curado');
-          var precoCurado = inputPreco ? valorMoedaInput(inputPreco) : null;
-          var status = (precoCurado !== null && precoCurado !== undefined) ? 'Editado (Manual)' : 'Original (Booking)';
-          checkins.forEach(function (checkin) {
-            registros.push({ checkin: checkin, preco_curado: precoCurado, status: status });
-          });
-        });
-        fetch('/api/projeto/' + encodeURIComponent(idProjeto) + '/curadoria', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ registros: registros })
-        })
-          .then(function (r) { return r.json(); })
-          .then(function (res) {
-            if (res.success) {
-              mostrarToast(res.message || 'Ajustes salvos.', true);
-              setTimeout(function () { window.location.reload(); }, 800);
-            } else {
-              mostrarToast(res.message || 'Erro ao salvar.', false);
-            }
-          })
-          .catch(function () {
-            mostrarToast('Erro de rede ao salvar.', false);
-          });
+        if (curadoriaController && typeof curadoriaController.sendCuradoriaSave === 'function') {
+          curadoriaController.sendCuradoriaSave();
+        } else {
+          mostrarToast('Módulo de curadoria indisponível.', false);
+        }
       });
 
       document.getElementById('btn-aplicar-desconto').addEventListener('click', function () {
@@ -340,14 +439,16 @@
           mostrarToast('Informe um percentual entre 0 e 100.', false);
           return;
         }
-        var factor = 1 - pct / 100;
-        document.querySelectorAll('.input-preco-curado').forEach(function (input) {
-          var bruto = parseFloat(input.getAttribute('data-bruto')) || 0;
-          var valor = bruto * factor;
-          input.value = formatarMoedaBR(valor);
-        });
+        if (curadoriaController) {
+          curadoriaController.applyDiscountPreview(pct);
+        }
         bootstrap.Modal.getInstance(document.getElementById('modal-desconto')).hide();
-        mostrarToast('Desconto aplicado nos campos. Clique em Salvar Ajustes para gravar.', true);
+      });
+      document.getElementById('btn-reset-preview').addEventListener('click', function () {
+        if (curadoriaController) {
+          curadoriaController.resetDiscountPreview();
+          mostrarToast('Preview resetado. Você pode aplicar um novo desconto.', true);
+        }
       });
 
       document.querySelectorAll('[data-copy-target]').forEach(function (btn) {
@@ -410,6 +511,11 @@
       });
 
       aplicarMascaraMoedaDashboard();
+      if (window.CuradoriaPage && typeof window.CuradoriaPage.createCuradoriaController === 'function') {
+        curadoriaController = window.CuradoriaPage.createCuradoriaController(window, document);
+        curadoriaController.initCuradoriaRowsState();
+        window.prepareCuradoriaPayload = curadoriaController.prepareCuradoriaPayload;
+      }
     })();
   </script>
 </body>

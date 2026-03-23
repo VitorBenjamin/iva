@@ -1,0 +1,49 @@
+{
+  "ato": "3.3.6",
+  "status": "completed",
+  "ambiente": "staging",
+  "arquivos_modificados": [
+    "templates/dashboard.html",
+    "static/js/curadoria.js",
+    "static/css/curadoria.css",
+    "tests/js/test_curadoria_save_integration.js",
+    "tests/js/test_curadoria_a11y.js",
+    "app.py"
+  ],
+  "ux_entregas": [
+    "Toast de resumo com botão acessível 'Ver correções'",
+    "Modal de correções reutilizado e acionável por clique/teclado",
+    "Coluna compacta Audit por linha com badge e fallback '—'",
+    "Destaque visual iva-curadoria-corrigida para linhas corrigidas",
+    "Eventos UX registrados: ui_ver_correcoes_clicked, ui_audit_inspect_opened"
+  ],
+  "testes": [
+    {
+      "comando": "node tests/js/test_curadoria_save_integration.js",
+      "resultado": "OK"
+    },
+    {
+      "comando": "node tests/js/test_curadoria_a11y.js",
+      "resultado": "OK"
+    },
+    {
+      "comando": "node tests/js/test_curadoria_utils.js; node tests/js/test_curadoria_preview.js",
+      "resultado": "OK"
+    },
+    {
+      "comando": "python -m unittest discover -s tests -p \"test_*.py\" -v",
+      "resultado": "OK (49 testes)"
+    }
+  ],
+  "eventos_system_events": [
+    "start_ato3.3.6",
+    "ui_ver_correcoes_clicked",
+    "ui_audit_inspect_opened"
+  ],
+  "screenshots": [],
+  "observacoes": [
+    "Adicionado endpoint interno POST /api/system-events/frontend para persistir eventos UX em SYSTEM_EVENTS.jsonl.",
+    "A coluna audit é oculta em telas menores que 768px por CSS, mantendo acesso via toast/modal.",
+    "Sem alterações de contrato das APIs principais de curadoria."
+  ]
+}

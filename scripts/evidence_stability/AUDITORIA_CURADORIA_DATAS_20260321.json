@@ -1,0 +1,92 @@
+{
+  "metadata": {
+    "titulo": "Auditoria Curadoria - Datas Especiais não exibidas",
+    "data": "2026-03-21",
+    "objetivo": "Identificar por que, após rodar novo scrape, a Curadoria NÃO exibe as Datas Especiais do scraper_config.json do projeto",
+    "escopo": "Somente leitura - sem alterações no código"
+  },
+  "resumo_grep": {
+    "grep_file_references": {
+      "arquivo": "audits/grep_file_references.txt",
+      "achados": [
+        "core/projetos.py define helpers (get_market_bruto_path, get_market_curado_path, get_scraper_config_path)",
+        "core/config.py usa get_scraper_config_path em carregar_config_scraper e salvar_config_scraper",
+        "app.py usa get_market_bruto_path e get_market_curado_path; NÃO usa get_scraper_config_path diretamente (usa carregar_config via core.config)",
+        "core/scraper/scrapers.py usa get_scraper_config_path e get_market_bruto_path",
+        "tests usam paths hardcoded em tempdir para asserts (esperado)",
+        "scraper_config.json mencionado em templates/dashboard.html (texto UI)"
+      ]
+    },
+    "grep_datas_keys": {
+      "arquivo": "audits/grep_datas_keys.txt",
+      "achados": [
+        "scraper_config usa periodos_especiais (formato inicio/fim DD/MM/YYYY, nome)",
+        "core/scraper/scrapers.py aceita datas_especiais OU periodos_especiais em _periodos_dinamicos_do_config",
+        "CRITICO: _periodos_dinamicos_do_config usa date.fromisoformat() - espera YYYY-MM-DD; config tem inicio em DD/MM/YYYY. Pode falhar parsing!",
+        "core/config.py _periodos_especiais_de_config usa _parse_ddmmyyyy - parse correto para DD/MM/YYYY",
+        "coletar_dados_mercado_expandido usa definir_calendario_soberano_ano (core/config) que usa _periodos_especiais_de_config - OK",
+        "coletar_dados_mercado (fluxo antigo) usa _periodos_dinamicos_do_config - pode ter bug de formato"
+      ]
+    }
+  },
+  "helpers_usage": {
+    "arquivo": "audits/helpers_usage.csv",
+    "arquivos_que_devem_usar_helper_mas_nao": [],
+    "arquivos_com_leitura_direta_de_path": [
+      "tests/test_desconto_e_backup.py - paths em tempdir (OK para testes)",
+      "tests/test_paths_and_scraper_config.py - paths em assertions (OK)"
+    ],
+    "conclusao": "Backend principal (app, scrapers, config) usa helpers. Nao ha hardcode de path absoluto em codigo de producao."
+  },
+  "scraper_config_trace": {
+    "status": "ARQUIVO_NAO_EXISTE",
+    "motivo": "_log_scraper_config_trace e chamado apenas em coletar_dados_mercado (fluxo antigo por periodos sazonais). O CLI usa coletar_dados_mercado_expandido que NAO chama essa funcao.",
+    "recomendacao": "Adicionar chamada a _log_scraper_config_trace no inicio de run_expandido() em scrapers.py para rastreabilidade"
+  },
+  "scraper_config_file_check": {
+    "arquivo": "audits/scraper_config_file_check.json",
+    "resultados": [
+      "don-quixote: exists=true, 1392 bytes",
+      "porto-bahia-hotel: exists=true, 1393 bytes",
+      "village-arraial: exists=FALSE"
+    ],
+    "impacto_village_arraial": "Projeto village-arraial NAO possui scraper_config.json. _periodos_especiais_de_config retorna []. Registros com categoria_dia=especial sao agrupados como 'Outro (especial)' e periodo_intervalo fica vazio (fallback para min/max do grupo). Evidencia em Curadoria_INTERVALO_FALLBACK.jsonl."
+  },
+  "market_bruto_sample": {
+    "arquivo": "audits/market_bruto_sample.json",
+    "projeto": "don-quixote",
+    "total_registros": 366,
+    "presenca_datas_especiais": "SIM - 58 registros com categoria_dia=especial",
+    "exemplos_periodos": ["Semana Santa/Pascoa 2026-03-28 a 2026-04-05", "Férias de Julho", "Reveillon", "etc"],
+    "conclusao": "market_bruto de don-quixote CONTEM registros de periodos especiais com categoria_dia correto. Curadoria para don-quixote deveria exibir 9 grupos especiais (conforme log 'Dashboard carregou 48 registros (normais: 39, especiais: 9)')."
+  },
+  "curadoria_headers": {
+    "arquivo": "audits/curadoria_headers.txt",
+    "Cache-Control": "no-store, no-cache, must-revalidate",
+    "Pragma": "nao presente (Cache-Control suficiente)",
+    "conclusao": "Headers anti-cache presentes. Nao e causa de dados desatualizados."
+  },
+  "raiz_provável_do_problema": [
+    "1. Projeto sem scraper_config.json (ex: village-arraial): periodos aparecem como 'Outro (especial)' sem nomes do config",
+    "2. Filtro checkins_amostra: Curadoria filtra registros por checkins_amostra = definir_calendario_soberano_ano(..., rolling=True). Se rolling avancou desde o scrape, checkins antigos podem ser excluidos",
+    "3. SCRAPER_CONFIG_TRACE ausente: fluxo expandido nao gera trace; dificulta debugging",
+    "4. Inconsistencia formato: _periodos_dinamicos_do_config (fluxo antigo) espera ISO em inicio/checkin; config usa DD/MM/YYYY. Fluxo expandido usa definir_calendario_soberano_ano que parseia DD/MM/YYYY corretamente"
+  ],
+  "recomendacoes_priorizadas": [
+    "P1: Criar scraper_config.json para projetos que usam Curadoria (ex: village-arraial) - copiar de porto-bahia-hotel ou don-quixote como template",
+    "P2: Adicionar _log_scraper_config_trace no inicio de run_expandido() apos carregar config, para rastreabilidade",
+    "P3: Revisar filtro checkins_amostra: considerar usar TODOS os checkins do market_bruto para exibicao na Curadoria, em vez de filtrar pela amostra atual do calendario (evita perda de registros quando rolling avanca)",
+    "P4: Corrigir _periodos_dinamicos_do_config para aceitar DD/MM/YYYY em inicio/fim (adicionar _parse_ddmmyyyy ou equivalente) - fluxo antigo apenas, mas evita bugs se reativado"
+  ],
+  "artefatos_gerados": [
+    "audits/grep_file_references.txt",
+    "audits/grep_datas_keys.txt",
+    "audits/helpers_usage.csv",
+    "audits/SCRAPER_CONFIG_TRACE_excerpt.jsonl",
+    "audits/LOG_AFTER_excerpt.jsonl",
+    "audits/scraper_config_file_check.json",
+    "audits/market_bruto_sample.json",
+    "audits/curadoria_headers.txt",
+    "scripts/evidence_stability/AUDITORIA_CURADORIA_DATAS_20260321.json"
+  ]
+}

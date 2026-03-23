@@ -1,0 +1,7 @@
+{
+  "total_periodos": 6,
+  "sucesso": 3,
+  "falhas": 3,
+  "taxa_sucesso": 0.5,
+  "erros_rede": 0
+}

@@ -1,0 +1,8 @@
+{
+  "total_eventos": 2,
+  "sucessos": 1,
+  "falhas": 1,
+  "taxa_sucesso": 0.5,
+  "erros_rede": 1,
+  "browser_restarts": 1
+}

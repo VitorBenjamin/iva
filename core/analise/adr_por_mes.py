@@ -5,16 +5,13 @@ Prioridade: preco_curado > preco_direto com desconto > preco_booking bruto.
 """
 import json
 from collections import defaultdict
+from decimal import Decimal, ROUND_HALF_UP
 
 from pydantic import ValidationError
 
-from core.projetos import (
-    PROJECTS_DIR,
-    get_market_bruto_path,
-    get_market_curado_path,
-    get_scraper_config_path,
-)
-from core.config import obter_config_scraper_com_defaults
+from core.projetos import PROJECTS_DIR, get_market_bruto_path, get_market_curado_path
+from core.analise.desconto import obter_desconto_para_curadoria
+from core.projetos import _log_system_event
 from core.scraper.modelos import MarketBruto, MarketCurado
 
 
@@ -54,13 +51,6 @@ def obter_adr_por_mes(id_projeto: str) -> dict[str, dict]:
         except (json.JSONDecodeError, ValidationError, ValueError):
             pass
 
-    cfg = obter_config_scraper_com_defaults(id_projeto)
-    descontos = cfg.get("descontos") or {}
-    desconto_global = descontos.get("global")
-    if desconto_global is None:
-        desconto_global = 0.20
-    descontos_por_mes = descontos.get("por_mes") or {}
-
     valores_por_mes: dict[str, list[tuple[float, str]]] = defaultdict(list)
     for r in bruto.registros:
         valor_efetivo: float | None = None
@@ -69,15 +59,11 @@ def obter_adr_por_mes(id_projeto: str) -> dict[str, dict]:
             valor_efetivo = curado_por_checkin[r.checkin]
             fonte = "curado"
         elif r.preco_booking is not None and r.preco_booking > 0:
-            partes = (r.mes_ano.split("-") + ["", ""])[:2]
-            mes_key = partes[1] if len(partes) > 1 else ""
-            desconto = descontos_por_mes.get(mes_key) if mes_key in descontos_por_mes else desconto_global
-            if desconto is not None:
-                valor_efetivo = round(float(r.preco_booking) * (1 - float(desconto)), 2)
-                fonte = "direto"
-            else:
-                valor_efetivo = float(r.preco_booking)
-                fonte = "direto"
+            desconto = obter_desconto_para_curadoria(id_projeto, r.mes_ano)
+            bruto_dec = Decimal(str(r.preco_booking))
+            valor_efetivo_dec = (bruto_dec * (Decimal("1") - desconto)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            valor_efetivo = float(valor_efetivo_dec)
+            fonte = "direto"
         if valor_efetivo is not None and valor_efetivo > 0:
             valores_por_mes[r.mes_ano].append((valor_efetivo, fonte))
 
@@ -107,5 +93,12 @@ def obter_adr_por_mes(id_projeto: str) -> dict[str, dict]:
                 "adr": round(media_geral, 2),
                 "fonte": "fallback_media",
             }
+            _log_system_event(
+                "adr_fallback_media",
+                action="obter_adr_por_mes",
+                id_projeto=id_projeto,
+                mes_ano=mes_ano,
+                user="cursor-job",
+            )
 
     return dict(sorted(result.items()))

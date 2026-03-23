@@ -1,0 +1,20 @@
+[
+  {
+    "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\don-quixote\\scraper_config.json",
+    "exists": true,
+    "sha256": "8cfd71a05f057bfaaefc8ab2d7b6d9c99cfd07c80b8d0e1b7bc7a75a52a9b624",
+    "size_bytes": 1392
+  },
+  {
+    "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\porto-bahia-hotel\\scraper_config.json",
+    "exists": true,
+    "sha256": "ed2781b1af252434f4efa8e35572a9e555612b5b7c4899ce789c73cdaf5524e8",
+    "size_bytes": 1393
+  },
+  {
+    "path": "data\\projects\\village-arraial\\scraper_config.json",
+    "exists": false,
+    "sha256": null,
+    "size_bytes": 0
+  }
+]

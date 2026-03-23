@@ -44,6 +44,7 @@ class MarketBrutoRegistro(BaseModel):
     noites: int = 2
     status: str | None = None
     categoria_dia: Literal["normal", "especial"] = "normal"
+    meta: dict = Field(default_factory=dict)
 
 
 class MarketBruto(BaseModel):

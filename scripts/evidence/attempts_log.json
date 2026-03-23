@@ -1,0 +1,83 @@
+[
+  {
+    "attempt_id": "001",
+    "ts": "2026-03-19T00:47:25.432896",
+    "selector": "button:has-text(\"Veja a disponibilidade\")",
+    "idx": 3,
+    "texto": "Veja a disponibilidade",
+    "coords": {
+      "cx": 1110.7625122070312,
+      "cy": 359.5
+    },
+    "hit_info": {
+      "tagName": "SPAN",
+      "id": "",
+      "className": "ca2ca5203b",
+      "outerHTML": "<span class=\"ca2ca5203b\">Veja a disponibilidade</span>"
+    },
+    "hit_is_svg_path": false,
+    "clicked_parent_used": false,
+    "opened_widget": false,
+    "paths": {
+      "before_scroll": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_001_before_scroll.png",
+      "after_scroll": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_001_after_scroll.png",
+      "element": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_001_element.png",
+      "after_click": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_001_after_click.png",
+      "fail_html": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_001_fail.html"
+    }
+  },
+  {
+    "attempt_id": "002",
+    "ts": "2026-03-19T00:47:33.359593",
+    "selector": "button:has-text(\"disponibilidade\")",
+    "idx": 3,
+    "texto": "Veja a disponibilidade",
+    "coords": {
+      "cx": 1110.7625122070312,
+      "cy": 360.3000183105469
+    },
+    "hit_info": {
+      "tagName": "SPAN",
+      "id": "",
+      "className": "ca2ca5203b",
+      "outerHTML": "<span class=\"ca2ca5203b\">Veja a disponibilidade</span>"
+    },
+    "hit_is_svg_path": false,
+    "clicked_parent_used": false,
+    "opened_widget": false,
+    "paths": {
+      "before_scroll": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_002_before_scroll.png",
+      "after_scroll": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_002_after_scroll.png",
+      "element": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_002_element.png",
+      "after_click": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_002_after_click.png",
+      "fail_html": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_002_fail.html"
+    }
+  },
+  {
+    "attempt_id": "003",
+    "ts": "2026-03-19T00:47:36.249298",
+    "selector": "[data-testid*=\"date\"]",
+    "idx": 0,
+    "texto": "Data de check-in\n—\nData de check-out",
+    "coords": {
+      "cx": 272.15625381469727,
+      "cy": 131.10000228881836
+    },
+    "hit_info": {
+      "tagName": "SPAN",
+      "id": "",
+      "className": "be2db1c937",
+      "outerHTML": "<span class=\"be2db1c937\">Data de check-out</span>"
+    },
+    "hit_is_svg_path": false,
+    "clicked_parent_used": false,
+    "opened_widget": true,
+    "paths": {
+      "before_scroll": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_003_before_scroll.png",
+      "after_scroll": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_003_after_scroll.png",
+      "element": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_003_element.png",
+      "after_click": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_003_after_click.png",
+      "fail_html": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\scripts\\evidence\\attempt_003_fail.html"
+    }
+  }
+]

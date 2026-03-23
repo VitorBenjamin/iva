@@ -1,0 +1,13 @@
+arquivo,usa_get_scraper_config_path,usa_get_market_bruto_path,usa_get_market_curado_path,menciona_scraper_config_sem_helper,menciona_market_bruto_sem_helper,menciona_market_curado_sem_helper,linhas_match
+app.py,False,True,True,False,False,False,"323,335,368,391,634,696"
+core/config.py,True,False,False,True,False,False,"175,518,522,534,538"
+core/projetos.py,False,False,False,False,False,False,"55-87,172 (definicoes)"
+core/scraper/scrapers.py,True,True,False,False,False,False,"24-25,748,773"
+core/scraper/cli.py,False,True,False,False,False,False,"13,87"
+core/analise/adr_por_mes.py,False,True,True,False,False,False,"11,23,38"
+core/backup.py,False,False,True,False,False,True,"15,35 (usa get_market_curado_path)"
+tests/test_paths_and_scraper_config.py,True,True,True,True,True,True,"22-24,34,67,78 (paths em assertions)"
+tests/test_desconto_e_backup.py,False,False,False,False,True,True,"81,109,128 (paths em patch/tempdir)"
+templates/dashboard.html,False,False,False,True,False,False,"40 (texto UI)"
+docs/PROCEDIMENTO_SCRAPER.md,False,False,False,True,True,True,"(documentacao)"
+README.md,False,False,False,True,True,True,"(documentacao)"

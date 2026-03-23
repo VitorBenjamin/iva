@@ -1,0 +1,1742 @@
+[
+  {
+    "type": "scroll",
+    "ts": 1773882416447,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882416562,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882416600,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882416607,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882416624,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882416657,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882416673,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882416710,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882416722,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882416739,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882416756,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882416874,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417083,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417104,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417137,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417139,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417156,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417175,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417189,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417222,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417239,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417256,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417274,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417404,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417757,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417804,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882417822,
+    "target": null
+  },
+  {
+    "type": "pointerdown",
+    "ts": 1773882419880,
+    "clientX": 337.6000061035156,
+    "clientY": 343.3999938964844,
+    "pageX": 337.6000061035156,
+    "pageY": 1657.8000183105469,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "be2db1c937",
+      "dataTestId": null,
+      "innerText": "Data de check-out",
+      "rect": {
+        "x": 262.375,
+        "y": 334.70001220703125,
+        "width": 115.73750305175781,
+        "height": 20
+      }
+    }
+  },
+  {
+    "type": "mousedown",
+    "ts": 1773882419881,
+    "clientX": 337,
+    "clientY": 343,
+    "pageX": 337,
+    "pageY": 1657,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "be2db1c937",
+      "dataTestId": null,
+      "innerText": "Data de check-out",
+      "rect": {
+        "x": 262.375,
+        "y": 334.70001220703125,
+        "width": 115.73750305175781,
+        "height": 20
+      }
+    }
+  },
+  {
+    "type": "pointerup",
+    "ts": 1773882420108,
+    "clientX": 337.6000061035156,
+    "clientY": 343.3999938964844,
+    "pageX": 337.6000061035156,
+    "pageY": 1657.8000183105469,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "be2db1c937",
+      "dataTestId": null,
+      "innerText": "Data de check-out",
+      "rect": {
+        "x": 262.375,
+        "y": 334.70001220703125,
+        "width": 115.73750305175781,
+        "height": 20
+      }
+    }
+  },
+  {
+    "type": "mouseup",
+    "ts": 1773882420109,
+    "clientX": 337,
+    "clientY": 343,
+    "pageX": 337,
+    "pageY": 1657,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "be2db1c937",
+      "dataTestId": null,
+      "innerText": "Data de check-out",
+      "rect": {
+        "x": 262.375,
+        "y": 334.70001220703125,
+        "width": 115.73750305175781,
+        "height": 20
+      }
+    }
+  },
+  {
+    "type": "click",
+    "ts": 1773882420110,
+    "clientX": 337,
+    "clientY": 343,
+    "pageX": 337,
+    "pageY": 1657,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "be2db1c937",
+      "dataTestId": null,
+      "innerText": "Data de check-out",
+      "rect": {
+        "x": 262.375,
+        "y": 334.70001220703125,
+        "width": 115.73750305175781,
+        "height": 20
+      }
+    }
+  },
+  {
+    "type": "pointerdown",
+    "ts": 1773882422927,
+    "clientX": 596,
+    "clientY": 409,
+    "pageX": 596,
+    "pageY": 1723.4000244140625,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 576.4000244140625,
+        "y": 390.70001220703125,
+        "width": 20,
+        "height": 20
+      }
+    }
+  },
+  {
+    "type": "mousedown",
+    "ts": 1773882422928,
+    "clientX": 596,
+    "clientY": 409,
+    "pageX": 596,
+    "pageY": 1723,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 576.4000244140625,
+        "y": 390.70001220703125,
+        "width": 20,
+        "height": 20
+      }
+    }
+  },
+  {
+    "type": "pointerup",
+    "ts": 1773882423156,
+    "clientX": 596,
+    "clientY": 409,
+    "pageX": 596,
+    "pageY": 1723.4000244140625,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 576.6000366210938,
+        "y": 390.8999938964844,
+        "width": 19.600000381469727,
+        "height": 19.600000381469727
+      }
+    }
+  },
+  {
+    "type": "mouseup",
+    "ts": 1773882423157,
+    "clientX": 596,
+    "clientY": 409,
+    "pageX": 596,
+    "pageY": 1723,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 576.6000366210938,
+        "y": 390.8999938964844,
+        "width": 19.600000381469727,
+        "height": 19.600000381469727
+      }
+    }
+  },
+  {
+    "type": "click",
+    "ts": 1773882423157,
+    "clientX": 596,
+    "clientY": 409,
+    "pageX": 596,
+    "pageY": 1723,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 576.6000366210938,
+        "y": 390.8999938964844,
+        "width": 19.600000381469727,
+        "height": 19.600000381469727
+      }
+    }
+  },
+  {
+    "type": "pointerdown",
+    "ts": 1773882424847,
+    "clientX": 104.80000305175781,
+    "clientY": 397.8000183105469,
+    "pageX": 104.80000305175781,
+    "pageY": 1712.2000427246094,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 92.4000015258789,
+        "y": 390.70001220703125,
+        "width": 20,
+        "height": 20
+      }
+    }
+  },
+  {
+    "type": "mousedown",
+    "ts": 1773882424848,
+    "clientX": 104,
+    "clientY": 397,
+    "pageX": 104,
+    "pageY": 1712,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 92.4000015258789,
+        "y": 390.70001220703125,
+        "width": 20,
+        "height": 20
+      }
+    }
+  },
+  {
+    "type": "pointerup",
+    "ts": 1773882425068,
+    "clientX": 104.80000305175781,
+    "clientY": 397.8000183105469,
+    "pageX": 104.80000305175781,
+    "pageY": 1712.2000427246094,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 92.5999984741211,
+        "y": 390.8999938964844,
+        "width": 19.600000381469727,
+        "height": 19.600000381469727
+      }
+    }
+  },
+  {
+    "type": "mouseup",
+    "ts": 1773882425069,
+    "clientX": 104,
+    "clientY": 397,
+    "pageX": 104,
+    "pageY": 1712,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 92.5999984741211,
+        "y": 390.8999938964844,
+        "width": 19.600000381469727,
+        "height": 19.600000381469727
+      }
+    }
+  },
+  {
+    "type": "click",
+    "ts": 1773882425069,
+    "clientX": 104,
+    "clientY": 397,
+    "pageX": 104,
+    "pageY": 1712,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 92.5999984741211,
+        "y": 390.8999938964844,
+        "width": 19.600000381469727,
+        "height": 19.600000381469727
+      }
+    }
+  },
+  {
+    "type": "pointerdown",
+    "ts": 1773882426488,
+    "clientX": 594.4000244140625,
+    "clientY": 401.8000183105469,
+    "pageX": 594.4000244140625,
+    "pageY": 1716.2000427246094,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 576.4000244140625,
+        "y": 390.70001220703125,
+        "width": 20,
+        "height": 20
+      }
+    }
+  },
+  {
+    "type": "mousedown",
+    "ts": 1773882426489,
+    "clientX": 594,
+    "clientY": 401,
+    "pageX": 594,
+    "pageY": 1716,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 576.4000244140625,
+        "y": 390.70001220703125,
+        "width": 20,
+        "height": 20
+      }
+    }
+  },
+  {
+    "type": "pointerup",
+    "ts": 1773882426715,
+    "clientX": 594.4000244140625,
+    "clientY": 401.8000183105469,
+    "pageX": 594.4000244140625,
+    "pageY": 1716.2000427246094,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 576.6000366210938,
+        "y": 390.8999938964844,
+        "width": 19.600000381469727,
+        "height": 19.600000381469727
+      }
+    }
+  },
+  {
+    "type": "mouseup",
+    "ts": 1773882426716,
+    "clientX": 594,
+    "clientY": 401,
+    "pageX": 594,
+    "pageY": 1716,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 576.6000366210938,
+        "y": 390.8999938964844,
+        "width": 19.600000381469727,
+        "height": 19.600000381469727
+      }
+    }
+  },
+  {
+    "type": "click",
+    "ts": 1773882426716,
+    "clientX": 594,
+    "clientY": 401,
+    "pageX": 594,
+    "pageY": 1716,
+    "button": 0,
+    "target": {
+      "tagName": "svg",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 576.6000366210938,
+        "y": 390.8999938964844,
+        "width": 19.600000381469727,
+        "height": 19.600000381469727
+      }
+    }
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882430155,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882430174,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882430181,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882430199,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882430214,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882430231,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882430249,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882430273,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882430281,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882430298,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882430314,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882430364,
+    "target": null
+  },
+  {
+    "type": "pointerdown",
+    "ts": 1773882431362,
+    "clientX": 366.3999938964844,
+    "clientY": 426.6000671386719,
+    "pageX": 366.3999938964844,
+    "pageY": 1841.8000183105469,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "ecb788f3b7 c0b8f1e8f8 d5dcd44e2b",
+      "dataTestId": null,
+      "innerText": "3\n194",
+      "rect": {
+        "x": 352.3999938964844,
+        "y": 407.8999938964844,
+        "width": 34.5625,
+        "height": 44
+      }
+    }
+  },
+  {
+    "type": "mousedown",
+    "ts": 1773882431363,
+    "clientX": 366,
+    "clientY": 426,
+    "pageX": 366,
+    "pageY": 1841,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "ecb788f3b7 c0b8f1e8f8 d5dcd44e2b",
+      "dataTestId": null,
+      "innerText": "3\n194",
+      "rect": {
+        "x": 352.3999938964844,
+        "y": 407.8999938964844,
+        "width": 34.5625,
+        "height": 44
+      }
+    }
+  },
+  {
+    "type": "pointerup",
+    "ts": 1773882431575,
+    "clientX": 366.3999938964844,
+    "clientY": 426.6000671386719,
+    "pageX": 366.3999938964844,
+    "pageY": 1841.8000183105469,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "ecb788f3b7 c0b8f1e8f8 d5dcd44e2b",
+      "dataTestId": null,
+      "innerText": "3\n194",
+      "rect": {
+        "x": 352.3999938964844,
+        "y": 407.8999938964844,
+        "width": 34.5625,
+        "height": 44
+      }
+    }
+  },
+  {
+    "type": "mouseup",
+    "ts": 1773882431575,
+    "clientX": 366,
+    "clientY": 426,
+    "pageX": 366,
+    "pageY": 1841,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "ecb788f3b7 c0b8f1e8f8 d5dcd44e2b",
+      "dataTestId": null,
+      "innerText": "3\n194",
+      "rect": {
+        "x": 352.3999938964844,
+        "y": 407.8999938964844,
+        "width": 34.5625,
+        "height": 44
+      }
+    }
+  },
+  {
+    "type": "click",
+    "ts": 1773882431576,
+    "clientX": 366,
+    "clientY": 426,
+    "pageX": 366,
+    "pageY": 1841,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "ecb788f3b7 c0b8f1e8f8 d5dcd44e2b",
+      "dataTestId": null,
+      "innerText": "3\n194",
+      "rect": {
+        "x": 352.3999938964844,
+        "y": 407.8999938964844,
+        "width": 34.5625,
+        "height": 44
+      }
+    }
+  },
+  {
+    "type": "pointerdown",
+    "ts": 1773882432626,
+    "clientX": 468,
+    "clientY": 419.3999938964844,
+    "pageX": 468,
+    "pageY": 1834.5999450683594,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "ecb788f3b7 c0b8f1e8f8 adef78b94b d5dcd44e2b",
+      "dataTestId": null,
+      "innerText": "6\n194",
+      "rect": {
+        "x": 456.0874938964844,
+        "y": 407.8999938964844,
+        "width": 34.5625,
+        "height": 44
+      }
+    }
+  },
+  {
+    "type": "mousedown",
+    "ts": 1773882432627,
+    "clientX": 468,
+    "clientY": 419,
+    "pageX": 468,
+    "pageY": 1834,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "ecb788f3b7 c0b8f1e8f8 adef78b94b d5dcd44e2b",
+      "dataTestId": null,
+      "innerText": "6\n194",
+      "rect": {
+        "x": 456.0874938964844,
+        "y": 407.8999938964844,
+        "width": 34.5625,
+        "height": 44
+      }
+    }
+  },
+  {
+    "type": "pointerup",
+    "ts": 1773882432850,
+    "clientX": 468,
+    "clientY": 419.3999938964844,
+    "pageX": 468,
+    "pageY": 1834.5999450683594,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "ecb788f3b7 c0b8f1e8f8 adef78b94b d5dcd44e2b",
+      "dataTestId": null,
+      "innerText": "6\n194",
+      "rect": {
+        "x": 456.0874938964844,
+        "y": 407.8999938964844,
+        "width": 34.5625,
+        "height": 44
+      }
+    }
+  },
+  {
+    "type": "mouseup",
+    "ts": 1773882432850,
+    "clientX": 468,
+    "clientY": 419,
+    "pageX": 468,
+    "pageY": 1834,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "ecb788f3b7 c0b8f1e8f8 adef78b94b d5dcd44e2b",
+      "dataTestId": null,
+      "innerText": "6\n194",
+      "rect": {
+        "x": 456.0874938964844,
+        "y": 407.8999938964844,
+        "width": 34.5625,
+        "height": 44
+      }
+    }
+  },
+  {
+    "type": "click",
+    "ts": 1773882432850,
+    "clientX": 468,
+    "clientY": 419,
+    "pageX": 468,
+    "pageY": 1834,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "ecb788f3b7 c0b8f1e8f8 adef78b94b d5dcd44e2b",
+      "dataTestId": null,
+      "innerText": "6\n194",
+      "rect": {
+        "x": 456.0874938964844,
+        "y": 407.8999938964844,
+        "width": 34.5625,
+        "height": 44
+      }
+    }
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441001,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441009,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441024,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441041,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441058,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441075,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441091,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441108,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441125,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441142,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441158,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441174,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441191,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441208,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441225,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441258,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441274,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441291,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441308,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441407,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441593,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441607,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441624,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441640,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441658,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441674,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441691,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441707,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441724,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441741,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441758,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441774,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441791,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441807,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441824,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441840,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441858,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441874,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441892,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441908,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441924,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441942,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441958,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882441990,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442007,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442023,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442041,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442057,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442074,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442090,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442207,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442241,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442257,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442274,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442290,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442307,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442324,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442341,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442358,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442374,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442390,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442407,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442423,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442440,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442457,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442474,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442524,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882442574,
+    "target": null
+  },
+  {
+    "type": "pointerdown",
+    "ts": 1773882443446,
+    "clientX": 788.7999877929688,
+    "clientY": 325.8000183105469,
+    "pageX": 788.7999877929688,
+    "pageY": 1668.9999694824219,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "ca2ca5203b",
+      "dataTestId": null,
+      "innerText": "Aplicar alterações",
+      "rect": {
+        "x": 784.0375366210938,
+        "y": 305.8999938964844,
+        "width": 112.36250305175781,
+        "height": 20
+      }
+    }
+  },
+  {
+    "type": "mousedown",
+    "ts": 1773882443448,
+    "clientX": 788,
+    "clientY": 325,
+    "pageX": 788,
+    "pageY": 1668,
+    "button": 0,
+    "target": {
+      "tagName": "SPAN",
+      "id": null,
+      "className": "ca2ca5203b",
+      "dataTestId": null,
+      "innerText": "Aplicar alterações",
+      "rect": {
+        "x": 784.0375366210938,
+        "y": 305.8999938964844,
+        "width": 112.36250305175781,
+        "height": 20
+      }
+    }
+  },
+  {
+    "type": "pointerup",
+    "ts": 1773882443664,
+    "clientX": 788.7999877929688,
+    "clientY": 325.8000183105469,
+    "pageX": 788.7999877929688,
+    "pageY": 1668.9999694824219,
+    "button": 0,
+    "target": {
+      "tagName": "BUTTON",
+      "id": null,
+      "className": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 f3e59d528f ca8e0b9533 cfd71fb584 a9d40b8d51",
+      "dataTestId": null,
+      "innerText": "Aplicar alterações",
+      "rect": {
+        "x": 737.881103515625,
+        "y": 297.47601318359375,
+        "width": 180.6752471923828,
+        "height": 36.847999572753906
+      }
+    }
+  },
+  {
+    "type": "mouseup",
+    "ts": 1773882443664,
+    "clientX": 788,
+    "clientY": 325,
+    "pageX": 788,
+    "pageY": 1668,
+    "button": 0,
+    "target": {
+      "tagName": "BUTTON",
+      "id": null,
+      "className": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 f3e59d528f ca8e0b9533 cfd71fb584 a9d40b8d51",
+      "dataTestId": null,
+      "innerText": "Aplicar alterações",
+      "rect": {
+        "x": 737.881103515625,
+        "y": 297.47601318359375,
+        "width": 180.6752471923828,
+        "height": 36.847999572753906
+      }
+    }
+  },
+  {
+    "type": "click",
+    "ts": 1773882443665,
+    "clientX": 788,
+    "clientY": 325,
+    "pageX": 788,
+    "pageY": 1668,
+    "button": 0,
+    "target": {
+      "tagName": "BUTTON",
+      "id": null,
+      "className": "de576f5064 b46cd7aad7 ced67027e5 c7a901b0e7 f3e59d528f ca8e0b9533 cfd71fb584 a9d40b8d51",
+      "dataTestId": null,
+      "innerText": "Aplicar alterações",
+      "rect": {
+        "x": 737.881103515625,
+        "y": 297.47601318359375,
+        "width": 180.6752471923828,
+        "height": 36.847999572753906
+      }
+    }
+  },
+  {
+    "type": "pointerdown",
+    "ts": 1773882450067,
+    "clientX": 900,
+    "clientY": 211.40000915527344,
+    "pageX": 900,
+    "pageY": 211.40000915527344,
+    "button": 0,
+    "target": {
+      "tagName": "path",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 896.3890991210938,
+        "y": 207.3109893798828,
+        "width": 11.300000190734863,
+        "height": 11.37802791595459
+      }
+    }
+  },
+  {
+    "type": "mousedown",
+    "ts": 1773882450069,
+    "clientX": 900,
+    "clientY": 211,
+    "pageX": 900,
+    "pageY": 211,
+    "button": 0,
+    "target": {
+      "tagName": "path",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 896.3890991210938,
+        "y": 207.3109893798828,
+        "width": 11.300000190734863,
+        "height": 11.37802791595459
+      }
+    }
+  },
+  {
+    "type": "pointerup",
+    "ts": 1773882450360,
+    "clientX": 900,
+    "clientY": 211.40000915527344,
+    "pageX": 900,
+    "pageY": 211.40000915527344,
+    "button": 0,
+    "target": {
+      "tagName": "path",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 896.5011596679688,
+        "y": 207.4247589111328,
+        "width": 11.074023246765137,
+        "height": 11.15048885345459
+      }
+    }
+  },
+  {
+    "type": "mouseup",
+    "ts": 1773882450361,
+    "clientX": 900,
+    "clientY": 211,
+    "pageX": 900,
+    "pageY": 211,
+    "button": 0,
+    "target": {
+      "tagName": "path",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 896.5011596679688,
+        "y": 207.4247589111328,
+        "width": 11.074023246765137,
+        "height": 11.15048885345459
+      }
+    }
+  },
+  {
+    "type": "click",
+    "ts": 1773882450362,
+    "clientX": 900,
+    "clientY": 211,
+    "pageX": 900,
+    "pageY": 211,
+    "button": 0,
+    "target": {
+      "tagName": "path",
+      "id": null,
+      "className": null,
+      "dataTestId": null,
+      "innerText": "",
+      "rect": {
+        "x": 896.5011596679688,
+        "y": 207.4247589111328,
+        "width": 11.074023246765137,
+        "height": 11.15048885345459
+      }
+    }
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882451650,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882451667,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882451684,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882451701,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882451716,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882451733,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882451769,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452025,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452072,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452086,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452133,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452151,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452167,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452184,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452368,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452386,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452401,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452419,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452435,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452453,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452467,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452484,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882452501,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455150,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455166,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455182,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455199,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455234,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455249,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455265,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455282,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455299,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455516,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455533,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455549,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455567,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455583,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455598,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455616,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455632,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455648,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455708,
+    "target": null
+  },
+  {
+    "type": "scroll",
+    "ts": 1773882455764,
+    "target": null
+  },
+  {
+    "type": "pointerdown",
+    "ts": 1773882456997,
+    "clientX": 751.2000122070312,
+    "clientY": 276.20001220703125,
+    "pageX": 751.2000122070312,
+    "pageY": 361.00001525878906,
+    "button": 0,
+    "target": {
+      "tagName": "DIV",
+      "id": null,
+      "className": "b87c397a13 a3e0b4ffd1",
+      "dataTestId": "title",
+      "innerText": "Village Arraial BY MN Hoteis",
+      "rect": {
+        "x": 636.75,
+        "y": 252.60000610351562,
+        "width": 280.8000183105469,
+        "height": 33.60000228881836
+      }
+    }
+  },
+  {
+    "type": "mousedown",
+    "ts": 1773882456998,
+    "clientX": 751,
+    "clientY": 276,
+    "pageX": 751,
+    "pageY": 361,
+    "button": 0,
+    "target": {
+      "tagName": "DIV",
+      "id": null,
+      "className": "b87c397a13 a3e0b4ffd1",
+      "dataTestId": "title",
+      "innerText": "Village Arraial BY MN Hoteis",
+      "rect": {
+        "x": 636.75,
+        "y": 252.60000610351562,
+        "width": 280.8000183105469,
+        "height": 33.60000228881836
+      }
+    }
+  },
+  {
+    "type": "pointerup",
+    "ts": 1773882457217,
+    "clientX": 751.2000122070312,
+    "clientY": 276.20001220703125,
+    "pageX": 751.2000122070312,
+    "pageY": 361.00001525878906,
+    "button": 0,
+    "target": {
+      "tagName": "DIV",
+      "id": null,
+      "className": "b87c397a13 a3e0b4ffd1",
+      "dataTestId": "title",
+      "innerText": "Village Arraial BY MN Hoteis",
+      "rect": {
+        "x": 636.75,
+        "y": 252.60000610351562,
+        "width": 280.8000183105469,
+        "height": 33.60000228881836
+      }
+    }
+  },
+  {
+    "type": "mouseup",
+    "ts": 1773882457217,
+    "clientX": 751,
+    "clientY": 276,
+    "pageX": 751,
+    "pageY": 361,
+    "button": 0,
+    "target": {
+      "tagName": "DIV",
+      "id": null,
+      "className": "b87c397a13 a3e0b4ffd1",
+      "dataTestId": "title",
+      "innerText": "Village Arraial BY MN Hoteis",
+      "rect": {
+        "x": 636.75,
+        "y": 252.60000610351562,
+        "width": 280.8000183105469,
+        "height": 33.60000228881836
+      }
+    }
+  },
+  {
+    "type": "click",
+    "ts": 1773882457218,
+    "clientX": 751,
+    "clientY": 276,
+    "pageX": 751,
+    "pageY": 361,
+    "button": 0,
+    "target": {
+      "tagName": "DIV",
+      "id": null,
+      "className": "b87c397a13 a3e0b4ffd1",
+      "dataTestId": "title",
+      "innerText": "Village Arraial BY MN Hoteis",
+      "rect": {
+        "x": 636.75,
+        "y": 252.60000610351562,
+        "width": 280.8000183105469,
+        "height": 33.60000228881836
+      }
+    }
+  }
+]

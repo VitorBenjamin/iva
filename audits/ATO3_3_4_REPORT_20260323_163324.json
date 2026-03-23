@@ -1,0 +1,64 @@
+{
+  "ato": "3.3.4",
+  "status": "completed_with_e2e_skip",
+  "ambiente": "staging",
+  "arquivos": [
+    "tests/js/test_desconto_frontend_integration.py",
+    "tests/js/test_curadoria_preview_e2e.js"
+  ],
+  "eventos": [
+    "start_ato3.3.4",
+    "curadoria_save_start",
+    "curadoria_saving_corrected",
+    "market_curado_written"
+  ],
+  "testes": [
+    {
+      "comando": "python -m unittest tests/js/test_desconto_frontend_integration.py -v",
+      "resultado": "OK",
+      "detalhe": "2 testes"
+    },
+    {
+      "comando": "node tests/js/test_curadoria_utils.js; node tests/js/test_curadoria_preview.js",
+      "resultado": "OK",
+      "detalhe": "2 testes JS unitários"
+    },
+    {
+      "comando": "node tests/js/test_curadoria_preview_e2e.js",
+      "resultado": "SKIP",
+      "motivo": "Playwright não instalado no ambiente"
+    },
+    {
+      "comando": "python -m unittest discover -s tests -p \"test_*.py\" -v",
+      "resultado": "OK",
+      "detalhe": "49 testes"
+    }
+  ],
+  "asserts_chave": [
+    "Render curadoria com flag frontend unificada ativa",
+    "Payload sugerido 850.00 não gera itens_corrigidos",
+    "Payload sugerido 700.00 gera correção automática para 850.00",
+    "Persistência final contém valor corrigido no market_curado.json"
+  ],
+  "logs_relevantes": [
+    {
+      "action": "start_ato3.3.4",
+      "id_projeto": "staging"
+    },
+    {
+      "action": "market_curado_written",
+      "id_projeto": "front-back-integration-pousada",
+      "itens_corrigidos": 0
+    },
+    {
+      "action": "curadoria_saving_corrected",
+      "id_projeto": "front-back-integration-pousada",
+      "preco_backend": 850.0
+    }
+  ],
+  "screenshots": [],
+  "observacoes": [
+    "Tentativa inicial do teste de integração falhou por data fora da janela exibida; fixture foi ajustado para data dinâmica e o teste passou.",
+    "No PowerShell, comandos encadeados precisam usar ';' em vez de '&&'."
+  ]
+}

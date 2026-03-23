@@ -1,0 +1,63 @@
+{
+  "ato": "3.3.2",
+  "passo": "2",
+  "status": "completed",
+  "ambiente": "staging",
+  "frontend_desconto_unificado": true,
+  "arquivos_modificados": [
+    "static/js/curadoria.js",
+    "templates/dashboard.html",
+    "tests/js/test_curadoria_preview.js",
+    "tests/js/test_curadoria_preview_e2e.js"
+  ],
+  "rows_testados": [
+    {
+      "checkin": "2026-01-10",
+      "preco_booking": 1000,
+      "pct": 15,
+      "preview_esperado": 850
+    },
+    {
+      "checkin": "2026-02-01",
+      "preco_booking": 500,
+      "pct": 15,
+      "preview_esperado": 425
+    },
+    {
+      "checkin": "2026-01-10",
+      "preco_booking": null,
+      "pct": 15,
+      "resultado": "curadoria-disabled"
+    }
+  ],
+  "payload_exemplos": [
+    {
+      "checkin": "2026-01-10",
+      "preco_booking_base": 1000,
+      "preco_curado_sugerido": 850,
+      "desconto_pct_sugerido": 15
+    },
+    {
+      "checkin": "2026-01-11",
+      "preco_booking_base": 1000,
+      "preco_curado_sugerido": 850,
+      "desconto_pct_sugerido": 15
+    },
+    {
+      "checkin": "2026-02-01",
+      "preco_booking_base": 500,
+      "preco_curado_sugerido": 425,
+      "desconto_pct_sugerido": 15
+    }
+  ],
+  "mensagens_ux": [
+    "Preview calculado a partir de Preço Booking. Ao salvar, o backend revalidará.",
+    "Preview já aplicado. Clique em 'Reset' antes de aplicar novo desconto.",
+    "Preço Booking ausente — não é possível aplicar desconto"
+  ],
+  "observacoes": [
+    "Sem alterações de persistência no backend neste passo.",
+    "Logging frontend_preview_aplicado implementado como fire-and-forget via sendBeacon/fetch com fallback console.info."
+  ],
+  "erros_encontrados": []
+}

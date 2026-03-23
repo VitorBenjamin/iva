@@ -123,7 +123,7 @@
 
   function popularDropdown() {
     var sel = document.getElementById('seletor-projeto');
-    sel.innerHTML = '<option value="">— Selecionar projeto —</option>';
+    sel.innerHTML = '<option value="">— Selecionar pousada —</option>';
     projetos.forEach(function (p) {
       var opt = document.createElement('option');
       opt.value = p.id;
@@ -443,6 +443,99 @@
       });
   }
 
+  function renderizarChecklist(checklist, containerId) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var labels = {
+      scraper_config_exists: 'Config do scraper',
+      booking_url_valid: 'URL Booking válida',
+      market_bruto_exists: 'Market bruto',
+      permissions_ok: 'Permissões',
+      backups_dir_exists: 'Pasta backups'
+    };
+    var html = '';
+    for (var k in labels) {
+      var ok = checklist[k] === true;
+      var cls = ok ? 'text-success' : 'text-danger';
+      var icon = ok ? 'bi-check-circle-fill' : 'bi-x-circle-fill';
+      html += '<span class="' + cls + ' me-2"><i class="bi ' + icon + ' me-1"></i>' + labels[k] + '</span>';
+    }
+    container.innerHTML = html || '<span class="text-muted">Nenhum item</span>';
+  }
+
+  function atualizarChecklistOnboarding(id) {
+    var secao = document.getElementById('secao-checklist-onboarding');
+    if (!secao) return;
+    if (!id) {
+      secao.classList.add('d-none');
+      return;
+    }
+    fetch('/api/pousada/' + encodeURIComponent(id) + '/validate')
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        secao.classList.remove('d-none');
+        var checklist = (res.data && res.data.checklist) ? res.data.checklist : (res.checklist || {});
+        renderizarChecklist(checklist, 'checklist-itens');
+        var linkCuradoria = document.getElementById('link-checklist-curadoria');
+        var linkScraper = document.getElementById('link-checklist-scraper');
+        if (linkCuradoria) linkCuradoria.href = '/projeto/' + encodeURIComponent(id) + '/curadoria';
+        if (linkScraper) linkScraper.href = '/projeto/' + encodeURIComponent(id) + '/curadoria#scraper';
+      })
+      .catch(function () {
+        secao.classList.add('d-none');
+      });
+  }
+
+  function enviarCriarPousada() {
+    var btn = document.getElementById('btn-submit-pousada');
+    var nome = (document.getElementById('pousada-nome') || {}).value.trim();
+    var url = (document.getElementById('pousada-booking-url') || {}).value.trim();
+    if (!nome || !url) {
+      mostrarToast('Nome e URL Booking são obrigatórios.', false);
+      return;
+    }
+    var payload = {
+      nome: nome,
+      booking_url: url,
+      cidade: (document.getElementById('pousada-cidade') || {}).value.trim() || undefined,
+      timezone: (document.getElementById('pousada-timezone') || {}).value.trim() || undefined,
+      executar_scrape_imediato: (document.getElementById('pousada-executar-scrape') || {}).checked || false
+    };
+    btn.disabled = true;
+    fetch('/api/pousada', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, status: r.status, data: data }; }); })
+      .then(function (result) {
+        if (result.ok && result.data.success) {
+          var d = result.data;
+          document.getElementById('resultado-criar-pousada').classList.remove('d-none');
+          renderizarChecklist(d.checklist || {}, 'checklist-resultado');
+          var id = d.id;
+          var linkCuradoria = document.getElementById('link-resultado-curadoria');
+          var linkScraper = document.getElementById('link-resultado-scraper');
+          if (linkCuradoria) linkCuradoria.href = '/projeto/' + encodeURIComponent(id) + '/curadoria';
+          if (linkScraper) linkScraper.href = '/projeto/' + encodeURIComponent(id) + '/curadoria#scraper';
+          mostrarToast('Pousada criada: ' + (d.id || nome), true);
+          buscarProjetos().then(function () {
+            popularDropdown();
+            document.getElementById('seletor-projeto').value = id;
+            var p = projetos.find(function (x) { return x.id === id; });
+            if (p) preencherFormulario(p);
+            atualizarChecklistOnboarding(id);
+          });
+        } else {
+          mostrarToast(result.data.message || 'Erro ao criar pousada.', false);
+        }
+      })
+      .catch(function () {
+        mostrarToast('Erro de conexão ao criar pousada.', false);
+      })
+      .finally(function () { btn.disabled = false; });
+  }
+
   function salvarConfiguracoesFinanceiras() {
     var id = document.getElementById('seletor-projeto').value;
     if (!id) {
@@ -496,13 +589,16 @@
       var id = this.value;
       if (!id) {
         limparSelecao();
+        atualizarChecklistOnboarding(null);
         return;
       }
       var p = projetos.find(function (x) { return x.id === id; });
       if (p) {
         preencherFormulario(p);
+        atualizarChecklistOnboarding(id);
       } else {
         limparSelecao();
+        atualizarChecklistOnboarding(null);
       }
     });
 
@@ -553,6 +649,29 @@
 
     var btnSalvarFin = document.getElementById('btn-salvar-financeiro');
     if (btnSalvarFin) btnSalvarFin.addEventListener('click', salvarConfiguracoesFinanceiras);
+
+    var btnCriarPousada = document.getElementById('btn-criar-pousada');
+    if (btnCriarPousada) {
+      btnCriarPousada.addEventListener('click', function () {
+        document.getElementById('resultado-criar-pousada').classList.add('d-none');
+        var modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-criar-pousada'));
+        modal.show();
+      });
+    }
+    var btnSubmitPousada = document.getElementById('btn-submit-pousada');
+    if (btnSubmitPousada) btnSubmitPousada.addEventListener('click', enviarCriarPousada);
+
+    document.getElementById('modal-criar-pousada').addEventListener('show.bs.modal', function () {
+      document.getElementById('resultado-criar-pousada').classList.add('d-none');
+    });
+
+    var btnEditarConfig = document.getElementById('btn-checklist-editar-config');
+    if (btnEditarConfig) {
+      btnEditarConfig.addEventListener('click', function () {
+        var card = document.getElementById('card-gestao-ativo');
+        if (card) card.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
   }
 
   if (document.readyState === 'loading') {

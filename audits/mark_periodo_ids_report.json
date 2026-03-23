@@ -1,0 +1,19 @@
+{
+  "id_projeto": "village-arraial",
+  "path": "C:\\Users\\vitor_3fyrepz\\OneDrive\\Área de Trabalho\\iva\\data\\projects\\village-arraial\\market_bruto.json",
+  "total_registros": 366,
+  "atualizados": 41,
+  "ja_marcados": 0,
+  "sem_match": 7,
+  "amostras_sem_match": [
+    "2026-04-21",
+    "2026-05-01",
+    "2027-02-07",
+    "2027-02-08",
+    "2027-02-09",
+    "2027-02-10",
+    "2027-02-11"
+  ],
+  "modo": "dry-run",
+  "backup": null
+}

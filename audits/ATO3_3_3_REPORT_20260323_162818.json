@@ -1,0 +1,67 @@
+{
+  "ato": "3.3.3",
+  "status": "completed",
+  "ambiente": "staging",
+  "arquivos_modificados": [
+    "app.py",
+    "tests/test_curadoria_save_validation.py"
+  ],
+  "funcoes_alteradas": [
+    "api_salvar_curadoria"
+  ],
+  "comportamento": {
+    "backend_desconto_unificado_default": true,
+    "threshold_correcao": 0.02,
+    "correcao_automatica": true,
+    "meta_auditoria_market_curado": true,
+    "backup_atomico": "salvar_market_curado_com_backup"
+  },
+  "eventos_system_events": [
+    "start_ato3.3.3",
+    "curadoria_save_start",
+    "curadoria_saving_corrected",
+    "market_curado_written"
+  ],
+  "testes_executados": [
+    {
+      "comando": "python -m unittest tests/test_curadoria_save_validation.py -v",
+      "resultado": "OK",
+      "tests": 3
+    },
+    {
+      "comando": "python -m unittest tests/test_desconto_unificado.py -v",
+      "resultado": "OK",
+      "tests": 5
+    },
+    {
+      "comando": "python -m unittest tests/test_adr_por_mes_desconto.py -v",
+      "resultado": "OK",
+      "tests": 1
+    },
+    {
+      "comando": "python -m unittest tests/test_curadoria_strict_periodos.py -v",
+      "resultado": "OK",
+      "tests": 3
+    },
+    {
+      "comando": "python -m unittest tests/test_periodo_id_and_resolve.py -v",
+      "resultado": "OK",
+      "tests": 2
+    },
+    {
+      "comando": "python -m unittest discover -s tests -p \"test_*.py\" -v",
+      "resultado": "OK",
+      "tests": 49
+    }
+  ],
+  "smoke_test": {
+    "tipo": "api_test_client",
+    "cenario": "payload sugerido inconsistente (700) com preco_booking=1000 e desconto=15%",
+    "resultado": "backend corrigiu para 850.00 e retornou item em itens_corrigidos"
+  },
+  "observacoes": [
+    "Sem alteração de rotas ou assinaturas públicas.",
+    "Compatibilidade mantida com payload legado (preco_curado).",
+    "Payload novo aceito (preco_curado_sugerido, desconto_pct_sugerido, preco_booking_base)."
+  ]
+}

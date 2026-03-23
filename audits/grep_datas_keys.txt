@@ -1,0 +1,57 @@
+# grep -RIn --exclude-dir=.git -E "datas_especiais|periodos_especiais"
+# Gerado em auditoria Curadoria Datas Especiais
+
+data/projects/porto-bahia-hotel/scraper_config.json:2:  "periodos_especiais": [
+
+core/scraper/scrapers.py:117:    """Prioriza datas_especiais; fallback para próximos X meses sem datas fixas."""
+core/scraper/scrapers.py:122:    especiais = cfg.get("datas_especiais") or cfg.get("periodos_especiais") or []
+core/scraper/scrapers.py:178:    periodos_especiais = cfg.get("datas_especiais") or cfg.get("periodos_especiais") or []
+core/scraper/scrapers.py:180:    logger.info("Períodos especiais carregados ({}): {}", len(periodos_especiais), periodos_especiais)
+core/scraper/scrapers.py:188:            "periodos_especiais_count": len(periodos_especiais),
+core/scraper/scrapers.py:189:            "periodos_especiais": periodos_especiais,
+core/scraper/scrapers.py:467:        n_periodos_config = len(cfg.get("periodos_especiais") or [])
+
+core/config.py:123:def _periodos_especiais_fallback(ano: int) -> list[tuple[date, date, str]]:
+core/config.py:174:def _periodos_especiais_de_config(id_projeto: str) -> list[tuple[date, date, str]]:
+core/config.py:175:    """Lê periodos_especiais do scraper_config.json do projeto.
+core/config.py:184:    pe = cfg.get("periodos_especiais")
+core/config.py:198:            logger.warning("periodos_especiais: início inválido '{}' ignorado", inicio_str)
+core/config.py:268:    Usa periodos_especiais do scraper_config.json do projeto quando id_projeto é informado;
+core/config.py:278:            periodos_list = _periodos_especiais_de_config(id_projeto)
+core/config.py:281:                periodos_list.extend(_periodos_especiais_fallback(a))
+core/config.py:287:        logger.warning("Erro ao carregar periodos_especiais, usando fallback: {}", e)
+core/config.py:289:            periodos_list.extend(_periodos_especiais_fallback(a))
+core/config.py:340:    Especiais: para cada período em periodos_especiais, 1 check-in (primeiro dia) se período ≤5 dias,
+core/config.py:351:            periodos_list = _periodos_especiais_de_config(id_projeto)
+core/config.py:354:                periodos_list.extend(_periodos_especiais_fallback(a))
+core/config.py:359:        logger.warning("Erro ao carregar periodos_especiais, usando fallback: {}", e)
+core/config.py:361:            periodos_list.extend(_periodos_especiais_fallback(a))
+core/config.py:474:        periodos_list = _periodos_especiais_de_config(id_projeto)
+core/config.py:477:                periodos_list.extend(_periodos_especiais_fallback(a))
+core/config.py:482:        logger.warning("Erro ao carregar periodos_especiais, usando fallback: {}", e)
+core/config.py:484:            periodos_list.extend(_periodos_especiais_fallback(a))
+core/config.py:549:        "periodos_especiais": [
+
+templates/scraper_config.html:312:      (configInicial.periodos_especiais || []).forEach(function (p) {
+templates/scraper_config.html:371:          periodos_especiais: periodos,
+
+scripts/evidence_stability/checklist.json:9:      "detalhe": "Feriados nacionais passaram a ser aplicados junto com periodos_especiais do scraper_config"
+
+docs/ANALISE_IMPACTO_SCRAPER_CRUD_CENARIOS.md:17:periodos_especiais (ou feriado)
+docs/ANALISE_IMPACTO_SCRAPER_CRUD_CENARIOS.md:27:periodos_especiais
+docs/ANALISE_IMPACTO_SCRAPER_CRUD_CENARIOS.md:36:_periodos_especiais_de_config
+docs/ANALISE_IMPACTO_SCRAPER_CRUD_CENARIOS.md:44:carregar_config_scraper
+docs/ANALISE_IMPACTO_SCRAPER_CRUD_CENARIOS.md:154:periodos_especiais
+
+app.py:408:    from core.config import obter_config_scraper_com_defaults, obter_desconto_dinamico, _periodos_especiais_de_config
+app.py:410:    periodos_especiais = _periodos_especiais_de_config(id_projeto)
+app.py:412:        nome: (ini.isoformat(), fim.isoformat()) for ini, fim, nome in periodos_especiais if nome
+app.py:438:        for ini, fim, nome in periodos_especiais:
+app.py:883:    periodos = body.get("periodos_especiais", [])
+
+tests/test_paths_and_scraper_config.py:37:                "datas_especiais": [
+tests/test_paths_and_scraper_config.py:48:            self.assertEqual(len(cfg.get("datas_especiais") or []), 1)
+tests/test_paths_and_scraper_config.py:49:            self.assertEqual((cfg.get("datas_especiais") or [])[0].get("nome"), "Reveillon")
+tests/test_paths_and_scraper_config.py:51:    def test_periodos_dinamicos_priorizam_datas_especiais(self):
+tests/test_paths_and_scraper_config.py:53:            "datas_especiais": [
+tests/test_paths_and_scraper_config.py:66:            cfg = {"datas_especiais": [{"nome": "Teste", "checkin": "2026-12-30"}]}
