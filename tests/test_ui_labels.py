@@ -39,6 +39,16 @@ class TestUILabels(unittest.TestCase):
         self.assertIn("modal-criar-pousada", html)
         self.assertIn("Criar Pousada", html)
 
+    def test_index_contem_labels_mvp_ui(self):
+        """Página principal contém os novos CTAs consolidados do MVP."""
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.data.decode("utf-8")
+        self.assertIn("btn-salvar-ativo", html)
+        self.assertIn("Salvar Ativo", html)
+        self.assertIn("btn-limpar-form", html)
+        self.assertIn("Limpar formulário", html)
+
 
 if __name__ == "__main__":
     unittest.main()

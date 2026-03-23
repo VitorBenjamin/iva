@@ -8,17 +8,6 @@
 
   let projetos = [];
 
-  function isUiConsolidationOn() {
-    return (window.localStorage && window.localStorage.getItem('ui_consolidation') === 'on');
-  }
-
-  function roundTo(value, decimals) {
-    var n = Number(value);
-    if (!Number.isFinite(n)) return 0;
-    var d = (typeof decimals === 'number') ? decimals : 4;
-    return Number(n.toFixed(d));
-  }
-
   function formatarMoedaBR(valor) {
     var n = Number(valor);
     if (isNaN(n) || n < 0) return 'R$ 0,00';
@@ -68,12 +57,6 @@
 
   function coletarFinanceiroDoForm() {
     var el = function (id) { return document.getElementById(id); };
-    var num = function (id) {
-      var raw = (el(id) && el(id).value) ? String(el(id).value).trim() : '';
-      if (!raw) return 0;
-      var normalized = raw.replace(/\./g, '').replace(',', '.');
-      return parseFloat(normalized) || 0;
-    };
     var cf = {
       luz: valorMoeda(el('fin-luz')) || 0,
       agua: valorMoeda(el('fin-agua')) || 0,
@@ -90,45 +73,24 @@
       lavanderia: valorMoeda(el('fin-lavanderia')) || 0,
       outros: valorMoeda(el('fin-outros-var')) || 0
     };
-    var aliquota = num('fin-aliquota');
-    var contingencia = num('fin-contingencia');
-    var outrosImpostos = num('fin-outros-impostos');
-    var mediaPessoas = num('fin-media-pessoas') || 2;
+    var aliquota = parseFloat(el('fin-aliquota').value) || 0;
+    var contingencia = parseFloat(el('fin-contingencia').value) || 0;
+    var outrosImpostos = parseFloat(el('fin-outros-impostos').value) || 0;
+    var mediaPessoas = parseFloat(el('fin-media-pessoas').value) || 2;
     if (aliquota > 1) aliquota = aliquota / 100;
     if (contingencia > 1) contingencia = contingencia / 100;
     if (outrosImpostos > 1) outrosImpostos = outrosImpostos / 100;
     mediaPessoas = Math.max(0.1, Math.min(10, mediaPessoas));
-    Object.keys(cf).forEach(function (k) { cf[k] = roundTo(cf[k], 2); });
-    Object.keys(cv).forEach(function (k) { cv[k] = roundTo(cv[k], 2); });
     return {
       custos_fixos: cf,
-      folha_pagamento_mensal: roundTo(valorMoeda(el('fin-folha')) || 0, 2),
+      folha_pagamento_mensal: valorMoeda(el('fin-folha')) || 0,
       funcionarios: [],
       custos_variaveis: cv,
-      media_pessoas_por_diaria: roundTo(mediaPessoas, 2),
-      aliquota_impostos: roundTo(aliquota, 4),
-      percentual_contingencia: roundTo(contingencia, 4),
-      outros_impostos_taxas_percentual: roundTo(outrosImpostos, 4)
+      media_pessoas_por_diaria: mediaPessoas,
+      aliquota_impostos: aliquota,
+      percentual_contingencia: contingencia,
+      outros_impostos_taxas_percentual: outrosImpostos
     };
-  }
-
-  function atualizarVisibilidadeSalvarAtivo(hasSelectedProject) {
-    var btnSalvar = document.getElementById('btn-salvar-ativo');
-    if (!btnSalvar) return;
-    if (!isUiConsolidationOn()) {
-      btnSalvar.style.display = '';
-      return;
-    }
-    btnSalvar.style.display = hasSelectedProject ? '' : 'none';
-  }
-
-  function formatNumberBr(value, minDec, maxDec) {
-    var n = Number(value);
-    if (!Number.isFinite(n)) return '';
-    return new Intl.NumberFormat('pt-BR', {
-      minimumFractionDigits: minDec,
-      maximumFractionDigits: maxDec
-    }).format(n);
   }
 
   function mostrarToast(mensagem, sucesso) {
@@ -243,12 +205,9 @@
       var aliquotaVal = fin.aliquota_impostos != null ? fin.aliquota_impostos : '';
       var contingenciaVal = fin.percentual_contingencia != null ? fin.percentual_contingencia : '';
       var outrosVal = fin.outros_impostos_taxas_percentual != null ? fin.outros_impostos_taxas_percentual : '';
-      var aliquotaPct = (typeof aliquotaVal === 'number' && aliquotaVal <= 1) ? (aliquotaVal * 100) : Number(aliquotaVal);
-      var contingenciaPct = (typeof contingenciaVal === 'number' && contingenciaVal <= 1) ? (contingenciaVal * 100) : Number(contingenciaVal);
-      var outrosPct = (typeof outrosVal === 'number' && outrosVal <= 1) ? (outrosVal * 100) : Number(outrosVal);
-      document.getElementById('fin-aliquota').value = formatNumberBr(roundTo(aliquotaPct, 2), 2, 2);
-      document.getElementById('fin-contingencia').value = formatNumberBr(roundTo(contingenciaPct, 2), 2, 2);
-      document.getElementById('fin-outros-impostos').value = formatNumberBr(roundTo(outrosPct, 2), 2, 2);
+      document.getElementById('fin-aliquota').value = (typeof aliquotaVal === 'number' && aliquotaVal <= 1) ? (aliquotaVal * 100) : aliquotaVal;
+      document.getElementById('fin-contingencia').value = (typeof contingenciaVal === 'number' && contingenciaVal <= 1) ? (contingenciaVal * 100) : contingenciaVal;
+      document.getElementById('fin-outros-impostos').value = (typeof outrosVal === 'number' && outrosVal <= 1) ? (outrosVal * 100) : outrosVal;
     } else {
       document.getElementById('fin-outros-impostos').value = '';
     }
@@ -260,9 +219,8 @@
       linkCuradoria.href = '/projeto/' + encodeURIComponent(projeto.id) + '/curadoria';
       linkCuradoria.style.display = '';
     }
-    var btnSubmit = document.getElementById('btn-salvar-ativo');
-    if (btnSubmit) btnSubmit.textContent = 'Salvar Ativo';
-    atualizarVisibilidadeSalvarAtivo(true);
+    var btnSubmit = document.getElementById('btn-submit-ativo');
+    if (btnSubmit) btnSubmit.textContent = 'Atualizar Ativo';
     var btnSalvarFin = document.getElementById('btn-salvar-financeiro');
     if (btnSalvarFin) { btnSalvarFin.style.display = ''; }
   }
@@ -277,9 +235,8 @@
       linkCuradoria.href = '#';
       linkCuradoria.style.display = 'none';
     }
-    var btnSubmit = document.getElementById('btn-salvar-ativo');
-    if (btnSubmit) btnSubmit.textContent = 'Salvar Ativo';
-    atualizarVisibilidadeSalvarAtivo(false);
+    var btnSubmit = document.getElementById('btn-submit-ativo');
+    if (btnSubmit) btnSubmit.textContent = 'Criar Ativo';
     var btnSalvarFin = document.getElementById('btn-salvar-financeiro');
     if (btnSalvarFin) { btnSalvarFin.style.display = 'none'; }
   }
@@ -320,14 +277,13 @@
     if (btnCalibrar) btnCalibrar.disabled = true;
     document.getElementById('seletor-projeto').value = '';
     limparSelecao();
-    var btnSubmit = document.getElementById('btn-salvar-ativo');
-    if (btnSubmit) btnSubmit.textContent = 'Salvar Ativo';
-    atualizarVisibilidadeSalvarAtivo(false);
+    var btnSubmit = document.getElementById('btn-submit-ativo');
+    if (btnSubmit) btnSubmit.textContent = 'Criar Ativo';
   }
 
-  function salvarAtivoHandler(e) {
+  function enviarFormAtivo(e) {
     e.preventDefault();
-    var btn = document.getElementById('btn-salvar-ativo');
+    var btn = document.getElementById('btn-submit-ativo');
     var nome = document.getElementById('criar-nome').value.trim();
     if (!nome) {
       mostrarToast('Informe o nome do projeto.', false);
@@ -558,7 +514,9 @@
           document.getElementById('resultado-criar-pousada').classList.remove('d-none');
           renderizarChecklist(d.checklist || {}, 'checklist-resultado');
           var id = d.id;
+          var linkCuradoria = document.getElementById('link-resultado-curadoria');
           var linkScraper = document.getElementById('link-resultado-scraper');
+          if (linkCuradoria) linkCuradoria.href = '/projeto/' + encodeURIComponent(id) + '/curadoria';
           if (linkScraper) linkScraper.href = '/projeto/' + encodeURIComponent(id) + '/curadoria#scraper';
           mostrarToast('Pousada criada: ' + (d.id || nome), true);
           buscarProjetos().then(function () {
@@ -644,7 +602,7 @@
       }
     });
 
-    document.getElementById('form-criar-projeto').addEventListener('submit', salvarAtivoHandler);
+    document.getElementById('form-criar-projeto').addEventListener('submit', enviarFormAtivo);
 
     var tipoUnidadeEl = document.getElementById('infra-tipo-unidade');
     if (tipoUnidadeEl) {
@@ -686,7 +644,7 @@
     var btnCalibrar = document.getElementById('btn-calibrar');
     if (btnCalibrar) btnCalibrar.addEventListener('click', aplicarPresets);
 
-    var btnNovo = document.getElementById('btn-limpar-form');
+    var btnNovo = document.getElementById('btn-novo-ativo');
     if (btnNovo) btnNovo.addEventListener('click', limparFormularioCompleto);
 
     var btnSalvarFin = document.getElementById('btn-salvar-financeiro');
@@ -702,8 +660,6 @@
     }
     var btnSubmitPousada = document.getElementById('btn-submit-pousada');
     if (btnSubmitPousada) btnSubmitPousada.addEventListener('click', enviarCriarPousada);
-
-    atualizarVisibilidadeSalvarAtivo(!!document.getElementById('seletor-projeto').value);
 
     document.getElementById('modal-criar-pousada').addEventListener('show.bs.modal', function () {
       document.getElementById('resultado-criar-pousada').classList.add('d-none');

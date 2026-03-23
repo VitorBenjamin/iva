@@ -4,7 +4,7 @@ import os
 import sys
 import unicodedata
 from datetime import date, datetime
-from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+from decimal import Decimal, ROUND_HALF_UP
 
 from flask import Flask, jsonify, render_template, request
 from loguru import logger
@@ -153,66 +153,6 @@ def format_decimal_for_display(v: Decimal | None) -> float | None:
     if v is None:
         return None
     return float(v)
-
-
-def _quantize_decimal(v, places: int = 4) -> float:
-    """Normaliza números para persistência estável em JSON."""
-    quant = Decimal("1." + ("0" * places))
-    return float(Decimal(str(v)).quantize(quant, rounding=ROUND_HALF_UP))
-
-
-def _normalize_percent(v) -> float:
-    n = float(v)
-    if n > 1:
-        n = n / 100.0
-    return _quantize_decimal(n, 4)
-
-
-def _normalizar_financeiro_para_persistencia(financeiro: DadosFinanceiros) -> DadosFinanceiros:
-    """Arredonda monetários (2) e percentuais (4) mantendo contrato atual."""
-    payload = financeiro.model_dump(mode="python")
-    cf = payload.get("custos_fixos") or {}
-    cv = payload.get("custos_variaveis") or {}
-    payload["custos_fixos"] = {k: _quantize_decimal(v, 2) for k, v in cf.items()}
-    payload["custos_variaveis"] = {k: _quantize_decimal(v, 2) for k, v in cv.items()}
-    payload["folha_pagamento_mensal"] = _quantize_decimal(payload.get("folha_pagamento_mensal", 0), 2)
-    payload["media_pessoas_por_diaria"] = _quantize_decimal(payload.get("media_pessoas_por_diaria", 2), 2)
-    payload["aliquota_impostos"] = _normalize_percent(payload.get("aliquota_impostos", 0))
-    payload["percentual_contingencia"] = _normalize_percent(payload.get("percentual_contingencia", 0))
-    payload["outros_impostos_taxas_percentual"] = _normalize_percent(payload.get("outros_impostos_taxas_percentual", 0))
-
-    funcionarios = payload.get("funcionarios") or []
-    norm_funcs = []
-    for f in funcionarios:
-        norm_funcs.append({
-            "nome": f.get("nome", ""),
-            "salario": _quantize_decimal(f.get("salario", 0), 2),
-            "encargos_percentual": _normalize_percent(f.get("encargos_percentual", 0)),
-            "quantidade": int(f.get("quantidade", 1)),
-        })
-    payload["funcionarios"] = norm_funcs
-    return DadosFinanceiros.model_validate(payload)
-
-
-def _normalizar_financeiro_payload_body(body: dict) -> dict:
-    """Pré-normaliza payload cru para manter compatibilidade com percentuais 0-100."""
-    if not isinstance(body, dict):
-        return body
-    financeiro = body.get("financeiro")
-    if not isinstance(financeiro, dict):
-        return body
-    fin = dict(financeiro)
-    for k in ("aliquota_impostos", "percentual_contingencia", "outros_impostos_taxas_percentual"):
-        if k in fin and fin[k] is not None:
-            fin[k] = _normalize_percent(fin[k])
-    funcs = fin.get("funcionarios")
-    if isinstance(funcs, list):
-        fin["funcionarios"] = [
-            {**f, "encargos_percentual": _normalize_percent(f.get("encargos_percentual", 0))}
-            if isinstance(f, dict) and f.get("encargos_percentual") is not None else f
-            for f in funcs
-        ]
-    return {**body, "financeiro": fin}
 
 
 def _calcular_preco_direto_por_data(id_projeto: str, mes_ano: str | None, preco_booking) -> float | None:
@@ -509,7 +449,6 @@ def criar_projeto():
     """Cria novo projeto; id único com sufixo numérico se slug já existir."""
     try:
         body = request.get_json(force=True, silent=True) or {}
-        body = _normalizar_financeiro_payload_body(body)
         payload = CriarProjetoBody.model_validate(body)
     except Exception as e:
         logger.warning("Validação POST /projeto falhou: {}", e)
@@ -526,11 +465,7 @@ def criar_projeto():
         id_projeto = f"{id_base}-{n}"
         n += 1
 
-    try:
-        financeiro_raw = payload.financeiro if payload.financeiro is not None else DadosFinanceiros()
-        financeiro = _normalizar_financeiro_para_persistencia(financeiro_raw)
-    except (ValueError, InvalidOperation, ValidationError) as e:
-        return jsonify({"success": False, "message": f"Payload financeiro inválido: {e}", "data": None}), 400
+    financeiro = payload.financeiro if payload.financeiro is not None else DadosFinanceiros()
     projeto = Projeto(
         id=id_projeto,
         nome=payload.nome,
@@ -564,7 +499,6 @@ def api_atualizar_projeto(id: str):
         }), 404
     try:
         body = request.get_json(force=True, silent=True) or {}
-        body = _normalizar_financeiro_payload_body(body)
         payload = AtualizarProjetoBody.model_validate(body)
     except Exception as e:
         logger.warning("Validação PUT /api/projeto/<id> falhou: {}", e)
@@ -584,10 +518,7 @@ def api_atualizar_projeto(id: str):
     if payload.ano_referencia is not None:
         projeto.ano_referencia = payload.ano_referencia
     if payload.financeiro is not None:
-        try:
-            projeto.financeiro = _normalizar_financeiro_para_persistencia(payload.financeiro)
-        except (ValueError, InvalidOperation, ValidationError) as e:
-            return jsonify({"success": False, "message": f"Payload financeiro inválido: {e}", "data": None}), 400
+        projeto.financeiro = payload.financeiro
     if payload.infraestrutura is not None:
         projeto.infraestrutura = payload.infraestrutura
     salvar_projeto(projeto)

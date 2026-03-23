@@ -1,0 +1,32 @@
+{
+  "event": "mvp_ui_decimal_applied",
+  "branch": "mvp/ui-decimal-fix",
+  "timestamp": "2026-03-23T18:08:31.546813",
+  "files_changed": [
+    "templates/index.html",
+    "static/js/main.js",
+    "static/css/site.css",
+    "app.py",
+    "tests/test_ui_labels.py",
+    "tests/test_decimal_roundtrip.py",
+    "tests/js/test_ui_buttons.js",
+    "tests/js/test_financeiro_utils.js"
+  ],
+  "tests": [
+    {
+      "command": "python -m unittest discover -s tests -p test_*.py -v",
+      "status": "passed",
+      "details": "57 tests OK"
+    },
+    {
+      "command": "node tests/js/test_financeiro_utils.js",
+      "status": "passed",
+      "details": "OK: test_financeiro_utils.js"
+    },
+    {
+      "command": "node tests/js/test_ui_buttons.js",
+      "status": "passed",
+      "details": "OK: test_ui_buttons.js"
+    }
+  ]
+}
