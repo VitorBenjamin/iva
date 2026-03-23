@@ -154,8 +154,12 @@
               </button>
             </td>
             <td>
-              <span class="text-muted small" title="Check-in: {{ r.checkin_br }} · Check-out: {{ r.checkout_br }}">ℹ️</span>
-              <span class="d-inline-block ms-1 small text-muted">{{ r.checkin_br }} → {{ r.checkout_br }}</span>
+              {% set _ini_cfg = r.periodo_inicio_config if r.periodo_inicio_config is defined else None %}
+              {% set _fim_cfg = r.periodo_fim_config if r.periodo_fim_config is defined else None %}
+              {% set _ini_txt = (_ini_cfg[:10].split('-')[2] ~ '/' ~ _ini_cfg[:10].split('-')[1] ~ '/' ~ _ini_cfg[:10].split('-')[0]) if _ini_cfg else r.checkin_br %}
+              {% set _fim_txt = (_fim_cfg[:10].split('-')[2] ~ '/' ~ _fim_cfg[:10].split('-')[1] ~ '/' ~ _fim_cfg[:10].split('-')[0]) if _fim_cfg else r.checkout_br %}
+              <span class="text-muted small" title="Check-in: {{ _ini_txt }} · Check-out: {{ _fim_txt }}">ℹ️</span>
+              <span class="d-inline-block ms-1 small text-muted">{{ _ini_txt }} → {{ _fim_txt }}</span>
             </td>
           </tr>
           {% endfor %}

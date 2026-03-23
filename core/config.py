@@ -266,6 +266,42 @@ def resolve_periodo_por_checkin(id_projeto: str, checkin_date: str) -> dict | No
     return None
 
 
+def get_periodo_config_por_id(periodos_config: list[dict], periodo_id: str | None) -> dict | None:
+    """Busca período especial por periodo_id na lista já carregada do config."""
+    if not periodo_id or not isinstance(periodo_id, str):
+        return None
+    for p in periodos_config or []:
+        if not isinstance(p, dict):
+            continue
+        if p.get("periodo_id") == periodo_id:
+            return p
+    return None
+
+
+def get_periodo_config_por_data(periodos_config: list[dict], data_checkin: str | date | None) -> dict | None:
+    """Busca período especial por data de check-in (YYYY-MM-DD ou date)."""
+    if data_checkin is None:
+        return None
+    if isinstance(data_checkin, date):
+        d = data_checkin
+    else:
+        d = None
+        try:
+            d = date.fromisoformat(str(data_checkin)[:10])
+        except (TypeError, ValueError):
+            d = _parse_ddmmyyyy(str(data_checkin))
+    if d is None:
+        return None
+    for p in periodos_config or []:
+        if not isinstance(p, dict):
+            continue
+        ini = p.get("inicio_date")
+        fim = p.get("fim_date")
+        if ini and fim and ini <= d <= fim:
+            return p
+    return None
+
+
 def _normalizar_valor_desconto(v) -> float:
     """Converte valor de desconto para decimal (0..1).
     Aceita formato decimal (0.15) ou percentual (15).

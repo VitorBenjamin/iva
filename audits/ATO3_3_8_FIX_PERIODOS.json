@@ -1,0 +1,58 @@
+{
+  "title": "ATO EXECUTIVO 3.3.8 — Fix Soberania de Períodos Especiais e Mapeamento Robusto",
+  "status": "done_for_review",
+  "scope": "global",
+  "files_changed": [
+    "core/config.py",
+    "app.py",
+    "templates/dashboard.html",
+    "tests/test_fix_periodos_soberanos.py"
+  ],
+  "implemented": [
+    "Novos helpers em core/config.py: get_periodo_config_por_id() e get_periodo_config_por_data().",
+    "Curadoria agora resolve período oficial com precedência: meta.periodo_id -> meta.periodo_nome(normalizado) -> mapeamento por data.",
+    "Agrupamento de especiais prioriza periodo_id resolvido (chave estável), reduzindo dependência de nome textual.",
+    "Intervalo exibido passa a ser soberano do scraper_config (periodo_inicio_config/periodo_fim_config) quando há match.",
+    "Fallback Outro (especial) permanece apenas para datas sem match no config.",
+    "Evento de auditoria curadoria_periodos_fix_applied registrado no SYSTEM_EVENTS.jsonl."
+  ],
+  "evidence_cottage_bahia": {
+    "target_rows": [
+      {
+        "periodo_nome": "Semana Santa / Páscoa",
+        "checkin": "2026-03-28",
+        "checkout": "2026-04-05",
+        "periodo_inicio_config": "2026-03-28",
+        "periodo_fim_config": "2026-04-05",
+        "checkins_count": 9
+      },
+      {
+        "periodo_nome": "Férias de Julho",
+        "checkin": "2026-07-10",
+        "checkout": "2026-07-25",
+        "periodo_inicio_config": "2026-07-10",
+        "periodo_fim_config": "2026-07-25",
+        "checkins_count": 16
+      }
+    ],
+    "outro_count": 1
+  },
+  "tests": [
+    {
+      "command": "python -m unittest tests/test_fix_periodos_soberanos.py -v",
+      "result": "Ran 3 tests - OK"
+    },
+    {
+      "command": "python -m unittest discover -s tests -p \"test_*.py\" -v",
+      "result": "Ran 55 tests - OK"
+    }
+  ],
+  "guardrails": {
+    "fallback_not_expanded": true,
+    "keyerror_observed": false
+  },
+  "notes": [
+    "A exibição de Datas na tabela de especiais usa periodo_inicio_config/periodo_fim_config quando presentes.",
+    "Durante execução de testes, arquivos de evidência jsonl foram atualizados por logs de runtime."
+  ]
+}
