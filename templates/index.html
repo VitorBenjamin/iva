@@ -157,6 +157,29 @@
               <span class="ms-1" data-bs-toggle="tooltip" title="Total mensal com salários e encargos de todos os funcionários."><i class="bi bi-question-circle text-muted small"></i></span>
               <input type="text" id="fin-folha" class="form-control form-control-sm moeda">
             </div>
+            <div class="col-md-4 d-none" id="rh-folha-total-wrap">
+              <label class="form-label small">Folha Total (funcionários) (R$/mês)</label>
+              <input type="text" id="fin-folha-total" class="form-control form-control-sm" readonly>
+            </div>
+          </div>
+          <div id="rh-funcionarios-panel" class="d-none mb-3">
+            <h6 class="mb-2">RH granular (experimental)</h6>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle" id="rh-funcionarios-table">
+                <thead>
+                  <tr>
+                    <th>Cargo</th>
+                    <th>Qtd</th>
+                    <th>Salário base</th>
+                    <th>Encargos (%)</th>
+                    <th>Benefícios</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="rh-funcionarios-body"></tbody>
+              </table>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-add-funcionario">Adicionar funcionário</button>
           </div>
           <div class="row g-2 mb-3">
             <div class="col-md-4">

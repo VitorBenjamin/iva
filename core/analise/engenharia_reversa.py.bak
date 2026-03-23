@@ -4,7 +4,6 @@ Responsabilidade: transformar faturamento + dados de mercado + custos em relató
 """
 import calendar
 from collections import defaultdict
-from decimal import Decimal, ROUND_HALF_UP
 
 from loguru import logger
 
@@ -97,10 +96,7 @@ def _custo_fixo_mensal_total(projeto: Projeto) -> float:
         + float(cf.outros)
     )
     aluguel = float(getattr(cf, "aluguel", 0.0) or 0.0)
-    if hasattr(fin, "calcular_folha_total_decimal"):
-        folha = float(fin.calcular_folha_total_decimal())
-    else:
-        folha = float(getattr(fin, "folha_pagamento_mensal", 0.0) or 0.0)
+    folha = float(getattr(fin, "folha_pagamento_mensal", 0.0) or 0.0)
     total = base + aluguel + folha
     return max(total, 0.0)
 
@@ -511,10 +507,7 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
     fin = getattr(projeto, "financeiro", None)
     cf = getattr(fin, "custos_fixos", None) if fin else None
     aluguel_mensal = float(getattr(cf, "aluguel", 0.0) or 0.0) if cf else 0.0
-    if fin and hasattr(fin, "calcular_folha_total_decimal"):
-        folha_mensal = float(fin.calcular_folha_total_decimal())
-    else:
-        folha_mensal = float(getattr(fin, "folha_pagamento_mensal", 0.0) or 0.0) if fin else 0.0
+    folha_mensal = float(getattr(fin, "folha_pagamento_mensal", 0.0) or 0.0) if fin else 0.0
 
     # Custos fixos sem aluguel: demais fixos + folha
     outros_fixos_mensais = 0.0
@@ -533,9 +526,6 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
     custos_fixos_anuais_sem_aluguel = max(outros_fixos_mensais, 0.0) * 12.0
     custo_anual_aluguel = max(aluguel_mensal, 0.0) * 12.0
     folha_pagamento_anual = max(folha_mensal, 0.0) * 12.0
-    folha_pagamento_anual = float(
-        Decimal(str(folha_pagamento_anual)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    )
 
     custos_totais_anuais = (
         custos_fixos_anuais_sem_aluguel + custo_anual_aluguel + folha_pagamento_anual +

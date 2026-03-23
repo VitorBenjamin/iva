@@ -21,3 +21,7 @@
     max-width: 100%;
   }
 }
+
+#rh-funcionarios-table input {
+  min-width: 90px;
+}

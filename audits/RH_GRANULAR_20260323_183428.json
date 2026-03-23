@@ -1,0 +1,6 @@
+{
+  "event": "rh_granular_applied",
+  "branch": "robust/rh-funcionarios",
+  "timestamp": "2026-03-23T18:34:28.223725",
+  "tests": "python=ok(62), js_financeiro_utils=ok, js_financeiro_funcionarios_ui=ok, migration_dry_run=ok"
+}

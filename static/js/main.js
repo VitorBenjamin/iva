@@ -7,9 +7,14 @@
   'use strict';
 
   let projetos = [];
+  let rhFuncionarios = [];
 
   function isUiConsolidationOn() {
     return (window.localStorage && window.localStorage.getItem('ui_consolidation') === 'on');
+  }
+
+  function isRhEnabled() {
+    return (window.localStorage && window.localStorage.getItem('rh_enabled') === 'on');
   }
 
   function roundTo(value, decimals) {
@@ -45,6 +50,76 @@
     if (!el) return 0;
     var v = el.value.replace(/\D/g, '');
     return parseFloat(v) / 100 || 0;
+  }
+
+  function parseNumeroFlex(raw) {
+    if (raw == null) return 0;
+    var txt = String(raw).trim();
+    if (!txt) return 0;
+    var n = parseFloat(txt.replace(/\./g, '').replace(',', '.'));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function calcularFolhaTotalFuncionarios(funcionarios) {
+    if (!Array.isArray(funcionarios) || !funcionarios.length) return 0;
+    return roundTo(funcionarios.reduce(function (acc, f) {
+      var qtd = Math.max(1, parseInt(f.quantidade, 10) || 1);
+      var salario = parseNumeroFlex(f.salario_base);
+      var encargosPct = parseNumeroFlex(f.encargos_pct);
+      if (encargosPct > 1) encargosPct = encargosPct / 100;
+      var beneficios = parseNumeroFlex(f.beneficios);
+      return acc + ((salario * qtd) * (1 + encargosPct) + beneficios);
+    }, 0), 2);
+  }
+
+  function renderRhFuncionarios() {
+    var tbody = document.getElementById('rh-funcionarios-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    rhFuncionarios.forEach(function (f, idx) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><input class="form-control form-control-sm rh-cargo" value="' + (f.cargo || '') + '"></td>' +
+        '<td><input class="form-control form-control-sm rh-quantidade" type="number" min="1" step="1" value="' + (f.quantidade || 1) + '"></td>' +
+        '<td><input class="form-control form-control-sm rh-salario-base" value="' + formatNumberBr(parseNumeroFlex(f.salario_base), 2, 2) + '"></td>' +
+        '<td><input class="form-control form-control-sm rh-encargos-pct" value="' + formatNumberBr(parseNumeroFlex(f.encargos_pct) > 1 ? parseNumeroFlex(f.encargos_pct) : parseNumeroFlex(f.encargos_pct) * 100, 2, 2) + '"></td>' +
+        '<td><input class="form-control form-control-sm rh-beneficios" value="' + formatNumberBr(parseNumeroFlex(f.beneficios), 2, 2) + '"></td>' +
+        '<td><button type="button" class="btn btn-sm btn-outline-danger rh-remove" data-idx="' + idx + '">Remover</button></td>';
+      tbody.appendChild(tr);
+    });
+    atualizarFolhaRhUI();
+  }
+
+  function coletarRhFuncionariosDoDom() {
+    var rows = document.querySelectorAll('#rh-funcionarios-body tr');
+    var list = [];
+    rows.forEach(function (row) {
+      var cargo = (row.querySelector('.rh-cargo') || {}).value || '';
+      var qtd = parseInt((row.querySelector('.rh-quantidade') || {}).value, 10) || 1;
+      var salario = parseNumeroFlex((row.querySelector('.rh-salario-base') || {}).value);
+      var encargos = parseNumeroFlex((row.querySelector('.rh-encargos-pct') || {}).value);
+      var beneficios = parseNumeroFlex((row.querySelector('.rh-beneficios') || {}).value);
+      if (encargos > 1) encargos = encargos / 100;
+      if (!cargo.trim() && salario <= 0 && beneficios <= 0) return;
+      list.push({
+        cargo: cargo.trim() || 'Equipe',
+        quantidade: Math.max(1, qtd),
+        salario_base: roundTo(salario, 2),
+        encargos_pct: roundTo(encargos, 4),
+        beneficios: roundTo(beneficios, 2)
+      });
+    });
+    rhFuncionarios = list;
+    return list;
+  }
+
+  function atualizarFolhaRhUI() {
+    var total = calcularFolhaTotalFuncionarios(rhFuncionarios);
+    var elTotal = document.getElementById('fin-folha-total');
+    if (elTotal) elTotal.value = formatarMoedaBR(total);
+    if (isRhEnabled()) {
+      definirMoeda(document.getElementById('fin-folha'), total);
+    }
   }
 
   function definirMoeda(el, valor) {
@@ -100,10 +175,17 @@
     mediaPessoas = Math.max(0.1, Math.min(10, mediaPessoas));
     Object.keys(cf).forEach(function (k) { cf[k] = roundTo(cf[k], 2); });
     Object.keys(cv).forEach(function (k) { cv[k] = roundTo(cv[k], 2); });
+    var funcionarios = isRhEnabled() ? coletarRhFuncionariosDoDom() : [];
+    var folhaLegacy = roundTo(valorMoeda(el('fin-folha')) || 0, 2);
+    var folhaTotalRh = calcularFolhaTotalFuncionarios(funcionarios);
+    if (isRhEnabled() && funcionarios.length) {
+      folhaLegacy = folhaTotalRh;
+    }
     return {
       custos_fixos: cf,
-      folha_pagamento_mensal: roundTo(valorMoeda(el('fin-folha')) || 0, 2),
-      funcionarios: [],
+      folha_pagamento_mensal: folhaLegacy,
+      funcionarios: funcionarios,
+      folha_total: folhaTotalRh,
       custos_variaveis: cv,
       media_pessoas_por_diaria: roundTo(mediaPessoas, 2),
       aliquota_impostos: roundTo(aliquota, 4),
@@ -227,6 +309,26 @@
       definirMoeda(document.getElementById('fin-aluguel'), 0);
     }
     definirMoeda(document.getElementById('fin-folha'), (fin && fin.folha_pagamento_mensal != null) ? fin.folha_pagamento_mensal : 0);
+    if (isRhEnabled()) {
+      var finFuncs = (fin && Array.isArray(fin.funcionarios)) ? fin.funcionarios : [];
+      if (!finFuncs.length && fin && Number(fin.folha_pagamento_mensal || 0) > 0) {
+        finFuncs = [{
+          cargo: 'Equipe (legacy)',
+          quantidade: 1,
+          salario_base: Number(fin.folha_pagamento_mensal || 0),
+          encargos_pct: 0,
+          beneficios: 0
+        }];
+      }
+      rhFuncionarios = finFuncs.map(function (f) { return ({
+        cargo: f.cargo || f.nome || 'Equipe',
+        quantidade: f.quantidade || 1,
+        salario_base: f.salario_base != null ? f.salario_base : (f.salario || 0),
+        encargos_pct: f.encargos_pct != null ? f.encargos_pct : (f.encargos_percentual || 0),
+        beneficios: f.beneficios || 0
+      }); });
+      renderRhFuncionarios();
+    }
     if (fin && fin.custos_variaveis) {
       var cv = fin.custos_variaveis;
       definirMoeda(document.getElementById('fin-cafe'), cv.cafe_manha);
@@ -299,6 +401,8 @@
     definirMoeda(document.getElementById('fin-outros-fixos'), 0);
     definirMoeda(document.getElementById('fin-aluguel'), 0);
     definirMoeda(document.getElementById('fin-folha'), 0);
+    rhFuncionarios = [];
+    renderRhFuncionarios();
     definirMoeda(document.getElementById('fin-cafe'), 0);
     definirMoeda(document.getElementById('fin-amenities'), 0);
     definirMoeda(document.getElementById('fin-lavanderia'), 0);
@@ -627,6 +731,14 @@
 
     buscarProjetos().then(popularDropdown);
 
+    var rhPanel = document.getElementById('rh-funcionarios-panel');
+    var rhFolhaWrap = document.getElementById('rh-folha-total-wrap');
+    if (rhPanel && rhFolhaWrap) {
+      var showRh = isRhEnabled();
+      rhPanel.classList.toggle('d-none', !showRh);
+      rhFolhaWrap.classList.toggle('d-none', !showRh);
+    }
+
     document.getElementById('seletor-projeto').addEventListener('change', function () {
       var id = this.value;
       if (!id) {
@@ -691,6 +803,30 @@
 
     var btnSalvarFin = document.getElementById('btn-salvar-financeiro');
     if (btnSalvarFin) btnSalvarFin.addEventListener('click', salvarConfiguracoesFinanceiras);
+
+    var btnAddFunc = document.getElementById('btn-add-funcionario');
+    if (btnAddFunc) {
+      btnAddFunc.addEventListener('click', function () {
+        rhFuncionarios.push({ cargo: '', quantidade: 1, salario_base: 0, encargos_pct: 0, beneficios: 0 });
+        renderRhFuncionarios();
+      });
+    }
+    var rhBody = document.getElementById('rh-funcionarios-body');
+    if (rhBody) {
+      rhBody.addEventListener('input', function () {
+        coletarRhFuncionariosDoDom();
+        atualizarFolhaRhUI();
+      });
+      rhBody.addEventListener('click', function (e) {
+        var btn = e.target.closest('.rh-remove');
+        if (!btn) return;
+        var idx = parseInt(btn.getAttribute('data-idx'), 10);
+        if (Number.isInteger(idx)) {
+          rhFuncionarios.splice(idx, 1);
+          renderRhFuncionarios();
+        }
+      });
+    }
 
     var btnCriarPousada = document.getElementById('btn-criar-pousada');
     if (btnCriarPousada) {

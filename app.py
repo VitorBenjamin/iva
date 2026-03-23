@@ -182,15 +182,39 @@ def _normalizar_financeiro_para_persistencia(financeiro: DadosFinanceiros) -> Da
     payload["outros_impostos_taxas_percentual"] = _normalize_percent(payload.get("outros_impostos_taxas_percentual", 0))
 
     funcionarios = payload.get("funcionarios") or []
+    if not funcionarios:
+        folha_legacy = _quantize_decimal(payload.get("folha_pagamento_mensal", 0), 2)
+        if folha_legacy > 0:
+            funcionarios = [{
+                "cargo": "Equipe (legacy)",
+                "quantidade": 1,
+                "salario_base": folha_legacy,
+                "encargos_pct": 0,
+                "beneficios": 0,
+            }]
     norm_funcs = []
     for f in funcionarios:
         norm_funcs.append({
-            "nome": f.get("nome", ""),
-            "salario": _quantize_decimal(f.get("salario", 0), 2),
-            "encargos_percentual": _normalize_percent(f.get("encargos_percentual", 0)),
+            "id": str(f.get("id") or ""),
+            "cargo": str(f.get("cargo") or f.get("nome") or "Equipe"),
             "quantidade": int(f.get("quantidade", 1)),
+            "salario_base": _quantize_decimal(f.get("salario_base", f.get("salario", 0)), 2),
+            "encargos_pct": _normalize_percent(f.get("encargos_pct", f.get("encargos_percentual", 0))),
+            "beneficios": _quantize_decimal(f.get("beneficios", 0), 2),
         })
     payload["funcionarios"] = norm_funcs
+    # Compatibilidade de ciclo: mantém campo legado espelhado do cálculo atual.
+    try:
+        folha_total_calc = Decimal("0")
+        for f in norm_funcs:
+            salario = Decimal(str(f.get("salario_base", 0)))
+            qtd = Decimal(int(f.get("quantidade", 1)))
+            encargos = Decimal(str(f.get("encargos_pct", 0)))
+            beneficios = Decimal(str(f.get("beneficios", 0)))
+            folha_total_calc += (salario * qtd) * (Decimal("1") + encargos) + beneficios
+        payload["folha_pagamento_mensal"] = _quantize_decimal(folha_total_calc, 2)
+    except Exception:
+        payload["folha_pagamento_mensal"] = _quantize_decimal(payload.get("folha_pagamento_mensal", 0), 2)
     return DadosFinanceiros.model_validate(payload)
 
 
@@ -212,7 +236,36 @@ def _normalizar_financeiro_payload_body(body: dict) -> dict:
             if isinstance(f, dict) and f.get("encargos_percentual") is not None else f
             for f in funcs
         ]
+    elif float(fin.get("folha_pagamento_mensal") or 0) > 0:
+        # Migração lazy: cria funcionarios em memória quando payload ainda é legado.
+        fin["funcionarios"] = [{
+            "cargo": "Equipe (legacy)",
+            "quantidade": 1,
+            "salario_base": fin.get("folha_pagamento_mensal", 0),
+            "encargos_pct": 0,
+            "beneficios": 0,
+        }]
     return {**body, "financeiro": fin}
+
+
+def _ensure_funcionarios_from_legacy(financeiro: dict | None) -> dict:
+    """Garante shape RH granular para respostas sem alterar arquivo em disco."""
+    fin = dict(financeiro or {})
+    funcs = fin.get("funcionarios")
+    if isinstance(funcs, list) and len(funcs) > 0:
+        return fin
+    folha = float(fin.get("folha_pagamento_mensal") or 0)
+    if folha > 0:
+        fin["funcionarios"] = [{
+            "cargo": "Equipe (legacy)",
+            "quantidade": 1,
+            "salario_base": round(folha, 2),
+            "encargos_pct": 0.0,
+            "beneficios": 0.0,
+        }]
+    else:
+        fin["funcionarios"] = []
+    return fin
 
 
 def _calcular_preco_direto_por_data(id_projeto: str, mes_ano: str | None, preco_booking) -> float | None:
@@ -332,7 +385,16 @@ def index():
 def api_listar_projetos():
     """Lista projetos em JSON (padrão R3)."""
     projetos = listar_projetos()
-    dados = [p.model_dump(mode="json") for p in projetos]
+    dados = []
+    for p in projetos:
+        item = p.model_dump(mode="json")
+        fin = _ensure_funcionarios_from_legacy(item.get("financeiro"))
+        folha_total = float(
+            _normalizar_financeiro_para_persistencia(DadosFinanceiros.model_validate(fin)).folha_total
+        ) if fin is not None else 0.0
+        fin["folha_total"] = round(folha_total, 2)
+        item["financeiro"] = fin
+        dados.append(item)
     return jsonify({"success": True, "message": "Projetos listados.", "data": dados})
 
 
@@ -1607,9 +1669,12 @@ def api_simulacao_dados_base(id: str):
     media_pessoas_por_diaria = 2.0
     if fin:
         media_pessoas_por_diaria = float(getattr(fin, "media_pessoas_por_diaria", 2.0) or 2.0)
+        folha_total = float(fin.folha_total) if hasattr(fin, "folha_total") else float(getattr(fin, "folha_pagamento_mensal", 0.0) or 0.0)
         financeiro = {
             "custos_fixos": fin.custos_fixos.model_dump() if hasattr(fin.custos_fixos, "model_dump") else {},
             "folha_pagamento_mensal": fin.folha_pagamento_mensal,
+            "folha_total": round(folha_total, 2),
+            "funcionarios": [f.model_dump(mode="json") for f in fin.funcionarios] if hasattr(fin, "funcionarios") else [],
             "custos_variaveis": fin.custos_variaveis.model_dump() if hasattr(fin.custos_variaveis, "model_dump") else {},
             "media_pessoas_por_diaria": media_pessoas_por_diaria,
             "aliquota_impostos": fin.aliquota_impostos,

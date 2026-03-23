@@ -2,11 +2,9 @@
 modelos - Schemas Pydantic para dados financeiros.
 Responsabilidade: validação de receitas, despesas e métricas financeiras.
 """
-from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
-from uuid import uuid4
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 class Infraestrutura(BaseModel):
@@ -44,31 +42,12 @@ class CustosFixosMensais(BaseModel):
 
 
 class Funcionario(BaseModel):
-    """Funcionário e seus custos detalhados (RH granular)."""
+    """Funcionário e seus custos."""
 
-    id: str = Field(default_factory=lambda: uuid4().hex)
-    cargo: str
+    nome: str
+    salario: float = Field(ge=0)
+    encargos_percentual: float = Field(default=0.0, ge=0, le=1)
     quantidade: int = Field(default=1, ge=1)
-    salario_base: Decimal = Field(default=Decimal("0"), ge=0)
-    encargos_pct: Decimal = Field(default=Decimal("0"), ge=0, le=1)
-    beneficios: Decimal = Field(default=Decimal("0"), ge=0)
-
-    @model_validator(mode="before")
-    @classmethod
-    def _compat_legacy(cls, raw):
-        """Aceita payload legado (nome/salario/encargos_percentual)."""
-        if not isinstance(raw, dict):
-            return raw
-        data = dict(raw)
-        if "cargo" not in data:
-            data["cargo"] = data.get("nome") or "Equipe"
-        if "salario_base" not in data:
-            data["salario_base"] = data.get("salario", 0)
-        if "encargos_pct" not in data:
-            data["encargos_pct"] = data.get("encargos_percentual", 0)
-        if "beneficios" not in data:
-            data["beneficios"] = Decimal("0")
-        return data
 
 
 class CustosVariaveisPorNoite(BaseModel):
@@ -98,25 +77,3 @@ class DadosFinanceiros(BaseModel):
     aliquota_impostos: float = Field(default=0.06, ge=0, le=1)
     percentual_contingencia: float = Field(default=0.05, ge=0, le=1)
     outros_impostos_taxas_percentual: float = Field(default=0.0, ge=0, le=1, description="Outros impostos/taxas (0-1)")
-
-    def calcular_folha_total_decimal(self) -> Decimal:
-        """
-        Folha total mensal calculada por RH granular.
-        Fórmula por funcionário: (salario_base * quantidade) * (1 + encargos_pct) + beneficios.
-        """
-        total = Decimal("0")
-        if not self.funcionarios:
-            return Decimal(str(self.folha_pagamento_mensal or 0))
-        for f in self.funcionarios:
-            salario = Decimal(str(f.salario_base or 0))
-            qtd = Decimal(int(f.quantidade or 1))
-            encargos = Decimal(str(f.encargos_pct or 0))
-            beneficios = Decimal(str(f.beneficios or 0))
-            subtotal = (salario * qtd) * (Decimal("1") + encargos) + beneficios
-            total += subtotal
-        return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-    @property
-    def folha_total(self) -> float:
-        """Valor numérico da folha mensal derivada (compatível com serialização atual)."""
-        return float(self.calcular_folha_total_decimal())

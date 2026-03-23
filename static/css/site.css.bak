@@ -1,0 +1,23 @@
+.header-actions {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 220px) auto auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.header-project-select {
+  min-width: 160px;
+  max-width: 220px;
+  width: 100%;
+}
+
+@media (max-width: 992px) {
+  .header-actions {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .header-project-select {
+    max-width: 100%;
+  }
+}
