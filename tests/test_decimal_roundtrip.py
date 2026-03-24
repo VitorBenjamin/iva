@@ -36,6 +36,9 @@ class TestDecimalRoundtrip(unittest.TestCase):
                 "aliquota_impostos": 14,
                 "percentual_contingencia": 7.12345,
                 "outros_impostos_taxas_percentual": 0.333339,
+                "encargos_pct_padrao": 18,
+                "beneficio_vale_transporte": 123.456,
+                "beneficio_vale_alimentacao": 78.901,
                 "funcionarios": [],
             },
         }
@@ -53,6 +56,9 @@ class TestDecimalRoundtrip(unittest.TestCase):
         self.assertEqual(fin.get("aliquota_impostos"), 0.14)
         self.assertEqual(fin.get("percentual_contingencia"), 0.0712)
         self.assertEqual(fin.get("outros_impostos_taxas_percentual"), 0.3333)
+        self.assertEqual(fin.get("encargos_pct_padrao"), 0.18)
+        self.assertEqual(fin.get("beneficio_vale_transporte"), 123.46)
+        self.assertEqual(fin.get("beneficio_vale_alimentacao"), 78.9)
         self.assertEqual(fin.get("folha_pagamento_mensal"), 12345.68)
         self.assertEqual(fin.get("media_pessoas_por_diaria"), 2.35)
         self.assertEqual(fin.get("custos_fixos", {}).get("luz"), 1000.12)

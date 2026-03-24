@@ -176,6 +176,9 @@ def _normalizar_financeiro_para_persistencia(financeiro: DadosFinanceiros) -> Da
     payload["custos_fixos"] = {k: _quantize_decimal(v, 2) for k, v in cf.items()}
     payload["custos_variaveis"] = {k: _quantize_decimal(v, 2) for k, v in cv.items()}
     payload["folha_pagamento_mensal"] = _quantize_decimal(payload.get("folha_pagamento_mensal", 0), 2)
+    payload["encargos_pct_padrao"] = _normalize_percent(payload.get("encargos_pct_padrao", 0))
+    payload["beneficio_vale_transporte"] = _quantize_decimal(payload.get("beneficio_vale_transporte", 0), 2)
+    payload["beneficio_vale_alimentacao"] = _quantize_decimal(payload.get("beneficio_vale_alimentacao", 0), 2)
     payload["media_pessoas_por_diaria"] = _quantize_decimal(payload.get("media_pessoas_por_diaria", 2), 2)
     payload["aliquota_impostos"] = _normalize_percent(payload.get("aliquota_impostos", 0))
     payload["percentual_contingencia"] = _normalize_percent(payload.get("percentual_contingencia", 0))
@@ -183,23 +186,26 @@ def _normalizar_financeiro_para_persistencia(financeiro: DadosFinanceiros) -> Da
 
     funcionarios = payload.get("funcionarios") or []
     if not funcionarios:
-        folha_legacy = _quantize_decimal(payload.get("folha_pagamento_mensal", 0), 2)
-        if folha_legacy > 0:
-            funcionarios = [{
-                "cargo": "Equipe (legacy)",
-                "quantidade": 1,
-                "salario_base": folha_legacy,
-                "encargos_pct": 0,
-                "beneficios": 0,
-            }]
+        # Mantém valor legado sem materializar funcionário sintético na persistência.
+        # Isso evita recalcular/multiplicar folha a cada salvamento.
+        payload["funcionarios"] = []
+        return DadosFinanceiros.model_validate(payload)
     norm_funcs = []
     for f in funcionarios:
+        raw_encargos = f.get("encargos_pct", f.get("encargos_percentual"))
+        usar_padrao = f.get("usar_encargos_padrao")
+        if usar_padrao is None:
+            usar_padrao = raw_encargos in (None, "")
+        encargos_norm = None
+        if not bool(usar_padrao):
+            encargos_norm = _normalize_percent(raw_encargos or 0)
         norm_funcs.append({
             "id": str(f.get("id") or ""),
             "cargo": str(f.get("cargo") or f.get("nome") or "Equipe"),
             "quantidade": int(f.get("quantidade", 1)),
             "salario_base": _quantize_decimal(f.get("salario_base", f.get("salario", 0)), 2),
-            "encargos_pct": _normalize_percent(f.get("encargos_pct", f.get("encargos_percentual", 0))),
+            "encargos_pct": encargos_norm,
+            "usar_encargos_padrao": bool(usar_padrao),
             "beneficios": _quantize_decimal(f.get("beneficios", 0), 2),
         })
     payload["funcionarios"] = norm_funcs
@@ -209,9 +215,16 @@ def _normalizar_financeiro_para_persistencia(financeiro: DadosFinanceiros) -> Da
         for f in norm_funcs:
             salario = Decimal(str(f.get("salario_base", 0)))
             qtd = Decimal(int(f.get("quantidade", 1)))
-            encargos = Decimal(str(f.get("encargos_pct", 0)))
+            encargos_padrao = Decimal(str(payload.get("encargos_pct_padrao", 0)))
+            if bool(f.get("usar_encargos_padrao", True)):
+                encargos = encargos_padrao
+            else:
+                encargos = Decimal(str(f.get("encargos_pct") or 0))
             beneficios = Decimal(str(f.get("beneficios", 0)))
-            folha_total_calc += (salario * qtd) * (Decimal("1") + encargos) + beneficios
+            beneficio_global = Decimal(
+                str(payload.get("beneficio_vale_transporte", 0) + payload.get("beneficio_vale_alimentacao", 0))
+            ) * qtd
+            folha_total_calc += (salario * qtd) * (Decimal("1") + encargos) + beneficios + beneficio_global
         payload["folha_pagamento_mensal"] = _quantize_decimal(folha_total_calc, 2)
     except Exception:
         payload["folha_pagamento_mensal"] = _quantize_decimal(payload.get("folha_pagamento_mensal", 0), 2)
@@ -229,22 +242,35 @@ def _normalizar_financeiro_payload_body(body: dict) -> dict:
     for k in ("aliquota_impostos", "percentual_contingencia", "outros_impostos_taxas_percentual"):
         if k in fin and fin[k] is not None:
             fin[k] = _normalize_percent(fin[k])
+    if "encargos_pct_padrao" in fin and fin["encargos_pct_padrao"] is not None:
+        fin["encargos_pct_padrao"] = _normalize_percent(fin["encargos_pct_padrao"])
+    for k in ("beneficio_vale_transporte", "beneficio_vale_alimentacao"):
+        if k in fin and fin[k] is not None:
+            fin[k] = _quantize_decimal(fin[k], 2)
     funcs = fin.get("funcionarios")
     if isinstance(funcs, list):
-        fin["funcionarios"] = [
-            {**f, "encargos_percentual": _normalize_percent(f.get("encargos_percentual", 0))}
-            if isinstance(f, dict) and f.get("encargos_percentual") is not None else f
-            for f in funcs
-        ]
+        norm_funcs = []
+        for f in funcs:
+            if not isinstance(f, dict):
+                norm_funcs.append(f)
+                continue
+            novo = {**f}
+            usar_padrao = novo.get("usar_encargos_padrao")
+            if usar_padrao is None:
+                usar_padrao = novo.get("encargos_pct") in (None, "")
+            novo["usar_encargos_padrao"] = bool(usar_padrao)
+            if not novo["usar_encargos_padrao"]:
+                if novo.get("encargos_pct") is not None:
+                    novo["encargos_pct"] = _normalize_percent(novo.get("encargos_pct"))
+                elif novo.get("encargos_percentual") is not None:
+                    novo["encargos_pct"] = _normalize_percent(novo.get("encargos_percentual"))
+            else:
+                novo["encargos_pct"] = None
+            norm_funcs.append(novo)
+        fin["funcionarios"] = norm_funcs
     elif float(fin.get("folha_pagamento_mensal") or 0) > 0:
-        # Migração lazy: cria funcionarios em memória quando payload ainda é legado.
-        fin["funcionarios"] = [{
-            "cargo": "Equipe (legacy)",
-            "quantidade": 1,
-            "salario_base": fin.get("folha_pagamento_mensal", 0),
-            "encargos_pct": 0,
-            "beneficios": 0,
-        }]
+        # Persistência legado: mantém funcionarios vazio para evitar recálculo indevido.
+        fin["funcionarios"] = []
     return {**body, "financeiro": fin}
 
 
@@ -260,7 +286,8 @@ def _ensure_funcionarios_from_legacy(financeiro: dict | None) -> dict:
             "cargo": "Equipe (legacy)",
             "quantidade": 1,
             "salario_base": round(folha, 2),
-            "encargos_pct": 0.0,
+            "encargos_pct": None,
+            "usar_encargos_padrao": True,
             "beneficios": 0.0,
         }]
     else:
@@ -1675,6 +1702,9 @@ def api_simulacao_dados_base(id: str):
             "folha_pagamento_mensal": fin.folha_pagamento_mensal,
             "folha_total": round(folha_total, 2),
             "funcionarios": [f.model_dump(mode="json") for f in fin.funcionarios] if hasattr(fin, "funcionarios") else [],
+            "encargos_pct_padrao": getattr(fin, "encargos_pct_padrao", 0),
+            "beneficio_vale_transporte": getattr(fin, "beneficio_vale_transporte", 0),
+            "beneficio_vale_alimentacao": getattr(fin, "beneficio_vale_alimentacao", 0),
             "custos_variaveis": fin.custos_variaveis.model_dump() if hasattr(fin.custos_variaveis, "model_dump") else {},
             "media_pessoas_por_diaria": media_pessoas_por_diaria,
             "aliquota_impostos": fin.aliquota_impostos,

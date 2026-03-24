@@ -8,13 +8,18 @@
 
   let projetos = [];
   let rhFuncionarios = [];
+  let rhGlobais = {
+    encargos_padrao: 0,
+    vale_transporte: 0,
+    vale_alimentacao: 0
+  };
 
   function isUiConsolidationOn() {
     return (window.localStorage && window.localStorage.getItem('ui_consolidation') === 'on');
   }
 
   function isRhEnabled() {
-    return (window.localStorage && window.localStorage.getItem('rh_enabled') === 'on');
+    return !(window.localStorage && window.localStorage.getItem('rh_enabled') === 'off');
   }
 
   function roundTo(value, decimals) {
@@ -60,15 +65,26 @@
     return Number.isFinite(n) ? n : 0;
   }
 
-  function calcularFolhaTotalFuncionarios(funcionarios) {
+  function formatarNumeroLive(raw, decimals) {
+    var n = parseNumeroFlex(raw);
+    return formatNumberBr(n, decimals, decimals);
+  }
+
+  function calcularFolhaTotalFuncionarios(funcionarios, globais) {
     if (!Array.isArray(funcionarios) || !funcionarios.length) return 0;
+    var g = globais || {};
+    var encargosPadrao = parseNumeroFlex(g.encargos_padrao);
+    if (encargosPadrao > 1) encargosPadrao = encargosPadrao / 100;
+    var beneficioGlobalPorFuncionario = parseNumeroFlex(g.vale_transporte) + parseNumeroFlex(g.vale_alimentacao);
     return roundTo(funcionarios.reduce(function (acc, f) {
       var qtd = Math.max(1, parseInt(f.quantidade, 10) || 1);
       var salario = parseNumeroFlex(f.salario_base);
-      var encargosPct = parseNumeroFlex(f.encargos_pct);
+      var usarPadrao = f.usar_encargos_padrao !== false;
+      var encargosPct = usarPadrao ? encargosPadrao : parseNumeroFlex(f.encargos_pct);
       if (encargosPct > 1) encargosPct = encargosPct / 100;
       var beneficios = parseNumeroFlex(f.beneficios);
-      return acc + ((salario * qtd) * (1 + encargosPct) + beneficios);
+      var beneficiosGlobais = beneficioGlobalPorFuncionario * qtd;
+      return acc + ((salario * qtd) * (1 + encargosPct) + beneficios + beneficiosGlobais);
     }, 0), 2);
   }
 
@@ -81,9 +97,10 @@
       tr.innerHTML =
         '<td><input class="form-control form-control-sm rh-cargo" value="' + (f.cargo || '') + '"></td>' +
         '<td><input class="form-control form-control-sm rh-quantidade" type="number" min="1" step="1" value="' + (f.quantidade || 1) + '"></td>' +
-        '<td><input class="form-control form-control-sm rh-salario-base" value="' + formatNumberBr(parseNumeroFlex(f.salario_base), 2, 2) + '"></td>' +
-        '<td><input class="form-control form-control-sm rh-encargos-pct" value="' + formatNumberBr(parseNumeroFlex(f.encargos_pct) > 1 ? parseNumeroFlex(f.encargos_pct) : parseNumeroFlex(f.encargos_pct) * 100, 2, 2) + '"></td>' +
-        '<td><input class="form-control form-control-sm rh-beneficios" value="' + formatNumberBr(parseNumeroFlex(f.beneficios), 2, 2) + '"></td>' +
+        '<td><input class="form-control form-control-sm rh-salario-base rh-money" value="' + formatNumberBr(parseNumeroFlex(f.salario_base), 2, 2) + '"></td>' +
+        '<td><input class="form-control form-control-sm rh-encargos-pct rh-percent" value="' + formatNumberBr(parseNumeroFlex(f.encargos_pct) > 1 ? parseNumeroFlex(f.encargos_pct) : parseNumeroFlex(f.encargos_pct) * 100, 2, 2) + '"' + ((f.usar_encargos_padrao !== false) ? ' disabled' : '') + '></td>' +
+        '<td class="text-center"><input class="form-check-input rh-usar-encargos-padrao" type="checkbox"' + ((f.usar_encargos_padrao !== false) ? ' checked' : '') + '></td>' +
+        '<td><input class="form-control form-control-sm rh-beneficios rh-money" value="' + formatNumberBr(parseNumeroFlex(f.beneficios), 2, 2) + '"></td>' +
         '<td><button type="button" class="btn btn-sm btn-outline-danger rh-remove" data-idx="' + idx + '">Remover</button></td>';
       tbody.appendChild(tr);
     });
@@ -98,6 +115,7 @@
       var qtd = parseInt((row.querySelector('.rh-quantidade') || {}).value, 10) || 1;
       var salario = parseNumeroFlex((row.querySelector('.rh-salario-base') || {}).value);
       var encargos = parseNumeroFlex((row.querySelector('.rh-encargos-pct') || {}).value);
+      var usarPadrao = !!((row.querySelector('.rh-usar-encargos-padrao') || {}).checked);
       var beneficios = parseNumeroFlex((row.querySelector('.rh-beneficios') || {}).value);
       if (encargos > 1) encargos = encargos / 100;
       if (!cargo.trim() && salario <= 0 && beneficios <= 0) return;
@@ -105,7 +123,8 @@
         cargo: cargo.trim() || 'Equipe',
         quantidade: Math.max(1, qtd),
         salario_base: roundTo(salario, 2),
-        encargos_pct: roundTo(encargos, 4),
+        encargos_pct: usarPadrao ? null : roundTo(encargos, 4),
+        usar_encargos_padrao: usarPadrao,
         beneficios: roundTo(beneficios, 2)
       });
     });
@@ -114,7 +133,7 @@
   }
 
   function atualizarFolhaRhUI() {
-    var total = calcularFolhaTotalFuncionarios(rhFuncionarios);
+    var total = calcularFolhaTotalFuncionarios(rhFuncionarios, rhGlobais);
     var elTotal = document.getElementById('fin-folha-total');
     if (elTotal) elTotal.value = formatarMoedaBR(total);
     if (isRhEnabled()) {
@@ -146,7 +165,13 @@
     var num = function (id) {
       var raw = (el(id) && el(id).value) ? String(el(id).value).trim() : '';
       if (!raw) return 0;
-      var normalized = raw.replace(/\./g, '').replace(',', '.');
+      var normalized = raw;
+      // Aceita "6.5" (input number) e "6,5" (pt-BR)
+      if (normalized.indexOf(',') >= 0 && normalized.indexOf('.') >= 0) {
+        normalized = normalized.replace(/\./g, '').replace(',', '.');
+      } else if (normalized.indexOf(',') >= 0) {
+        normalized = normalized.replace(',', '.');
+      }
       return parseFloat(normalized) || 0;
     };
     var cf = {
@@ -175,9 +200,13 @@
     mediaPessoas = Math.max(0.1, Math.min(10, mediaPessoas));
     Object.keys(cf).forEach(function (k) { cf[k] = roundTo(cf[k], 2); });
     Object.keys(cv).forEach(function (k) { cv[k] = roundTo(cv[k], 2); });
+    rhGlobais.encargos_padrao = parseNumeroFlex((el('rh-encargos-padrao') || {}).value);
+    if (rhGlobais.encargos_padrao > 1) rhGlobais.encargos_padrao = rhGlobais.encargos_padrao / 100;
+    rhGlobais.vale_transporte = roundTo(parseNumeroFlex((el('rh-vale-transporte') || {}).value), 2);
+    rhGlobais.vale_alimentacao = roundTo(parseNumeroFlex((el('rh-vale-alimentacao') || {}).value), 2);
     var funcionarios = isRhEnabled() ? coletarRhFuncionariosDoDom() : [];
     var folhaLegacy = roundTo(valorMoeda(el('fin-folha')) || 0, 2);
-    var folhaTotalRh = calcularFolhaTotalFuncionarios(funcionarios);
+    var folhaTotalRh = calcularFolhaTotalFuncionarios(funcionarios, rhGlobais);
     if (isRhEnabled() && funcionarios.length) {
       folhaLegacy = folhaTotalRh;
     }
@@ -186,6 +215,9 @@
       folha_pagamento_mensal: folhaLegacy,
       funcionarios: funcionarios,
       folha_total: folhaTotalRh,
+      encargos_pct_padrao: roundTo(rhGlobais.encargos_padrao, 4),
+      beneficio_vale_transporte: rhGlobais.vale_transporte,
+      beneficio_vale_alimentacao: rhGlobais.vale_alimentacao,
       custos_variaveis: cv,
       media_pessoas_por_diaria: roundTo(mediaPessoas, 2),
       aliquota_impostos: roundTo(aliquota, 4),
@@ -311,12 +343,22 @@
     definirMoeda(document.getElementById('fin-folha'), (fin && fin.folha_pagamento_mensal != null) ? fin.folha_pagamento_mensal : 0);
     if (isRhEnabled()) {
       var finFuncs = (fin && Array.isArray(fin.funcionarios)) ? fin.funcionarios : [];
+      rhGlobais.encargos_padrao = parseNumeroFlex(fin && fin.encargos_pct_padrao);
+      rhGlobais.vale_transporte = parseNumeroFlex(fin && fin.beneficio_vale_transporte);
+      rhGlobais.vale_alimentacao = parseNumeroFlex(fin && fin.beneficio_vale_alimentacao);
+      var encPadraoEl = document.getElementById('rh-encargos-padrao');
+      var vtEl = document.getElementById('rh-vale-transporte');
+      var vaEl = document.getElementById('rh-vale-alimentacao');
+      if (encPadraoEl) encPadraoEl.value = formatNumberBr((rhGlobais.encargos_padrao || 0) * 100, 2, 2);
+      if (vtEl) vtEl.value = formatNumberBr(rhGlobais.vale_transporte || 0, 2, 2);
+      if (vaEl) vaEl.value = formatNumberBr(rhGlobais.vale_alimentacao || 0, 2, 2);
       if (!finFuncs.length && fin && Number(fin.folha_pagamento_mensal || 0) > 0) {
         finFuncs = [{
           cargo: 'Equipe (legacy)',
           quantidade: 1,
           salario_base: Number(fin.folha_pagamento_mensal || 0),
-          encargos_pct: 0,
+          encargos_pct: null,
+          usar_encargos_padrao: true,
           beneficios: 0
         }];
       }
@@ -324,7 +366,8 @@
         cargo: f.cargo || f.nome || 'Equipe',
         quantidade: f.quantidade || 1,
         salario_base: f.salario_base != null ? f.salario_base : (f.salario || 0),
-        encargos_pct: f.encargos_pct != null ? f.encargos_pct : (f.encargos_percentual || 0),
+        encargos_pct: f.encargos_pct != null ? f.encargos_pct : (f.encargos_percentual || null),
+        usar_encargos_padrao: f.usar_encargos_padrao !== false,
         beneficios: f.beneficios || 0
       }); });
       renderRhFuncionarios();
@@ -348,9 +391,9 @@
       var aliquotaPct = (typeof aliquotaVal === 'number' && aliquotaVal <= 1) ? (aliquotaVal * 100) : Number(aliquotaVal);
       var contingenciaPct = (typeof contingenciaVal === 'number' && contingenciaVal <= 1) ? (contingenciaVal * 100) : Number(contingenciaVal);
       var outrosPct = (typeof outrosVal === 'number' && outrosVal <= 1) ? (outrosVal * 100) : Number(outrosVal);
-      document.getElementById('fin-aliquota').value = formatNumberBr(roundTo(aliquotaPct, 2), 2, 2);
-      document.getElementById('fin-contingencia').value = formatNumberBr(roundTo(contingenciaPct, 2), 2, 2);
-      document.getElementById('fin-outros-impostos').value = formatNumberBr(roundTo(outrosPct, 2), 2, 2);
+      document.getElementById('fin-aliquota').value = String(roundTo(aliquotaPct, 2));
+      document.getElementById('fin-contingencia').value = String(roundTo(contingenciaPct, 2));
+      document.getElementById('fin-outros-impostos').value = String(roundTo(outrosPct, 2));
     } else {
       document.getElementById('fin-outros-impostos').value = '';
     }
@@ -401,6 +444,13 @@
     definirMoeda(document.getElementById('fin-outros-fixos'), 0);
     definirMoeda(document.getElementById('fin-aluguel'), 0);
     definirMoeda(document.getElementById('fin-folha'), 0);
+    var encPadraoEl = document.getElementById('rh-encargos-padrao');
+    var vtEl = document.getElementById('rh-vale-transporte');
+    var vaEl = document.getElementById('rh-vale-alimentacao');
+    if (encPadraoEl) encPadraoEl.value = formatNumberBr(0, 2, 2);
+    if (vtEl) vtEl.value = formatNumberBr(0, 2, 2);
+    if (vaEl) vaEl.value = formatNumberBr(0, 2, 2);
+    rhGlobais = { encargos_padrao: 0, vale_transporte: 0, vale_alimentacao: 0 };
     rhFuncionarios = [];
     renderRhFuncionarios();
     definirMoeda(document.getElementById('fin-cafe'), 0);
@@ -813,7 +863,19 @@
     }
     var rhBody = document.getElementById('rh-funcionarios-body');
     if (rhBody) {
-      rhBody.addEventListener('input', function () {
+      rhBody.addEventListener('input', function (e) {
+        var tgt = e && e.target ? e.target : null;
+        if (tgt && tgt.classList.contains('rh-money')) {
+          tgt.value = formatarNumeroLive(tgt.value, 2);
+        }
+        if (tgt && tgt.classList.contains('rh-percent')) {
+          tgt.value = formatarNumeroLive(tgt.value, 2);
+        }
+        if (tgt && tgt.classList.contains('rh-usar-encargos-padrao')) {
+          var row = tgt.closest('tr');
+          var encInput = row ? row.querySelector('.rh-encargos-pct') : null;
+          if (encInput) encInput.disabled = tgt.checked;
+        }
         coletarRhFuncionariosDoDom();
         atualizarFolhaRhUI();
       });
@@ -827,6 +889,16 @@
         }
       });
     }
+    ['rh-encargos-padrao', 'rh-vale-transporte', 'rh-vale-alimentacao'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', function () {
+        if (id === 'rh-encargos-padrao') el.value = formatarNumeroLive(el.value, 2);
+        else el.value = formatarNumeroLive(el.value, 2);
+        coletarRhFuncionariosDoDom();
+        atualizarFolhaRhUI();
+      });
+    });
 
     var btnCriarPousada = document.getElementById('btn-criar-pousada');
     if (btnCriarPousada) {

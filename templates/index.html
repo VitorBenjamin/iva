@@ -164,6 +164,20 @@
           </div>
           <div id="rh-funcionarios-panel" class="d-none mb-3">
             <h6 class="mb-2">RH granular (experimental)</h6>
+            <div class="row g-2 mb-2">
+              <div class="col-md-4">
+                <label class="form-label small">Encargos padrão (%)</label>
+                <input type="text" id="rh-encargos-padrao" class="form-control form-control-sm rh-percent">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small">Vale transporte (global por funcionário)</label>
+                <input type="text" id="rh-vale-transporte" class="form-control form-control-sm rh-money">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small">Vale alimentação (global por funcionário)</label>
+                <input type="text" id="rh-vale-alimentacao" class="form-control form-control-sm rh-money">
+              </div>
+            </div>
             <div class="table-responsive">
               <table class="table table-sm align-middle" id="rh-funcionarios-table">
                 <thead>
@@ -172,6 +186,7 @@
                     <th>Qtd</th>
                     <th>Salário base</th>
                     <th>Encargos (%)</th>
+                    <th>Usar padrão</th>
                     <th>Benefícios</th>
                     <th></th>
                   </tr>
