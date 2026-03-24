@@ -1,0 +1,6 @@
+{
+  "tool": "cursor-avancar-periodos",
+  "timestamp": "20260323_214900",
+  "event": "rh_avancar_periodos_backups",
+  "backups_created": ["core/config.py.bak"]
+}

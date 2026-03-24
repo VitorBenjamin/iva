@@ -188,15 +188,29 @@ def _periodos_especiais_de_config(id_projeto: str) -> list[dict]:
     """Lê periodos_especiais do scraper_config.json do projeto. Lista vazia em caso de erro.
 
     Os anos no config são tratados como template; o ano efetivo é calculado em runtime.
-    Se fim < date.today(), o período é avançado automaticamente para o próximo ano
-    (inclusive períodos que cruzam o ano, ex: Réveillon 30/12 → 02/01).
+    Se fim < date.today() e avancar_periodos_passados=True (default), o período é avançado
+    automaticamente para o próximo ano (inclusive períodos que cruzam o ano, ex: Réveillon).
+
+    Parâmetro avancar_periodos_passados (ou advance_periods_if_passed): quando False,
+    períodos passados NÃO são avançados — mantém anos originais do config. Útil para
+    curadoria/dados históricos (evita mismatch entre registros 2026 e config 2027).
+    Omissão da chave => True (comportamento legado).
     """
     cfg = carregar_config_scraper(id_projeto)
     if not cfg:
         return []
-    pe = cfg.get("periodos_especiais")
+    pe = cfg.get("periodos_especiais") or cfg.get("datas_especiais")
     if not pe or not isinstance(pe, list):
         return []
+    # Leitura defensiva: avancar_periodos_passados (ou advance_periods_if_passed) default True
+    avancar = cfg.get("avancar_periodos_passados", cfg.get("advance_periods_if_passed", True))
+    if not isinstance(avancar, bool):
+        avancar = bool(avancar)
+    logger.debug(
+        "avancar_periodos_passados id_projeto=%s valor=%s",
+        id_projeto,
+        avancar,
+    )
     hoje = date.today()
     result: list[dict] = []
     for item in pe:
@@ -214,19 +228,26 @@ def _periodos_especiais_de_config(id_projeto: str) -> list[dict]:
             d_fim = d_ini
         if d_fim < d_ini:
             d_ini, d_fim = d_fim, d_ini
-        d_ini, d_fim = _avancar_periodo_se_passado(d_ini, d_fim, hoje)
+        d_ini_orig, d_fim_orig = d_ini, d_fim
+        # Avançar período apenas se avancar_periodos_passados=True
+        if avancar:
+            d_ini, d_fim = _avancar_periodo_se_passado(d_ini, d_fim, hoje)
+            avancado = (d_ini, d_fim) != (d_ini_orig, d_fim_orig)
+        else:
+            avancado = False
         inicio_iso = d_ini.isoformat()
         fim_iso = d_fim.isoformat()
-        result.append(
-            {
-                "periodo_id": canonical_periodo_id(nome, inicio_iso, fim_iso),
-                "nome": nome,
-                "inicio": inicio_iso,
-                "fim": fim_iso,
-                "inicio_date": d_ini,
-                "fim_date": d_fim,
-            }
-        )
+        periodo_dict: dict = {
+            "periodo_id": canonical_periodo_id(nome, inicio_iso, fim_iso),
+            "nome": nome,
+            "inicio": inicio_iso,
+            "fim": fim_iso,
+            "inicio_date": d_ini,
+            "fim_date": d_fim,
+        }
+        # Meta opcional para auditoria
+        periodo_dict["_meta"] = {"avancado": avancado}
+        result.append(periodo_dict)
     return result
 
 
