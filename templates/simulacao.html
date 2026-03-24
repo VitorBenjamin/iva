@@ -11,6 +11,7 @@
     .card-metric .card-body { display: flex; flex-direction: column; justify-content: center; }
     .card-metric .valor { font-size: 1.25rem; font-weight: 700; }
     .adr-fallback { background-color: #fff3cd; }
+    .adr-fallback-ref { background-color: #cfe2ff; }
     .break-even-inviavel { background-color: #f8d7da; color: #842029; font-weight: 600; }
     .payback-indefinido { color: #856404; font-weight: 600; }
     .table-simulacao input { max-width: 120px; }
@@ -23,6 +24,37 @@
     {% include '_navbar_projeto.html' %}
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
       <h1 class="h5 mb-0">Simulador de Viabilidade Futura</h1>
+    </div>
+
+    <!-- Sliders Reativos (Cockpit) + Cenários Pré-definidos -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white fw-bold">
+        <i class="bi bi-sliders me-1"></i> Controles Rápidos — Atualização em tempo real
+      </div>
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label fw-bold" for="slider-ocupacao">
+              Ocupação Alvo: <span id="slider-ocupacao-val">40</span>%
+            </label>
+            <input type="range" class="form-range" id="slider-ocupacao" min="0" max="100" value="40" step="1">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold" for="slider-adr-override">
+              ADR Override: <span id="slider-adr-val">—</span>
+            </label>
+            <input type="range" class="form-range" id="slider-adr-override" min="0" max="1500" value="0" step="10" title="0 = usar ADR base por mês">
+          </div>
+          <div class="col-md-4">
+            <div class="btn-group" role="group">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-cenario-conservador" title="Ocupação 40%">Conservador 40%</button>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="btn-cenario-moderado" title="Ocupação 60%">Moderado 60%</button>
+              <button type="button" class="btn btn-outline-success btn-sm" id="btn-cenario-otimista" title="Ocupação 80%">Otimista 80%</button>
+            </div>
+          </div>
+        </div>
+        <p class="small text-muted mt-2 mb-0">Ao mover os sliders, a tabela e os gráficos são atualizados automaticamente via AJAX (sem recarregar a página).</p>
+      </div>
     </div>
 
     <!-- Cards de Resumo -->
@@ -55,7 +87,7 @@
         <div class="card card-metric border-warning shadow-sm h-100">
           <div class="card-body">
             <div class="card-title text-muted small text-uppercase"><i class="bi bi-hourglass-split me-1"></i>Payback Estimado</div>
-            <div class="valor" id="card-payback">—</div>
+            <div class="valor" id="card-payback" title="Retorno do investimento">—</div>
           </div>
         </div>
       </div>
@@ -163,8 +195,11 @@
                 <th>Mês</th>
                 <th>ADR Sugerido (R$)</th>
                 <th>Ocupação Meta (%)</th>
-                <th class="text-end">Receita</th>
-                <th class="text-end">Lucro</th>
+                <th class="text-end">Receita Bruta</th>
+                <th class="text-end">Custos Fixos</th>
+                <th class="text-end">Custos Var.</th>
+                <th class="text-end">EBITDA</th>
+                <th class="text-end">Lucro Líquido</th>
                 <th class="text-end">Break-even %</th>
               </tr>
             </thead>
@@ -186,10 +221,10 @@
       </div>
     </div>
 
-    <!-- Gráfico Barras: Receita vs Custos Fixos -->
+    <!-- Gráfico Barras: Receita vs Custos Totais + Linha Break-even -->
     <div class="card shadow-sm mt-4 mb-4">
       <div class="card-header bg-white fw-bold">
-        <i class="bi bi-bar-chart me-1"></i> Receita vs Custos Fixos (mensal)
+        <i class="bi bi-bar-chart me-1"></i> Receita vs Custos Totais (mensal) — Linha Break-even
       </div>
       <div class="card-body" style="height: 280px;">
         <canvas id="graficoBarras"></canvas>
@@ -416,6 +451,10 @@
           var v = cv[k] != null ? cv[k] : 0;
           html += '<tr><td>' + (k === 'cafe_manha' ? 'Café da manhã' : k.charAt(0).toUpperCase() + k.slice(1)) + '</td><td>Variável</td><td class="text-end">' + formatarMoeda(v) + ' / noite</td></tr>';
         });
+        var comissao = (fin.comissao_venda_pct != null ? fin.comissao_venda_pct : 0);
+        if (comissao > 0) {
+          html += '<tr><td>Comissão de venda (% receita)</td><td>Variável</td><td class="text-end">' + (comissao * 100).toFixed(1) + '% da Receita Bruta</td></tr>';
+        }
         html += '</tbody></table>';
         html += '<p class="mt-2 mb-1 small fw-bold">Custos variáveis por noite:</p><table class="table table-sm mb-0"><thead class="table-light"><tr><th>Item</th><th class="text-end">R$/noite</th></tr></thead><tbody>';
         ['cafe_manha','amenities','lavanderia','outros'].forEach(function (k) {
@@ -447,22 +486,55 @@
           var ms = metasSalvas[mesAno];
           var adrSug = (ms && ms.adr != null) ? ms.adr : (info.adr != null ? info.adr : 0);
           var ocupSug = (ms && ms.ocupacao != null) ? Math.round(ms.ocupacao * 100) : 40;
-          var fonteFallback = info.fonte === 'fallback_media' && !ms;
+          var fonteFallbackMedia = info.fonte === 'fallback_media' && !ms;
+          var fonteFallbackRef = info.fonte === 'fallback_ref';
+          var fontePropagadoPeriodo = info.fonte === 'propagado_periodo';
+          var nomeRef = info.nome_referencia || info.id_referencia || '';
+          var adrClass = fonteFallbackRef ? 'adr-fallback-ref' : (fontePropagadoPeriodo ? 'adr-fallback-ref' : (fonteFallbackMedia ? 'adr-fallback' : ''));
+          var badgeRef = fonteFallbackRef && nomeRef ? '<span class="badge bg-info ms-1" title="ADR da referência ' + nomeRef + '">Ref: ' + nomeRef + '</span>' : '';
+          var badgePropagado = fontePropagadoPeriodo ? '<span class="badge bg-secondary ms-1" title="ADR expandido do período especial"><i class="bi bi-clipboard-plus"></i> Estimado pelo Período</span>' : '';
+          var iconMedia = fonteFallbackMedia ? '<i class="bi bi-info-circle text-warning" title="Valor sugerido (média dos meses disponíveis)"></i>' : '';
           var tr = document.createElement('tr');
           tr.setAttribute('data-mes', mesAno);
           tr.innerHTML =
             '<td><strong>' + mesesNomes[m - 1] + ' ' + anoRef + '</strong></td>' +
-            '<td><div class="d-flex align-items-center gap-1">' +
-            '<input type="number" class="form-control form-control-sm input-adr ' + (fonteFallback ? 'adr-fallback' : '') + '" data-mes="' + mesAno + '" min="0" step="0.01" value="' + adrSug + '" placeholder="0">' +
-            (fonteFallback ? '<i class="bi bi-info-circle text-warning" title="Valor sugerido (média dos meses disponíveis)"></i>' : '') +
+            '<td><div class="d-flex align-items-center gap-1 flex-wrap">' +
+            '<input type="number" class="form-control form-control-sm input-adr ' + adrClass + '" data-mes="' + mesAno + '" min="0" step="0.01" value="' + adrSug + '" placeholder="0">' +
+            badgeRef + badgePropagado + iconMedia +
             '</div></td>' +
             '<td><input type="number" class="form-control form-control-sm input-ocupacao" data-mes="' + mesAno + '" min="0" max="100" step="1" value="' + ocupSug + '" placeholder="0"></td>' +
             '<td class="text-end out-receita">—</td>' +
+            '<td class="text-end out-custos-fixos">—</td>' +
+            '<td class="text-end out-custos-var">—</td>' +
+            '<td class="text-end out-ebitda">—</td>' +
             '<td class="text-end out-lucro">—</td>' +
             '<td class="text-end out-breakeven">—</td>';
           tbody.appendChild(tr);
         }
         anexarListeners();
+      }
+
+      function aplicarSlidersNaTabela() {
+        var ocpSlider = document.getElementById('slider-ocupacao');
+        var adrSlider = document.getElementById('slider-adr-override');
+        if (!ocpSlider || !adrSlider || !dadosBase) return;
+        var ocp = parseInt(ocpSlider.value, 10) || 40;
+        var adrOverride = parseInt(adrSlider.value, 10) || 0;
+        document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
+          var ocpInp = tr.querySelector('.input-ocupacao');
+          var adrInp = tr.querySelector('.input-adr');
+          if (ocpInp) ocpInp.value = ocp;
+          if (adrInp && adrOverride > 0) adrInp.value = adrOverride;
+        });
+      }
+
+      function atualizarLabelsSliders() {
+        var ocpSlider = document.getElementById('slider-ocupacao');
+        var adrSlider = document.getElementById('slider-adr-override');
+        var ocpVal = document.getElementById('slider-ocupacao-val');
+        var adrVal = document.getElementById('slider-adr-val');
+        if (ocpSlider && ocpVal) ocpVal.textContent = ocpSlider.value;
+        if (adrSlider && adrVal) adrVal.textContent = parseInt(adrSlider.value, 10) > 0 ? 'R$ ' + parseInt(adrSlider.value, 10).toLocaleString('pt-BR') : '— (base)';
       }
 
       function anexarListeners() {
@@ -480,6 +552,33 @@
         if (investEl) {
           investEl.addEventListener('input', function () { debounce(executarCalculo); });
         }
+        var ocpSlider = document.getElementById('slider-ocupacao');
+        var adrSlider = document.getElementById('slider-adr-override');
+        if (ocpSlider) {
+          ocpSlider.addEventListener('input', function () {
+            atualizarLabelsSliders();
+            aplicarSlidersNaTabela();
+            debounce(executarCalculo);
+          });
+        }
+        if (adrSlider) {
+          adrSlider.addEventListener('input', function () {
+            atualizarLabelsSliders();
+            aplicarSlidersNaTabela();
+            debounce(executarCalculo);
+          });
+        }
+        var btnCons = document.getElementById('btn-cenario-conservador');
+        var btnMod = document.getElementById('btn-cenario-moderado');
+        var btnOti = document.getElementById('btn-cenario-otimista');
+        function aplicarCenario(ocupPct) {
+          if (ocpSlider) { ocpSlider.value = ocupPct; atualizarLabelsSliders(); }
+          aplicarSlidersNaTabela();
+          executarCalculo();
+        }
+        if (btnCons) btnCons.addEventListener('click', function () { aplicarCenario(40); });
+        if (btnMod) btnMod.addEventListener('click', function () { aplicarCenario(60); });
+        if (btnOti) btnOti.addEventListener('click', function () { aplicarCenario(80); });
       }
 
       function coletarMetas() {
@@ -501,12 +600,22 @@
           var mesAno = tr.getAttribute('data-mes');
           var r = porMes[mesAno];
           if (!r) return;
-          tr.querySelector('.out-receita').textContent = formatarMoeda(r.receita_bruta);
-          tr.querySelector('.out-lucro').textContent = formatarMoeda(r.lucro_liquido);
-          var be = r.break_even_ocupacao_pct;
+          var recEl = tr.querySelector('.out-receita');
+          var cfEl = tr.querySelector('.out-custos-fixos');
+          var cvEl = tr.querySelector('.out-custos-var');
+          var ebitdaEl = tr.querySelector('.out-ebitda');
+          var lucroEl = tr.querySelector('.out-lucro');
           var beCell = tr.querySelector('.out-breakeven');
-          beCell.textContent = r.break_even_status === 'inviavel' ? 'Inviável' : formatarPct(be);
-          beCell.className = 'text-end out-breakeven' + (r.break_even_status === 'inviavel' ? ' break-even-inviavel' : '');
+          if (recEl) recEl.textContent = formatarMoeda(r.receita_bruta);
+          if (cfEl) cfEl.textContent = formatarMoeda(r.custos_fixos);
+          if (cvEl) cvEl.textContent = formatarMoeda(r.custos_variaveis);
+          if (ebitdaEl) ebitdaEl.textContent = formatarMoeda(r.ebitda != null ? r.ebitda : (r.receita_bruta - (r.custos_fixos || 0) - (r.custos_variaveis || 0)));
+          if (lucroEl) lucroEl.textContent = formatarMoeda(r.lucro_liquido);
+          var be = r.break_even_ocupacao_pct;
+          if (beCell) {
+            beCell.textContent = r.break_even_status === 'inviavel' ? 'Inviável' : formatarPct(be);
+            beCell.className = 'text-end out-breakeven' + (r.break_even_status === 'inviavel' ? ' break-even-inviavel' : '');
+          }
         });
       }
 
@@ -524,7 +633,7 @@
           payEl.className = 'valor payback-indefinido';
         } else {
           payEl.textContent = resumo.payback_meses != null
-            ? resumo.payback_meses.toFixed(1) + ' meses'
+            ? 'Retorno em ' + Math.round(resumo.payback_meses) + ' meses'
             : '—';
           payEl.className = 'valor text-warning';
         }
@@ -916,7 +1025,13 @@
         }
         if (graficoBarras) {
           graficoBarras.data.datasets[0].data = meses.map(function (m) { return m.receita_bruta || 0; });
-          graficoBarras.data.datasets[1].data = meses.map(function (m) { return m.custos_fixos || 0; });
+          graficoBarras.data.datasets[1].data = meses.map(function (m) {
+            return (m.custos_fixos || 0) + (m.custos_variaveis || 0) + (m.impostos || 0);
+          });
+          var beMedia = (dadosProjecao.resumo || {}).break_even_receita_media;
+          graficoBarras.data.datasets[2].data = meses.map(function () {
+            return beMedia != null && beMedia > 0 ? beMedia : null;
+          });
           graficoBarras.update();
         }
       }
@@ -929,15 +1044,40 @@
           data: {
             labels: mesesNomes,
             datasets: [
-              { label: 'Receita', data: [], backgroundColor: 'rgba(25,135,84,0.7)' },
-              { label: 'Custos Fixos', data: [], backgroundColor: 'rgba(220,53,69,0.7)' }
+              { label: 'Receita Bruta', data: [], backgroundColor: 'rgba(25,135,84,0.7)' },
+              { label: 'Custos Totais', data: [], backgroundColor: 'rgba(220,53,69,0.7)' },
+              {
+                label: 'Break-even (Receita = Custos)',
+                data: [],
+                type: 'line',
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13,110,253,0.1)',
+                borderWidth: 2,
+                borderDash: [6, 4],
+                pointRadius: 0,
+                fill: false,
+                order: 0
+              }
             ]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + formatarMoeda(c.raw); } } } },
-            scales: { y: { beginAtZero: true } }
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function (c) {
+                    return c.dataset.label + ': ' + formatarMoeda(c.raw);
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { callback: function (v) { return 'R$ ' + Number(v).toLocaleString('pt-BR'); } }
+              }
+            }
           }
         });
       }
@@ -1327,6 +1467,7 @@
             esconderMsg();
             renderizarCustos(dadosBase);
             renderizarTabela();
+            atualizarLabelsSliders();
             if (dadosSalvos && dadosSalvos.investimento_inicial != null) {
               var invEl = document.getElementById('investimento_inicial');
               if (invEl) invEl.value = formatarMoeda(dadosSalvos.investimento_inicial);

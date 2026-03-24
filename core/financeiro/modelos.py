@@ -118,6 +118,12 @@ class DadosFinanceiros(BaseModel):
         le=10.0,
         description="Média de pessoas por diária vendida. Usado para calcular custo variável por noite. Default 2.0 (backward compatible).",
     )
+    comissao_venda_pct: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Comissão de venda (ex: Booking 13%) como % da Receita Bruta. Custo variável sobre faturamento, NÃO por quarto ocupado. 0-1 (ex: 0.13 = 13%).",
+    )
     aliquota_impostos: float = Field(default=0.06, ge=0, le=1)
     percentual_contingencia: float = Field(default=0.05, ge=0, le=1)
     outros_impostos_taxas_percentual: float = Field(default=0.0, ge=0, le=1, description="Outros impostos/taxas (0-1)")

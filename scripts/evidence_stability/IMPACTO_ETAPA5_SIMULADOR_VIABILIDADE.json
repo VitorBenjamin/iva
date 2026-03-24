@@ -1,0 +1,137 @@
+{
+  "tool": "cursor-etapa5-simulador-viabilidade",
+  "timestamp": "2026-03-12",
+  "etapa": 5,
+  "titulo": "Simulador de Viabilidade e Projeção de Lucro",
+  "status": "IMPLEMENTADO",
+  "analise_pre_execucao": {
+    "objetivo": "Construir o motor de projeção financeira que cruza ADR, ocupação, custos fixos e variáveis para calcular EBITDA, Lucro Líquido, Break-even e Payback, com interface dinâmica.",
+    "mapeamento_folha_e_custos": {
+      "folha_pagamento_total": {
+        "centralizacao": "core/financeiro/modelos.py — DadosFinanceiros.calcular_folha_total_decimal() e propriedade folha_total. Usa funcionarios (RH granular) ou folha_pagamento_mensal (legado).",
+        "consumidores": [
+          "core/analise/engenharia_reversa.py — _custo_fixo_mensal_total(projeto): chama fin.calcular_folha_total_decimal() ou fin.folha_pagamento_mensal",
+          "app.py — api_simulacao_dados_base: folha_total via _normalizar_financeiro_para_persistencia",
+          "templates/simulacao.html — exibe fin.folha_pagamento_mensal"
+        ],
+        "recomendacao": "Reutilizar _custo_fixo_mensal_total(projeto) em core/analise/engenharia_reversa.py — já inclui folha + custos_fixos (luz, agua, internet, iptu, contabilidade, seguros, outros, aluguel)."
+      },
+      "custos_fixos": {
+        "centralizacao": "core/financeiro/modelos.py — DadosFinanceiros.custos_fixos (CustosFixosMensais: luz, agua, internet, iptu, contabilidade, seguros, outros, aluguel). Persistidos em projeto.json.",
+        "funcao_agregadora": "core/analise/engenharia_reversa.py — _custo_fixo_mensal_total(projeto) soma custos_fixos + folha e retorna float.",
+        "recomendacao": "Manter uso de _custo_fixo_mensal_total; não duplicar lógica."
+      },
+      "comissao_booking": {
+        "status": "Nao existe no schema atual. CustosVariaveisPorNoite tem cafe_manha, amenities, lavanderia, outros.",
+        "recomendacao": "Adicionar comissao_booking em CustosVariaveisPorNoite (percentual 0..1) OU tratar como custo sobre receita bruta. Se Etapa 5 incluir: novo campo opcional; aplicar como % da Receita Bruta nos custos variáveis."
+      }
+    },
+    "contexto_atual": {
+      "motor_existente": "core/analise/simulacao.py — calcular_projecao(id_projeto, metas_mensais, investimento_inicial) já calcula receita_bruta, custos_fixos, custos_variaveis, impostos, lucro_liquido, break_even_ocupacao_pct, payback_meses.",
+      "api_existente": "POST /api/projeto/<id>/simulacao/calcular — recebe metas_mensais e investimento_inicial; chama calcular_projecao.",
+      "interface_existente": "templates/simulacao.html — cards de resumo, gráficos Chart.js (evolução mensal, sensibilidade ocupação), tabela de meses, sliders implícitos via inputs. Já exibe break-even e payback.",
+      "cenarios_existentes": "POST /api/projeto/<id>/cenarios e api_simulacao_criar_ou_atualizar_cenario; cenarios.json persistido."
+    },
+    "tarefas_detalhadas": [
+      {
+        "id": "T1",
+        "titulo": "Motor de Projeção — refinamentos",
+        "descricao": "calcular_projecao já existe. Validar/adicionar: 1) ocupacao_alvo (%) como parâmetro alternativo (ocupação uniforme para todos os meses); 2) adr_override opcional por mês; 3) EBITDA explícito = Receita - Custos Fixos - Custos Variáveis (hoje lucro_liquido já é receita - fixos - variaveis - impostos). Incluir EBITDA no retorno por mês.",
+        "arquivos": ["core/analise/simulacao.py"],
+        "impacto": "baixo"
+      },
+      {
+        "id": "T2",
+        "titulo": "API POST /api/projeto/<id>/simulacao/projecao",
+        "descricao": "Novo endpoint ou estender /simulacao/calcular. Receber: ocupacao_alvo (%), adr_override (dict mes->valor ou valor único), investimento_inicial. Retornar: projecao_mensal, totais_anuais, break_even_pct, payback_meses. Pode ser alias do atual com body simplificado.",
+        "arquivos": ["app.py"],
+        "impacto": "baixo"
+      },
+      {
+        "id": "T3",
+        "titulo": "Interface — sliders e tabela",
+        "descricao": "Sliders para ocupação alvo (%) e ADR override global. Tabela já existe com colunas; adicionar coluna EBITDA se não houver. Garantir Receita Bruta, Custos Fixos, Custos Variáveis, EBITDA, Lucro Líquido por mês.",
+        "arquivos": ["templates/simulacao.html"],
+        "impacto": "medio"
+      },
+      {
+        "id": "T4",
+        "titulo": "Gráfico Receita vs Custos + linha Break-even",
+        "descricao": "Gráfico de barras Chart.js: Receita vs Custos (Fixos+Variáveis+Impostos) por mês. Linha horizontal de Break-even (receita mínima para EBITDA=0). Já existe chart-evolucao-mensal; pode estender ou criar chart-receita-custos.",
+        "arquivos": ["templates/simulacao.html"],
+        "impacto": "medio"
+      },
+      {
+        "id": "T5",
+        "titulo": "Badge Payback e Cenários pré-definidos",
+        "descricao": "Badge 'Retorno em X meses' já existe (card-payback). Botões Conservador (40%), Moderado (60%), Otimista (80%) para aplicar ocupação uniforme. Salvar cenário via POST existente.",
+        "arquivos": ["templates/simulacao.html"],
+        "impacto": "baixo"
+      }
+    ],
+    "implicated_files": [
+      {
+        "path": "core/analise/simulacao.py",
+        "funcoes": ["calcular_projecao"],
+        "papel": "Motor central; adicionar EBITDA por mês; suportar ocupacao_alvo uniforme e adr_override."
+      },
+      {
+        "path": "core/analise/engenharia_reversa.py",
+        "funcoes": ["_custo_fixo_mensal_total", "_custo_variavel_por_noite", "_calcular_break_even", "_impostos_sobre_faturamento"],
+        "papel": "Reutilizar; não alterar."
+      },
+      {
+        "path": "app.py",
+        "funcoes": ["api_simulacao_calcular ou novo api_simulacao_projecao"],
+        "papel": "Endpoint para projeção; registrar etapa5_simulador_viabilidade_applied."
+      },
+      {
+        "path": "templates/simulacao.html",
+        "papel": "Sliders, tabela, gráfico Receita vs Custos, linha Break-even, cenários pré-definidos."
+      }
+    ],
+    "formulas_validacao": {
+      "receita_bruta": "ADR × Quartos × Dias × Ocupação (já implementado em simulacao.py como adr * noites_vendidas)",
+      "custo_fixo_mensal": "_custo_fixo_mensal_total = custos_fixos (luz+agua+...) + aluguel + folha_total",
+      "custos_variaveis": "noites_vendidas * custo_var_noite (custo_var_noite = cv_unitarios * media_pessoas)",
+      "ebitda": "Receita Bruta - Custos Fixos - Custos Variáveis",
+      "lucro_liquido": "EBITDA - Impostos (já implementado)",
+      "break_even": "_calcular_break_even retorna noites/mês; converter para % ocupação"
+    },
+    "risks": [
+      {
+        "id": "R1",
+        "descricao": "Duplicação de lógica de custos",
+        "mitigacao": "Sempre usar _custo_fixo_mensal_total e _custo_variavel_por_noite de engenharia_reversa."
+      },
+      {
+        "id": "R2",
+        "descricao": "Inconsistência ADR: dados-base vs override",
+        "mitigacao": "Ordem clara: adr_override (se presente) > metas_mensais[mes].adr > adr_por_mes (dados-base)."
+      }
+    ],
+    "guardrails": [
+      "Análise de Impacto (este JSON) antes de alterar.",
+      "Criar backups .bak de core/analise/simulacao.py, app.py, templates/simulacao.html.",
+      "Registrar evento etapa5_simulador_viabilidade_applied em SYSTEM_EVENTS.jsonl ao calcular projeção.",
+      "Reutilizar adr_por_mes (obter_adr_por_mes) e folha via _custo_fixo_mensal_total."
+    ],
+    "rollback_plan": [
+      "Restaurar core/analise/simulacao.py, app.py, templates/simulacao.html dos .bak",
+      "git reset --hard HEAD~1 se commit já criado"
+    ],
+    "tests_to_run": [
+      "python -m pytest tests -v",
+      "Novo: test_simulacao_projecao_retorna_ebitda, test_simulacao_break_even",
+      "Manual: validar sliders, gráficos e cenários na UI"
+    ]
+  },
+  "aguardando_confirmacao_usuario": false,
+  "implementado_em": "2026-03-24",
+  "arquivos_modificados": [
+    "core/analise/simulacao.py",
+    "core/financeiro/modelos.py",
+    "app.py",
+    "templates/simulacao.html"
+  ]
+}

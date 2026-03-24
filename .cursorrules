@@ -1,10 +1,51 @@
-R1 (Preço): Diária direta = diária Booking / 1.20.
-R2 (Async): Nunca usar asyncio.run() em rotas Flask. Usar new_event_loop().
-R3 (API): Todas as rotas retornam JSON { "success": bool, "message": str, "data": obj }.
-R4 (UI): Nunca usar alert(). Usar Toasts do Bootstrap 5.
-R5 (Máscara): Campos monetários usam Cleave.js com a classe .moeda.
-R6 (Logs): Proibido usar print(). Usar loguru.
-R7 (Dados): Validar entradas com Pydantic antes de qualquer persistência.
-R8 (Arquivos): Projetos em data/projects/<id>.json. Market em data/projects/market_<id>.json.
-R9 (Evidências): Screenshots de falha do scraper salvos em artifacts/.
-R10 (Clean Code): Funções com responsabilidade única e máximo 30 linhas.
+# Constituição IVA — Regras de Engenharia
+
+## 1. Integridade financeira (Regras de Ouro)
+- Preserve a ordem dos cálculos:
+  1) Receita Bruta
+  2) Custos Variáveis (inclui comissão sobre receita, quando aplicável)
+  3) EBITDA = Receita - Custos Fixos - Custos Variáveis
+  4) Lucro Líquido = EBITDA - Impostos
+- Não misturar sem critério Decimal e float:
+  - Normalização monetária e RH granular: Decimal + quantize
+  - Cálculo analítico/API: float
+- Não remover campos de compatibilidade sem migração explícita.
+
+## 2. Hierarquia de cálculo oficial
+- ADR mensal deve seguir a hierarquia oficial:
+  1) preco_curado
+  2) preco_booking com desconto
+  3) expansão por período especial
+  4) fallback por projetos_referencia
+  5) fallback por média
+- Comissão de venda (comissao_venda_pct) é custo variável sobre Receita Bruta.
+- Break-even operacional é definido por EBITDA >= 0.
+- Payback só é válido quando lucro médio mensal > 0; caso contrário, status indefinido.
+
+## 3. Paths e persistência
+- Use apenas os helpers de caminho em core/projetos.py.
+- Estrutura oficial por projeto: data/projects/<id>/...
+- Evite paths hardcoded fora dos helpers.
+- Preferir escrita atômica para JSON quando possível.
+
+## 4. API e contratos
+- Rotas JSON devem manter o contrato: {"success": bool, "message": str, "data": obj}.
+- Validar payloads com Pydantic antes de persistir.
+- Mudanças incompatíveis exigem estratégia de migração/compatibilidade.
+
+## 5. Frontend (Vibe Coding)
+- Não usar alert(); usar Toasts Bootstrap.
+- Simulador deve manter UX de cockpit: atualização via AJAX sem reload.
+- Centralizar utilitários de moeda/percentual em JS reutilizável (evitar duplicação inline).
+
+## 6. Logging, evidência e segurança de mudança
+- Proibido print() em produção; usar loguru.
+- Mudanças estruturais exigem:
+  1) análise de impacto
+  2) backups .bak
+  3) registro de evento em SYSTEM_EVENTS.jsonl
+
+## 7. Legado e depreciação
+- Código legado pode permanecer por compatibilidade, mas deve ser marcado como LEGADO/DEPRECATED.
+- Não usar caminhos legados em novas features.
+- Antes de remover fallback legado, criar plano de migração e testes de regressão.

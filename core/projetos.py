@@ -39,6 +39,10 @@ class Projeto(BaseModel):
     )
     # Será substituído por DadosMercado quando o módulo scraper for implementado.
     dados_mercado: Optional[Any] = None
+    # Fallback multi-base: IDs de projetos cujos dados (ADR/preços) podem ser usados quando ausentes.
+    projetos_referencia: List[str] = Field(default_factory=list)
+    # Multiplicador para preços vindos de referência (ex: 1.10 = +10%). Preparado para uso futuro.
+    markup_referencia: Optional[float] = Field(default=None, ge=0.01, le=10.0)
 
 
 PROJECTS_DIR = Path(__file__).resolve().parent.parent / "data" / "projects"
@@ -80,12 +84,12 @@ def get_scraper_config_path(id_projeto: str) -> Path:
 
 
 def get_simulacao_salva_path(id_projeto: str) -> Path:
-    """Retorna o path da simulação salva: data/projects/<id>/simulacao_salva.json."""
+    """[LEGADO] Retorna o path da simulação salva: data/projects/<id>/simulacao_salva.json."""
     return get_projeto_dir(id_projeto) / "simulacao_salva.json"
 
 
 def get_simulacao_cenarios_path(id_projeto: str) -> Path:
-    """Retorna o path da lista de cenários salvos: data/projects/<id>/simulacao_cenarios.json."""
+    """[LEGADO] Retorna o path da lista de cenários salvos: data/projects/<id>/simulacao_cenarios.json."""
     return get_projeto_dir(id_projeto) / "simulacao_cenarios.json"
 
 
@@ -225,6 +229,21 @@ def _backup_atomico_arquivo(id_projeto: str, origem: Path, action: str) -> Path:
     return destino
 
 
+def backup_scraper_config_before_action(id_projeto: str, action: str) -> Path | None:
+    """Backup do scraper_config.json em backups/ com timestamp e .bak no projeto.
+    Retorna Path do backup em backups/ ou None se arquivo não existir."""
+    path = get_scraper_config_path(id_projeto)
+    if not path.exists() or not path.is_file():
+        return None
+    destino = _backup_atomico_arquivo(id_projeto, path, action)
+    bak_path = path.with_suffix(path.suffix + ".bak")
+    try:
+        shutil.copy2(path, bak_path)
+    except OSError:
+        pass
+    return destino
+
+
 def write_project_json(id_projeto: str, payload: dict, action: str = "write_project_json") -> None:
     """Grava projeto.json com backup atômico prévio quando já existe."""
     path = get_projeto_json_path(id_projeto)
@@ -341,9 +360,15 @@ def create_project_scaffold(id_projeto: str, metadata: dict) -> dict:
     path_scraper = get_scraper_config_path(id_projeto)
     if not path_scraper.exists():
         try:
-            from core.config import generate_scaffold_from_metadata, salvar_config_scraper
+            from core.config import generate_scaffold_from_metadata, salvar_config_scraper, _get_scraper_config_template
 
             cfg = generate_scaffold_from_metadata(metadata)
+            pe_payload = metadata.get("periodos_especiais")
+            if pe_payload is None or (isinstance(pe_payload, list) and len(pe_payload) == 0):
+                template = _get_scraper_config_template()
+                cfg["periodos_especiais"] = template.get("periodos_especiais", [])
+            else:
+                cfg["periodos_especiais"] = pe_payload
             salvar_config_scraper(id_projeto, cfg)
             created.append("scraper_config.json")
             _log_system_event("project_scaffold_created", id_projeto=id_projeto, item="scraper_config.json")

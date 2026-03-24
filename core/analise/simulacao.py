@@ -1,20 +1,81 @@
 """
 simulacao - Projeção financeira com metas de ocupação e ADR.
-Responsabilidade: calcular receita, custos, lucro, break-even e payback.
+Responsabilidade: calcular receita, custos, lucro, EBITDA, break-even e payback.
 Usa calendário diário: meta aplicada a dias normais; dias especiais com ocupação 100%.
+
+Fórmulas (conforme análise contábil):
+- Custos Variáveis = (noites × custo_var_noite) + (Receita Bruta × comissao_venda_pct)
+  → Comissão de venda (ex: Booking 13%) é custo variável SOBRE RECEITA, não por quarto.
+- EBITDA = Receita Bruta - Custos Fixos - Custos Variáveis
+- Lucro Líquido = EBITDA - Impostos (imposto deduzido após EBITDA)
 """
 import calendar
 from typing import Any
 
 from core.projetos import carregar_projeto
 from core.projetos import ArquivoProjetoNaoEncontrado
+from core.analise.adr_por_mes import obter_adr_por_mes
 from core.analise.engenharia_reversa import (
-    _calcular_break_even,
     _custo_fixo_mensal_total,
     _dias_normais_especiais_por_mes,
     _custo_variavel_por_noite,
     _impostos_sobre_faturamento,
 )
+
+
+def _calcular_break_even_ebitda(
+    adr: float,
+    custo_fixo_mensal: float,
+    custo_var_noite: float,
+    comissao_pct: float,
+    capacidade_mes: float,
+) -> tuple[float, float | None]:
+    """
+    Break-even operacional (EBITDA >= 0).
+    Receita*(1-comissao) - Fixos - noites*custo_var = 0  =>  noites = Fixos / (ADR*(1-comissao) - custo_var)
+    Retorna (noites, break_even_pct) ou (0, None) se inviável.
+    """
+    if capacidade_mes <= 0:
+        return 0.0, None
+    adr_efetivo = adr * (1.0 - comissao_pct) if comissao_pct < 1.0 else 0.0
+    denominador = adr_efetivo - custo_var_noite
+    if denominador <= 0 or custo_fixo_mensal <= 0:
+        return 0.0, None
+    noites = custo_fixo_mensal / denominador
+    pct = min(noites / capacidade_mes, 1.0)
+    return noites, pct
+
+
+def construir_metas_para_projecao(
+    id_projeto: str,
+    ocupacao_alvo: float | None = None,
+    adr_override: float | None | dict[str, float] = None,
+) -> dict[str, dict]:
+    """
+    Constrói metas_mensais a partir de ocupacao_alvo e adr_override.
+    Se ocupacao_alvo não informado, usa 0.4 (40%). Se adr_override não informado, usa obter_adr_por_mes.
+    """
+    try:
+        projeto = carregar_projeto(id_projeto)
+    except ArquivoProjetoNaoEncontrado:
+        return {}
+    ano_ref = projeto.ano_referencia or 2025
+    adr_por_mes = obter_adr_por_mes(id_projeto)
+    ocup = max(0.0, min(1.0, ocupacao_alvo if ocupacao_alvo is not None else 0.4))
+    adr_override_dict = adr_override if isinstance(adr_override, dict) else None
+    adr_override_val = float(adr_override) if isinstance(adr_override, (int, float)) else None
+
+    metas: dict[str, dict] = {}
+    for mes in range(1, 13):
+        mes_ano = f"{ano_ref}-{mes:02d}"
+        info = adr_por_mes.get(mes_ano) or {}
+        adr = adr_override_dict.get(mes_ano) if adr_override_dict else None
+        if adr is None and adr_override_val is not None:
+            adr = adr_override_val
+        if adr is None:
+            adr = info.get("adr") if isinstance(info, dict) else (info if isinstance(info, (int, float)) else 0)
+        metas[mes_ano] = {"ocupacao": ocup, "adr": float(adr or 0)}
+    return metas
 
 
 def calcular_projecao(
@@ -25,6 +86,9 @@ def calcular_projecao(
     """
     Calcula projeção financeira mensal e anual.
     metas_mensais: {"2025-01": {"ocupacao": 0.65, "adr": 420}, ...}
+
+    EBITDA = Receita - Custos Fixos - Custos Variáveis (imposto NÃO entra).
+    Lucro Líquido = EBITDA - Impostos.
     """
     try:
         projeto = carregar_projeto(id_projeto)
@@ -39,8 +103,10 @@ def calcular_projecao(
     custo_var_noite = _custo_variavel_por_noite(projeto)
     dias_por_mes = _dias_normais_especiais_por_mes(projeto)
 
-    # Itens de custo variável: valor_unitario = R$/noite por quarto (já com media_pessoas_por_diaria)
     fin = getattr(projeto, "financeiro", None)
+    comissao_pct = float(getattr(fin, "comissao_venda_pct", 0.0) or 0.0)
+    comissao_pct = max(0.0, min(1.0, comissao_pct))
+
     cv = getattr(fin, "custos_variaveis", None) if fin else None
     media_pessoas = float(getattr(fin, "media_pessoas_por_diaria", 2.0) or 2.0)
     media_pessoas = max(0.1, min(10.0, media_pessoas))
@@ -55,6 +121,8 @@ def calcular_projecao(
     meses_result: list[dict[str, Any]] = []
     receita_anual = 0.0
     lucro_anual = 0.0
+    ebitda_anual = 0.0
+    break_even_receitas: list[float] = []
 
     ano_ref = projeto.ano_referencia or 2025
 
@@ -79,27 +147,28 @@ def calcular_projecao(
         noites_vendidas = noites_normais + noites_especiais
         capacidade_mes = numero_quartos * dias_mes
         receita_bruta = adr * noites_vendidas
-        custos_variaveis = noites_vendidas * custo_var_noite
+
+        # Custos variáveis: operacionais por noite + comissão sobre receita (%)
+        cv_operacionais = noites_vendidas * custo_var_noite
+        cv_comissao = receita_bruta * comissao_pct
+        custos_variaveis = cv_operacionais + cv_comissao
+
+        ebitda = receita_bruta - custo_fixo_mensal - custos_variaveis
         impostos = _impostos_sobre_faturamento(receita_bruta, projeto)
-        lucro_liquido = receita_bruta - custo_fixo_mensal - custos_variaveis - impostos
+        lucro_liquido = ebitda - impostos
 
         receita_anual += receita_bruta
         lucro_anual += lucro_liquido
+        ebitda_anual += ebitda
 
-        noites_break_even = 0.0
-        break_even_pct: float | None = None
-        break_even_status = "ok"
-        if adr > custo_var_noite and custo_fixo_mensal > 0:
-            noites_break_even = _calcular_break_even(
-                adr_anual=adr,
-                projeto=projeto,
-                custo_var_noite=custo_var_noite,
-                faturamento_anual_total=receita_bruta * 12,
-            )
-            if capacidade_mes > 0:
-                break_even_pct = min(noites_break_even / capacidade_mes, 1.0)
-        else:
-            break_even_status = "inviavel"
+        noites_be, break_even_pct = _calcular_break_even_ebitda(
+            adr, custo_fixo_mensal, custo_var_noite, comissao_pct, capacidade_mes
+        )
+        break_even_status = "inviavel" if break_even_pct is None else "ok"
+        receita_be = 0.0
+        if noites_be > 0 and adr > 0:
+            receita_be = adr * noites_be
+            break_even_receitas.append(receita_be)
 
         total_diarias_mes = round(noites_vendidas, 2)
         detalhe_custos_variaveis = [
@@ -110,9 +179,17 @@ def calcular_projecao(
             }
             for nome, valor_unit in itens_cv_unitarios
         ]
+        if comissao_pct > 0:
+            detalhe_custos_variaveis.append({
+                "nome": "Comissão de venda (% receita)",
+                "valor_unitario": round(cv_comissao / max(noites_vendidas, 1), 2),
+                "subtotal_mensal": round(cv_comissao, 2),
+            })
+
         meses_result.append({
             "mes_ano": mes_ano,
             "dias_mes": dias_mes,
+            "adr": round(adr, 2),
             "noites_vendidas": total_diarias_mes,
             "total_diarias_mes": total_diarias_mes,
             "detalhe_custos_variaveis": detalhe_custos_variaveis,
@@ -120,9 +197,11 @@ def calcular_projecao(
             "custos_fixos": round(custo_fixo_mensal, 2),
             "custos_variaveis": round(custos_variaveis, 2),
             "impostos": round(impostos, 2),
+            "ebitda": round(ebitda, 2),
             "lucro_liquido": round(lucro_liquido, 2),
             "break_even_ocupacao_pct": round(break_even_pct, 4) if break_even_pct is not None else None,
             "break_even_status": break_even_status,
+            "break_even_receita_mensal": round(receita_be, 2) if receita_be > 0 else None,
         })
 
     lucro_medio_mensal = lucro_anual / 12.0 if lucro_anual else 0.0
@@ -133,14 +212,21 @@ def calcular_projecao(
     elif investimento_inicial > 0 and lucro_anual <= 0:
         payback_status = "indefinido"
 
+    break_even_receita_media = (
+        sum(break_even_receitas) / len(break_even_receitas)
+        if break_even_receitas else None
+    )
+
     return {
         "meses": meses_result,
         "resumo": {
             "receita_anual": round(receita_anual, 2),
             "lucro_anual": round(lucro_anual, 2),
+            "ebitda_anual": round(ebitda_anual, 2),
             "lucro_medio_mensal": round(lucro_medio_mensal, 2),
             "payback_meses": round(payback_meses, 2) if payback_meses is not None else None,
             "payback_status": payback_status,
+            "break_even_receita_media": round(break_even_receita_media, 2) if break_even_receita_media is not None else None,
         },
     }
 
