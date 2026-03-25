@@ -116,6 +116,8 @@
                 <tbody>
                   {% set cf = projeto.financeiro.custos_fixos %}
                   {% set folha = projeto.financeiro.folha_pagamento_mensal %}
+                  {% set prazo_c = projeto.prazo_contrato_meses if projeto.prazo_contrato_meses else 12 %}
+                  {% set arr_mensal = (projeto.arrendamento_total | float) / (prazo_c | int) %}
                   {% for label, val in {
                     'Luz': cf.luz,
                     'Água': cf.agua,
@@ -124,7 +126,7 @@
                     'Contabilidade': cf.contabilidade,
                     'Seguros': cf.seguros,
                     'Outros': cf.outros,
-                    'Aluguel/Arrendamento': cf.aluguel,
+                    'Arrendamento (contrato ÷ prazo)': arr_mensal,
                     'Folha de Pagamento': folha
                   }.items() %}
                   <tr>

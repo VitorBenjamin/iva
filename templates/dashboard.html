@@ -16,6 +16,10 @@
     .table-section-header { font-weight: 600; background-color: #e9ecef !important; }
     .curadoria-disabled { opacity: 0.55; }
     .curadoria-corrigida { outline: 2px solid #fd7e14; background-color: #fff4e6 !important; }
+    .input-preco-curado.iva-curadoria-dirty {
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.25);
+    }
   </style>
 </head>
 <body>
@@ -33,6 +37,11 @@
     <div class="alert alert-info py-2 small" id="alert-backend-autoridade">
       O backend recalcula e valida os valores ao salvar. O preview é informativo.
     </div>
+    <div class="alert alert-secondary py-2 small mb-3" id="alert-curadoria-market-curado">
+      <i class="bi bi-pencil-square text-primary me-1" aria-hidden="true"></i>
+      <strong>Alterações manuais</strong> são salvas diretamente no <code>market curado</code> ao clicar em <em>Salvar Ajustes</em>.
+      Campos com <span class="text-primary">borda azul</span> foram alterados e ainda não foram salvos.
+    </div>
 
     <!-- Configuração de Descontos da Curadoria -->
     {% set _dc = descontos_config or {} %}
@@ -44,7 +53,7 @@
       </div>
       <div class="collapse" id="collapse-descontos-curadoria">
         <div class="card-body">
-          <p class="text-muted small">Estes descontos são aplicados sobre o Preço Booking para exibir o Preço Direto na tabela. Salvos em <code>scraper_config.json</code> do projeto.</p>
+          <p class="text-muted small">Estes descontos são aplicados dinamicamente sobre o preço bruto coletado (Booking) para exibir o preço direto na tabela.</p>
           <div class="row g-3 mb-3">
             <div class="col-md-4">
               <label class="form-label" for="input-desconto-global-curadoria">Desconto global (%)</label>
@@ -92,7 +101,7 @@
             <th>Quarto / Tarifa</th>
             <th>Preço Booking</th>
             <th>Preço Direto (-{{ desconto_exibicao|default('20,0') }}%)</th>
-            <th>Preço de Ajuste</th>
+            <th title="Borda azul = alterado, aguardando salvar">Preço de Ajuste <i class="bi bi-info-circle text-primary" style="font-size: 0.85em;" aria-hidden="true"></i></th>
             <th>Status</th>
             <th class="text-center">Audit</th>
             <th title="Check-in e Check-out">Datas</th>
@@ -128,6 +137,12 @@
                 {% else %}
                 <span class="text-muted" title="Sem dados">—</span>
                 {% endif %}
+                {% if r.preco_fallback_de is defined and r.preco_fallback_de %}
+                <span class="badge bg-info ms-1" title="Este preço veio da referência {{ r.preco_fallback_nome or r.preco_fallback_de }}">Ref: {{ r.preco_fallback_nome or r.preco_fallback_de }}</span>
+                {% endif %}
+                {% if r.preco_propagado_periodo is defined and r.preco_propagado_periodo %}
+                <span class="badge bg-secondary ms-1" title="Preço estimado a partir de outros dias do mesmo período"><i class="bi bi-clipboard-plus"></i> Estimado pelo Período</span>
+                {% endif %}
               {% endif %}
             </td>
             <td>
@@ -137,6 +152,12 @@
                      data-preco-base-usado="{{ r.preco_booking_por_data if r.preco_booking_por_data is not none else (r.preco_direto_media_periodo if r.preco_direto_media_periodo is not none else '') }}"
                      value="{{ r.preco_curado_fmt if r.preco_curado_fmt else '' }}"
                      placeholder="{{ r.preco_direto_fmt if r.preco_direto_fmt else 'Informe o valor' }}">
+              {% if r.preco_fallback_de is defined and r.preco_fallback_de %}
+              <span class="badge bg-info mt-1" title="Preço de referência: {{ r.preco_fallback_nome or r.preco_fallback_de }}">Ref: {{ r.preco_fallback_nome or r.preco_fallback_de }}</span>
+              {% endif %}
+              {% if r.preco_propagado_periodo is defined and r.preco_propagado_periodo %}
+              <span class="badge bg-secondary mt-1" title="Preço estimado pelo período"><i class="bi bi-clipboard-plus"></i> Estimado pelo Período</span>
+              {% endif %}
             </td>
             <td>
               {% if r.status == 'Editado (Manual)' %}
@@ -216,7 +237,7 @@
             <th>Quarto / Tarifa</th>
             <th>Preço Booking</th>
             <th>Preço Direto (-{{ desconto_exibicao|default('20,0') }}%)</th>
-            <th>Preço de Ajuste</th>
+            <th title="Borda azul = alterado, aguardando salvar">Preço de Ajuste <i class="bi bi-info-circle text-primary" style="font-size: 0.85em;" aria-hidden="true"></i></th>
             <th>Status</th>
             <th class="text-center">Audit</th>
             <th title="Check-in e Check-out">Datas</th>
@@ -252,6 +273,12 @@
                 {% else %}
                 <span class="text-muted" title="Sem dados">—</span>
                 {% endif %}
+                {% if r.preco_fallback_de is defined and r.preco_fallback_de %}
+                <span class="badge bg-info ms-1" title="Este preço veio da referência {{ r.preco_fallback_nome or r.preco_fallback_de }}">Ref: {{ r.preco_fallback_nome or r.preco_fallback_de }}</span>
+                {% endif %}
+                {% if r.preco_propagado_periodo is defined and r.preco_propagado_periodo %}
+                <span class="badge bg-secondary ms-1" title="Preço estimado pelo período"><i class="bi bi-clipboard-plus"></i> Estimado pelo Período</span>
+                {% endif %}
               {% endif %}
             </td>
             <td>
@@ -261,6 +288,12 @@
                      data-preco-base-usado="{{ r.preco_booking_por_data if r.preco_booking_por_data is not none else (r.preco_direto_media_periodo if r.preco_direto_media_periodo is not none else '') }}"
                      value="{{ r.preco_curado_fmt if r.preco_curado_fmt else '' }}"
                      placeholder="{{ r.preco_direto_fmt if r.preco_direto_fmt else 'Informe o valor' }}">
+              {% if r.preco_fallback_de is defined and r.preco_fallback_de %}
+              <span class="badge bg-info mt-1" title="Preço de referência: {{ r.preco_fallback_nome or r.preco_fallback_de }}">Ref: {{ r.preco_fallback_nome or r.preco_fallback_de }}</span>
+              {% endif %}
+              {% if r.preco_propagado_periodo is defined and r.preco_propagado_periodo %}
+              <span class="badge bg-secondary mt-1" title="Preço estimado pelo período"><i class="bi bi-clipboard-plus"></i> Estimado pelo Período</span>
+              {% endif %}
             </td>
             <td>
               {% if r.status == 'Editado (Manual)' %}

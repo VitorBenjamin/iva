@@ -34,6 +34,66 @@
       return Number.isFinite(parsed) ? parsed : null;
     }
 
+    /** Tolerância para comparar moeda normalizada (evita falso "dirty" por arredondamento). */
+    var EDIT_TOLERANCE = 0.009;
+
+    function parseOriginalStored(inputEl) {
+      var s = (inputEl && inputEl.dataset && inputEl.dataset.originalPrecoCurado) || '';
+      if (!s) return null;
+      var n = Number(s);
+      return Number.isFinite(n) ? safeRound(n) : null;
+    }
+
+    function updatePrecoCuradoDirtyVisual(input) {
+      if (!input) return;
+      var dirty = false;
+      if (input.dataset.precoCuradoSugerido) {
+        dirty = true;
+      } else {
+        var cur = parseCurrencyInputValue(input);
+        var orig = parseOriginalStored(input);
+        if (cur === null && orig !== null) dirty = true;
+        else if (cur !== null && orig === null) dirty = true;
+        else if (cur !== null && orig !== null && Math.abs(cur - orig) > EDIT_TOLERANCE) dirty = true;
+      }
+      if (dirty) {
+        input.classList.add('iva-curadoria-dirty');
+      } else {
+        input.classList.remove('iva-curadoria-dirty');
+      }
+    }
+
+    function syncOriginalAndClearDirty(input) {
+      if (!input) return;
+      var v = parseCurrencyInputValue(input);
+      input.dataset.originalPrecoCurado = v === null ? '' : String(safeRound(v));
+      delete input.dataset.precoCuradoSugerido;
+      delete input.dataset.descontoPctSugerido;
+      var tr = input.closest('tr');
+      if (tr) delete tr.dataset.previewApplied;
+      updatePrecoCuradoDirtyVisual(input);
+    }
+
+    function bindPrecoCuradoDirtyListeners() {
+      if (doc._ivaCuradoriaDirtyBound) return;
+      doc._ivaCuradoriaDirtyBound = true;
+      doc.addEventListener('input', function (ev) {
+        var t = ev.target;
+        if (!t || !t.classList || !t.classList.contains('input-preco-curado')) return;
+        if (!t.closest('#tbody-registros') && !t.closest('#tbody-registros-especiais')) return;
+        updatePrecoCuradoDirtyVisual(t);
+      });
+    }
+
+    function isRowPayloadCandidate(row, input) {
+      if (input.dataset.precoCuradoSugerido) return true;
+      var cur = parseCurrencyInputValue(input);
+      var orig = parseOriginalStored(input);
+      if (cur === null && orig === null) return false;
+      if (cur === null || orig === null) return true;
+      return Math.abs(cur - orig) > EDIT_TOLERANCE;
+    }
+
     function showPreviewToast(message, variant) {
       if (typeof win.mostrarToast === 'function') {
         win.mostrarToast(message, variant !== 'error');
@@ -83,8 +143,10 @@
         input.dataset.precoExibicaoOrigem = input.dataset.precoExibicaoOrigem || row.getAttribute('data-preco-exibicao-preferida') || 'nao_disponivel';
         input.dataset.precoBaseUsado = input.dataset.precoBaseUsado || row.getAttribute('data-preco-booking') || row.getAttribute('data-preco-direto-media-periodo') || '';
         renderAuditColumnForRow(row, null);
+        updatePrecoCuradoDirtyVisual(input);
       });
       bindAuditColumnActions();
+      bindPrecoCuradoDirtyListeners();
       enableCumulativeApply();
     }
 
@@ -94,6 +156,7 @@
         var bruto = Number.parseFloat(input.getAttribute('data-bruto')) || 0;
         var valor = bruto * factor;
         input.value = formatMoneyBR(valor);
+        updatePrecoCuradoDirtyVisual(input);
       });
     }
 
@@ -134,6 +197,7 @@
         input.dataset.descontoPctSugerido = String(pctNumber);
         row.dataset.previewApplied = 'true';
         updated += 1;
+        updatePrecoCuradoDirtyVisual(input);
         if (sampleCheckins.length < 10) {
           sampleCheckins.push(row.getAttribute('data-checkin') || '');
         }
@@ -155,6 +219,7 @@
         delete input.dataset.descontoPctSugerido;
         delete row.dataset.previewApplied;
         setRowDisabled(row, false);
+        updatePrecoCuradoDirtyVisual(input);
       });
       enableCumulativeApply();
       return { ok: true };
@@ -165,12 +230,15 @@
       getRows().forEach(function (row) {
         var input = row.querySelector('.input-preco-curado');
         if (!input) return;
+        if (!isRowPayloadCandidate(row, input)) return;
+
         var suggestedRaw = input.dataset.precoCuradoSugerido;
-        if (!suggestedRaw) return;
-        var precoCuradoSugerido = Number(suggestedRaw);
-        if (!Number.isFinite(precoCuradoSugerido)) return;
+        var cur = parseCurrencyInputValue(input);
+        var precoCuradoNum = suggestedRaw ? Number(suggestedRaw) : cur;
+        if (!Number.isFinite(precoCuradoNum)) return;
+
         var precoBookingBase = parsePrecoBooking(row);
-        if (precoBookingBase === null) return;
+
         var pctRaw = input.dataset.descontoPctSugerido;
         var descontoPctSugerido = Number(pctRaw);
         if (!Number.isFinite(descontoPctSugerido)) descontoPctSugerido = null;
@@ -178,15 +246,17 @@
         var precoBaseUsadoRaw = input.dataset.precoBaseUsado || row.getAttribute('data-preco-booking') || row.getAttribute('data-preco-direto-media-periodo') || '';
         var precoBaseUsado = Number(precoBaseUsadoRaw);
         if (!Number.isFinite(precoBaseUsado)) {
-          precoBaseUsado = precoBookingBase;
+          precoBaseUsado = precoBookingBase != null ? precoBookingBase : 0;
         }
 
+        var precoEnviar = safeRound(precoCuradoNum);
         var checkinsAttr = row.getAttribute('data-checkins') || row.getAttribute('data-checkin') || '';
         checkinsAttr.split(',').map(function (c) { return c.trim(); }).filter(Boolean).forEach(function (checkin) {
           payload.push({
             checkin: checkin,
             preco_booking_base: precoBookingBase,
-            preco_curado_sugerido: precoCuradoSugerido,
+            preco_curado: precoEnviar,
+            preco_curado_sugerido: precoEnviar,
             desconto_pct_sugerido: descontoPctSugerido,
             preco_exibicao_origem: precoExibicaoOrigem,
             preco_base_usado: precoBaseUsado
@@ -380,6 +450,16 @@
         if (!row.dataset.auditRendered) renderAuditColumnForRow(row, null);
       });
 
+      var touchedCheckins = {};
+      (payloadSent || []).forEach(function (p) { touchedCheckins[p.checkin] = true; });
+      itensCorrigidos.forEach(function (item) { touchedCheckins[item.checkin] = true; });
+      Object.keys(touchedCheckins).forEach(function (ck) {
+        var row = getRowByCheckin(ck);
+        if (!row) return;
+        var inp = row.querySelector('.input-preco-curado');
+        if (inp) syncOriginalAndClearDirty(inp);
+      });
+
       if (itensInvalidos.length > 0) {
         showPreviewToast(salvos + ' itens salvos, ' + itensInvalidos.length + ' inválidos.', 'error');
       }
@@ -507,7 +587,9 @@
       disableCumulativeApply: disableCumulativeApply,
       enableCumulativeApply: enableCumulativeApply,
       hasPreviewApplied: hasPreviewApplied,
-      showPreviewToast: showPreviewToast
+      showPreviewToast: showPreviewToast,
+      updatePrecoCuradoDirtyVisual: updatePrecoCuradoDirtyVisual,
+      syncOriginalAndClearDirty: syncOriginalAndClearDirty
     };
   }
 

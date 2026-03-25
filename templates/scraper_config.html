@@ -37,9 +37,14 @@
              data-bs-toggle="tooltip"
              title="Usados para marcar datas como categoria 'especial' (feriados, eventos, pacotes)."></i>
         </span>
-        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-add-periodo">
-          Adicionar Período
-        </button>
+        <div class="d-flex gap-1">
+          <button type="button" class="btn btn-sm btn-outline-primary" id="btn-importar-template">
+            <i class="bi bi-download me-1"></i>Importar Datas Padrão
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-add-periodo">
+            Adicionar Período
+          </button>
+        </div>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
@@ -49,10 +54,36 @@
                 <th style="width: 20%;">Início (DD/MM/AAAA)</th>
                 <th style="width: 20%;">Fim (DD/MM/AAAA)</th>
                 <th>Nome do Período</th>
+                <th style="width: 15%;">Tipo de Coleta</th>
                 <th style="width: 10%;" class="text-end">Ações</th>
               </tr>
             </thead>
             <tbody id="tbody-periodos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span>
+          Inteligência Competitiva — URLs Concorrentes
+          <i class="bi bi-info-circle ms-1 text-muted"
+             data-bs-toggle="tooltip"
+             title="Se a URL principal falhar/sem preço, o scraper tentará estas URLs para as mesmas datas."></i>
+        </span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-add-concorrente">Adicionar URL</button>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>URL Booking Concorrente</th>
+                <th style="width: 10%;" class="text-end">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-concorrentes"></tbody>
           </table>
         </div>
       </div>
@@ -95,6 +126,18 @@
       </div>
     </div>
 
+    <div class="card mb-4">
+      <div class="card-header bg-white">Política de Busca Externa</div>
+      <div class="card-body">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="switch-permitir-busca-externa" {% if config.permitir_busca_externa %}checked{% endif %}>
+          <label class="form-check-label" for="switch-permitir-busca-externa">
+            Permitir busca externa além das URLs cadastradas (pode distorcer preços)
+          </label>
+        </div>
+      </div>
+    </div>
+
     <!-- Seção C - Parâmetros Técnicos -->
     <div class="card mb-4">
       <div class="card-header bg-white">
@@ -133,66 +176,7 @@
       </div>
     </div>
 
-    <!-- Seção extra - Noites e Descontos -->
-    <div class="card mb-4">
-      <div class="card-header bg-white fw-bold">Configurações de Noites e Descontos</div>
-      <div class="card-body">
-        {% set noites = config.noites if config.noites is defined else {'preferencial': 2, 'max_tentativas': 4} %}
-        {% set descontos = config.descontos if config.descontos is defined else {'global': 0.20, 'por_mes': {}} %}
-        <div class="row g-3 mb-3">
-          <div class="col-md-4">
-            <label class="form-label" for="select-noites-preferencial">Noites preferenciais por busca</label>
-            <select id="select-noites-preferencial" class="form-select form-select-sm">
-              {% for n in [1,2,3,4,5,6] %}
-              <option value="{{ n }}" {% if noites.preferencial == n %}selected{% endif %}>{{ n }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label" for="input-max-tentativas">Máx. tentativas por data</label>
-            <input type="number" class="form-control form-control-sm" id="input-max-tentativas" min="1" value="{{ noites.max_tentativas }}">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label" for="input-desconto-global">Desconto global (%)</label>
-            {% set desc_global_pct = (descontos.global * 100) if descontos.global is defined else 20 %}
-            <input type="number" class="form-control form-control-sm" id="input-desconto-global" min="0" max="100" step="0.1" value="{{ "%.1f"|format(desc_global_pct) }}">
-          </div>
-        </div>
-        <div>
-          <label class="form-label">
-            Descontos específicos por mês (%)
-            <i class="bi bi-info-circle ms-1 text-muted"
-               data-bs-toggle="tooltip"
-               title="Permite aplicar descontos diferentes em meses específicos. Se vazio, usa o desconto global."></i>
-          </label>
-          <div class="table-responsive">
-            <table class="table table-sm mb-0 align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th style="width: 20%;">Mês (01–12)</th>
-                  <th>Desconto (%)</th>
-                  <th style="width: 10%;" class="text-end">Ações</th>
-                </tr>
-              </thead>
-              <tbody id="tbody-descontos-mes">
-                {% for mes, val in descontos.por_mes.items() %}
-                <tr class="linha-desconto-mes">
-                  <td><input type="text" class="form-control form-control-sm input-mes" value="{{ mes }}"></td>
-                  <td><input type="number" class="form-control form-control-sm input-desconto-mes" min="0" max="100" step="0.1" value="{{ "%.1f"|format(val * 100) }}"></td>
-                  <td class="text-end">
-                    <button type="button" class="btn btn-sm btn-outline-danger btn-remover-desconto-mes">Excluir</button>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="btn-add-desconto-mes">
-            Adicionar desconto por mês
-          </button>
-        </div>
-      </div>
-    </div>
+    
 
     <!-- Seção D - Preview -->
     <div class="card mb-4">
@@ -255,6 +239,26 @@ python -m core.scraper.cli --url "{{ projeto.url_booking }}" --id "{{ projeto.id
         </div>
       </div>
     </div>
+
+    <!-- Modal importar datas padrão -->
+    <div class="modal fade" id="modal-importar-template" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Importar Datas Padrão</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p>Adicionar os feriados brasileiros padrão (Carnaval, Semana Santa, Corpus Christi, Independência, etc.) aos períodos especiais? Períodos já existentes não serão alterados.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btn-confirmar-importar">Importar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -266,6 +270,19 @@ python -m core.scraper.cli --url "{{ projeto.url_booking }}" --id "{{ projeto.id
       // Tooltips
       var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
       tooltipTriggerList.forEach(function (el) { new bootstrap.Tooltip(el); });
+      function mostrarToast(msg, sucesso) {
+        var container = document.querySelector('.toast-container');
+        if (!container) return;
+        var id = 'toast-' + Date.now();
+        var bg = sucesso ? 'bg-success' : 'bg-danger';
+        container.insertAdjacentHTML('beforeend', '<div id="' + id + '" class="toast align-items-center text-white ' + bg + ' border-0"><div class="d-flex"><div class="toast-body">' + msg + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>');
+        var el = document.getElementById(id);
+        if (el) {
+          var t = new bootstrap.Toast(el);
+          t.show();
+          el.addEventListener('hidden.bs.toast', function () { el.remove(); });
+        }
+      }
 
       function isoToBr(d) {
         if (!d) return "";
@@ -293,16 +310,62 @@ python -m core.scraper.cli --url "{{ projeto.url_booking }}" --id "{{ projeto.id
           '<td><input type="date" class="form-control form-control-sm input-data-inicio" value="' + (inicioIso || '') + '"></td>' +
           '<td><input type="date" class="form-control form-control-sm input-data-fim" value="' + (fimIso || '') + '"></td>' +
           '<td><input type="text" class="form-control form-control-sm input-nome" value="' + (p.nome || '') + '"></td>' +
+          '<td><select class="form-select form-select-sm input-tipo-coleta"><option value="amostragem">Amostragem</option><option value="pacote">Pacote</option></select></td>' +
           '<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger btn-remover-periodo">Excluir</button></td>';
+        var tipoEl = tr.querySelector('.input-tipo-coleta');
+        if (tipoEl) tipoEl.value = (p.tipo_coleta || 'amostragem');
+        tbody.appendChild(tr);
+      }
+      function adicionarLinhaConcorrente(url) {
+        var tbody = document.getElementById('tbody-concorrentes');
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td><input type="url" class="form-control form-control-sm input-url-concorrente" placeholder="https://www.booking.com/..." value="' + (url || '') + '"></td>' +
+          '<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger btn-remover-concorrente">Excluir</button></td>';
         tbody.appendChild(tr);
       }
 
       document.getElementById('btn-add-periodo').addEventListener('click', function () {
         adicionarLinhaPeriodo({});
       });
+      document.getElementById('btn-add-concorrente').addEventListener('click', function () {
+        adicionarLinhaConcorrente('');
+      });
+
+      document.getElementById('btn-importar-template').addEventListener('click', function () {
+        new bootstrap.Modal(document.getElementById('modal-importar-template')).show();
+      });
+      document.getElementById('btn-confirmar-importar').addEventListener('click', function () {
+        var btn = this;
+        btn.disabled = true;
+        fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/scraper/importar_template', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            if (res.success) {
+              bootstrap.Modal.getInstance(document.getElementById('modal-importar-template')).hide();
+              mostrarToast(res.message || 'Datas padrão importadas.', true);
+              window.location.reload();
+            } else {
+              mostrarToast(res.message || 'Erro ao importar.', false);
+            }
+          })
+          .catch(function () {
+            mostrarToast('Erro de rede ao importar.', false);
+          })
+          .finally(function () { btn.disabled = false; });
+      });
 
       document.getElementById('tbody-periodos').addEventListener('click', function (ev) {
         if (ev.target.classList.contains('btn-remover-periodo')) {
+          var tr = ev.target.closest('tr');
+          if (tr) tr.remove();
+        }
+      });
+      document.getElementById('tbody-concorrentes').addEventListener('click', function (ev) {
+        if (ev.target.classList.contains('btn-remover-concorrente')) {
           var tr = ev.target.closest('tr');
           if (tr) tr.remove();
         }
@@ -312,24 +375,8 @@ python -m core.scraper.cli --url "{{ projeto.url_booking }}" --id "{{ projeto.id
       (configInicial.periodos_especiais || []).forEach(function (p) {
         adicionarLinhaPeriodo(p);
       });
-
-      // Descontos por mês - handlers
-      document.getElementById('btn-add-desconto-mes').addEventListener('click', function () {
-        var tbody = document.getElementById('tbody-descontos-mes');
-        var tr = document.createElement('tr');
-        tr.className = 'linha-desconto-mes';
-        tr.innerHTML =
-          '<td><input type="text" class="form-control form-control-sm input-mes" placeholder="ex: 07"></td>' +
-          '<td><input type="number" class="form-control form-control-sm input-desconto-mes" min="0" max="100" step="0.1" value=""></td>' +
-          '<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger btn-remover-desconto-mes">Excluir</button></td>';
-        tbody.appendChild(tr);
-      });
-
-      document.getElementById('tbody-descontos-mes').addEventListener('click', function (ev) {
-        if (ev.target.classList.contains('btn-remover-desconto-mes')) {
-          var tr = ev.target.closest('tr');
-          if (tr) tr.remove();
-        }
+      (configInicial.urls_concorrentes || []).forEach(function (u) {
+        adicionarLinhaConcorrente(u);
       });
 
       function coletarConfigDaTela() {
@@ -340,8 +387,9 @@ python -m core.scraper.cli --url "{{ projeto.url_booking }}" --id "{{ projeto.id
           var nome = tr.querySelector('.input-nome').value.trim();
           var inicio = isoToBr(inicioIso);
           var fim = isoToBr(fimIso);
+          var tipoColeta = (tr.querySelector('.input-tipo-coleta') || {}).value || 'amostragem';
           if (inicio || fim || nome) {
-            periodos.push({ inicio: inicio, fim: fim, nome: nome });
+            periodos.push({ inicio: inicio, fim: fim, nome: nome, tipo_coleta: tipoColeta });
           }
         });
         var datasMes = parseInt(document.getElementById('select-datas-mes').value, 10) || 4;
@@ -353,22 +401,17 @@ python -m core.scraper.cli --url "{{ projeto.url_booking }}" --id "{{ projeto.id
         var headless = document.getElementById('check-headless').checked;
         var stealth = document.getElementById('check-stealth').checked;
 
-        var noitesPreferencial = parseInt(document.getElementById('select-noites-preferencial').value, 10) || 2;
-        var maxTentativas = parseInt(document.getElementById('input-max-tentativas').value, 10) || 4;
-        var descontoGlobalPct = parseFloat(String(document.getElementById('input-desconto-global').value).replace(',', '.')) || 0;
-        var descontoGlobal = descontoGlobalPct > 1 ? descontoGlobalPct / 100 : descontoGlobalPct;
-        var descontosMes = {};
-        document.querySelectorAll('#tbody-descontos-mes tr.linha-desconto-mes').forEach(function (tr) {
-          var mes = (tr.querySelector('.input-mes').value || '').trim();
-          var valPct = parseFloat(String(tr.querySelector('.input-desconto-mes').value || '').replace(',', '.'));
-          if (!mes || isNaN(valPct)) return;
-          var v = valPct > 1 ? valPct / 100 : valPct;
-          if (v < 0 || v > 1) return;
-          descontosMes[mes] = v;
-        });
+        var permitirBuscaExterna = document.getElementById('switch-permitir-busca-externa').checked;
 
+        var urlsConcorrentes = [];
+        document.querySelectorAll('#tbody-concorrentes .input-url-concorrente').forEach(function (el) {
+          var u = (el.value || '').trim();
+          if (u) urlsConcorrentes.push(u);
+        });
         return {
           periodos_especiais: periodos,
+          urls_concorrentes: urlsConcorrentes,
+          permitir_busca_externa: permitirBuscaExterna,
           amostragem: {
             datas_normais_por_mes: datasMes,
             incluir_fds: incluirFds,
@@ -380,14 +423,6 @@ python -m core.scraper.cli --url "{{ projeto.url_booking }}" --id "{{ projeto.id
             delay_max_s: delayMax,
             headless: headless,
             stealth: stealth
-          },
-          noites: {
-            preferencial: noitesPreferencial,
-            max_tentativas: maxTentativas
-          },
-          descontos: {
-            global: descontoGlobal,
-            por_mes: descontosMes
           }
         };
       }
@@ -401,14 +436,14 @@ python -m core.scraper.cli --url "{{ projeto.url_booking }}" --id "{{ projeto.id
         }).then(function (r) { return r.json(); })
           .then(function (res) {
             if (!res.success) {
-              alert(res.message || 'Erro ao salvar configurações.');
+              mostrarToast(res.message || 'Erro ao salvar configurações.', false);
               return;
             }
             if (callback) callback();
-            else alert('Configurações salvas com sucesso.');
+            else mostrarToast('Configurações salvas com sucesso.', true);
           })
           .catch(function () {
-            alert('Erro de rede ao salvar configurações.');
+            mostrarToast('Erro de rede ao salvar configurações.', false);
           });
       }
 
@@ -425,7 +460,7 @@ python -m core.scraper.cli --url "{{ projeto.url_booking }}" --id "{{ projeto.id
 
       document.getElementById('btn-salvar-rodar').addEventListener('click', function () {
         salvarConfig(function () {
-          alert('Configurações salvas. Integração para rodar via web será implementada futuramente.');
+          mostrarToast('Configurações salvas. Integração para rodar via web será implementada futuramente.', true);
         });
       });
 
@@ -434,8 +469,8 @@ python -m core.scraper.cli --url "{{ projeto.url_booking }}" --id "{{ projeto.id
         var txt = pre.innerText || pre.textContent || '';
         if (!txt) return;
         navigator.clipboard.writeText(txt.trim())
-          .then(function () { alert('Comando copiado para a área de transferência.'); })
-          .catch(function () { alert('Não foi possível copiar o comando.'); });
+          .then(function () { mostrarToast('Comando copiado para a área de transferência.', true); })
+          .catch(function () { mostrarToast('Não foi possível copiar o comando.', false); });
       });
 
       document.getElementById('btn-preview').addEventListener('click', function () {
@@ -443,7 +478,7 @@ python -m core.scraper.cli --url "{{ projeto.url_booking }}" --id "{{ projeto.id
           .then(function (r) { return r.json(); })
           .then(function (res) {
             if (!res.success) {
-              alert(res.message || 'Erro ao gerar preview.');
+              mostrarToast(res.message || 'Erro ao gerar preview.', false);
               return;
             }
             var normaisBody = document.querySelector('#tabela-normais tbody');
@@ -470,7 +505,7 @@ python -m core.scraper.cli --url "{{ projeto.url_booking }}" --id "{{ projeto.id
             document.getElementById('preview-conteudo').classList.remove('d-none');
           })
           .catch(function () {
-            alert('Erro de rede ao gerar preview.');
+            mostrarToast('Erro de rede ao gerar preview.', false);
           });
       });
     })();
