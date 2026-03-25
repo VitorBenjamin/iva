@@ -1,11 +1,12 @@
 # Constituição IVA — Regras de Engenharia
 
 ## 1. Integridade financeira (Regras de Ouro)
-- Preserve a ordem dos cálculos:
+- **Operação × capital (simulador):** diferenciar estritamente **Lucro operacional** (eficiência da unidade: receita − fixos operacionais/folha − variáveis − impostos) de **Resultado do investidor** (retorno do capital após cash out de arrendamento e reforma). O **arrendamento total** é cash out de capital e **não** deve ser diluído no EBITDA operacional mensal; o fechamento anual subtrai arrendamento + reforma do lucro operacional acumulado.
+- Preserve a ordem dos cálculos (visão operacional mensal):
   1) Receita Bruta
   2) Custos Variáveis (inclui comissão sobre receita, quando aplicável)
-  3) EBITDA = Receita - Custos Fixos - Custos Variáveis
-  4) Lucro Líquido = EBITDA - Impostos
+  3) EBITDA Operacional = Receita − Custos Fixos Operacionais (sem rateio de arrendamento) − Custos Variáveis
+  4) Lucro Líquido Operacional = EBITDA Operacional − Impostos
 - Não misturar sem critério Decimal e float:
   - Normalização monetária e RH granular: Decimal + quantize
   - Cálculo analítico/API: float
@@ -19,7 +20,7 @@
   4) fallback por projetos_referencia
   5) fallback por média
 - Comissão de venda (comissao_venda_pct) é custo variável sobre Receita Bruta.
-- Break-even operacional é definido por EBITDA >= 0.
+- Break-even operacional é definido por EBITDA operacional >= 0 (fixos sem arrendamento).
 - Payback só é válido quando lucro médio mensal > 0; caso contrário, status indefinido.
 
 ## 3. Paths e persistência
