@@ -58,7 +58,9 @@ class TestProjectScaffold(unittest.TestCase):
         with open(base / "scraper_config.json") as f:
             cfg = json.load(f)
         self.assertIn("periodos_especiais", cfg)
-        self.assertEqual(cfg["periodos_especiais"], [])
+        # Projetos novos recebem template padrão (feriados BR); não nascem vazios
+        self.assertGreater(len(cfg["periodos_especiais"]), 0)
+        self.assertIn("nome", cfg["periodos_especiais"][0])
 
     def test_scaffold_nao_sobrescreve_existente(self):
         """Não sobrescreve arquivos que já existem."""
@@ -84,6 +86,25 @@ class TestProjectScaffold(unittest.TestCase):
         with open(path_cfg) as f:
             cfg = json.load(f)
         self.assertEqual(cfg.get("_marcador_teste"), "nao_sobrescrever")
+
+    def test_scaffold_respeita_periodos_do_payload(self):
+        """Se metadata traz periodos_especiais, não usa template."""
+        with patch("core.projetos.PROJECTS_DIR", Path(self.tmpdir)):
+            create_project_scaffold(
+                "pousada-custom",
+                {
+                    "nome": "Custom",
+                    "booking_url": "https://www.booking.com/hotel/br/custom",
+                    "periodos_especiais": [
+                        {"inicio": "01/01/2027", "fim": "01/01/2027", "nome": "Ano Novo"},
+                    ],
+                },
+            )
+        path_cfg = Path(self.tmpdir) / "pousada-custom" / "scraper_config.json"
+        with open(path_cfg) as f:
+            cfg = json.load(f)
+        self.assertEqual(len(cfg["periodos_especiais"]), 1)
+        self.assertEqual(cfg["periodos_especiais"][0]["nome"], "Ano Novo")
 
 
 if __name__ == "__main__":

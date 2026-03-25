@@ -109,6 +109,24 @@ class TestCuradoriaSaveValidation(unittest.TestCase):
         self.assertFalse(saved["meta"]["backend_desconto_unificado"])
         self.assertEqual(saved["registros"][0]["preco_curado"], 700.0)
 
+    def test_preco_curado_manual_precede_sugerido(self):
+        """Ordem de leitura: preco_curado antes de preco_curado_sugerido."""
+        resp = self._post_curadoria(
+            {
+                "registros": [
+                    {
+                        "checkin": "2026-01-10",
+                        "preco_curado": 400.0,
+                        "preco_curado_sugerido": 700.0,
+                    }
+                ]
+            },
+            env={"BACKEND_DESCONTO_UNIFICADO": "false"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        saved = json.loads((self.base / "market_curado.json").read_text(encoding="utf-8"))
+        self.assertEqual(saved["registros"][0]["preco_curado"], 400.0)
+
     def test_rejeita_payload_invalido(self):
         resp = self._post_curadoria({"registros": [{"checkin": "2026-01-10", "preco_curado_sugerido": "abc"}]})
         self.assertEqual(resp.status_code, 400)
