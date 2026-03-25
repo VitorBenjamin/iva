@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, List, Optional
 
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from core.financeiro.modelos import DadosFinanceiros, Infraestrutura
 
@@ -43,6 +43,47 @@ class Projeto(BaseModel):
     projetos_referencia: List[str] = Field(default_factory=list)
     # Multiplicador para preços vindos de referência (ex: 1.10 = +10%). Preparado para uso futuro.
     markup_referencia: Optional[float] = Field(default=None, ge=0.01, le=10.0)
+    arrendamento_total: float = Field(
+        default=0.0,
+        ge=0,
+        description="Valor total pago pelo contrato de arrendamento (visão de caixa).",
+    )
+    prazo_contrato_meses: int = Field(
+        default=12,
+        ge=1,
+        le=600,
+        description="Duração do contrato em meses (para ratear o custo mensal na simulação).",
+    )
+    investimento_reforma: float = Field(
+        default=0.0,
+        ge=0,
+        description="CAPEX de reforma/enxoval (antecipado). Antigo investimento_inicial.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _compat_investimento_e_arrendamento(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        if "investimento_reforma" not in out and "investimento_inicial" in out:
+            out["investimento_reforma"] = float(out.get("investimento_inicial") or 0)
+        total = float(out.get("arrendamento_total") or 0)
+        if total <= 0:
+            av = float(out.get("arrendamento_valor") or 0)
+            if av > 0:
+                tipo = str(out.get("arrendamento_tipo") or "mensal").strip().lower()
+                out["arrendamento_total"] = av if tipo == "anual" else av * 12.0
+            else:
+                fin = out.get("financeiro")
+                if isinstance(fin, dict):
+                    cf = fin.get("custos_fixos") or {}
+                    alug = float(cf.get("aluguel") or 0) if isinstance(cf, dict) else 0.0
+                    if alug > 0:
+                        out["arrendamento_total"] = alug * 12.0
+        if out.get("prazo_contrato_meses") is None:
+            out["prazo_contrato_meses"] = 12
+        return out
 
 
 PROJECTS_DIR = Path(__file__).resolve().parent.parent / "data" / "projects"
@@ -98,6 +139,59 @@ def get_cenarios_path(id_projeto: str) -> Path:
     return get_projeto_dir(id_projeto) / "cenarios.json"
 
 
+_ID_PROJETO_OPERACAO_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+def validar_id_projeto_para_escrita(id_projeto: str) -> str:
+    """Normaliza e valida ID (slug) para operações de escrita/exclusão."""
+    s = str(id_projeto or "").strip().lower()
+    if not s or len(s) > 200 or not _ID_PROJETO_OPERACAO_RE.fullmatch(s):
+        raise ValueError("ID de projeto inválido.")
+    return s
+
+
+def excluir_projeto_seguro(id_projeto: str) -> dict[str, Any]:
+    """Remove o projeto apenas dentro de data/projects/ (pasta + artefatos legados na raiz).
+
+    - Exige que o path resolvido da pasta seja filho direto de PROJECTS_DIR.
+    - Nunca remove arquivos fora de data/projects/.
+    """
+    id_norm = validar_id_projeto_para_escrita(id_projeto)
+    root = PROJECTS_DIR.resolve()
+    dir_proj = get_projeto_dir(id_norm).resolve()
+    if dir_proj.parent.resolve() != root or dir_proj.name != id_norm:
+        raise ValueError("Caminho do projeto inválido.")
+
+    removed: List[str] = []
+    if dir_proj.exists() and dir_proj.is_dir():
+        shutil.rmtree(dir_proj)
+        removed.append(str(dir_proj))
+
+    for suffix in (
+        f"{id_norm}.json",
+        f"market_bruto_{id_norm}.json",
+        f"market_curado_{id_norm}.json",
+        f"scraper_config_{id_norm}.json",
+    ):
+        p = (PROJECTS_DIR / suffix).resolve()
+        if p.parent.resolve() != root:
+            continue
+        if p.exists() and p.is_file():
+            p.unlink()
+            removed.append(str(p))
+
+    if not removed:
+        raise ArquivoProjetoNaoEncontrado(f"Projeto '{id_norm}' não encontrado para exclusão.")
+
+    _log_system_event(
+        "projeto_excluido_seguro",
+        id_projeto=id_norm,
+        paths_removidos=removed,
+    )
+    logger.info("Projeto excluído com segurança: {} ({} itens)", id_norm, len(removed))
+    return {"id_projeto": id_norm, "paths_removidos": removed}
+
+
 def _assegurar_dir_projetos() -> None:
     """Garante que data/projects existe."""
     PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -118,8 +212,14 @@ def salvar_projeto(projeto: Projeto) -> None:
     _assegurar_dir_projetos()
     caminho = get_projeto_json_path(projeto.id)
     caminho.parent.mkdir(parents=True, exist_ok=True)
+    data = projeto.model_dump(mode="json")
+    fin = data.get("financeiro")
+    if isinstance(fin, dict):
+        cf = fin.get("custos_fixos")
+        if isinstance(cf, dict):
+            cf["aluguel"] = 0.0
     with open(caminho, "w", encoding="utf-8") as f:
-        json.dump(projeto.model_dump(mode="json"), f, ensure_ascii=False, indent=2)
+        json.dump(data, f, ensure_ascii=False, indent=2)
     logger.info("Projeto salvo: {}", projeto.id)
 
 

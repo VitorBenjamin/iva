@@ -42,6 +42,16 @@ SELETORES_PRECO = [
     "[class*='Price']",
 ]
 
+# Fallback global quando scraper_config.json não define noites.preferencial.
+NOITES_PREFERENCIAL_FALLBACK = 3
+
+
+def _noites_preferencial_do_cfg(cfg: dict | None) -> int:
+    """Lê noites.preferencial do JSON; ausente → NOITES_PREFERENCIAL_FALLBACK."""
+    cfg = cfg or {}
+    ncfg = cfg.get("noites") or {}
+    return max(1, int(ncfg.get("preferencial", NOITES_PREFERENCIAL_FALLBACK)))
+
 
 def _append_jsonl(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -139,8 +149,7 @@ def _periodos_dinamicos_do_config(cfg: dict | None, hoje: date | None = None) ->
     """
     cfg = cfg or {}
     hoje = hoje or date.today()
-    noites_cfg = cfg.get("noites") or {}
-    noites = max(1, int(noites_cfg.get("preferencial", 3)))
+    noites = _noites_preferencial_do_cfg(cfg)
     especiais = cfg.get("datas_especiais") or cfg.get("periodos_especiais") or []
     periodos: list[dict] = []
 
@@ -226,6 +235,54 @@ def _url_com_datas(url_base: str, checkin: str, checkout: str) -> str:
     return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, ""))
 
 
+def _coletar_menor_preco_com_concorrentes(
+    page,
+    timeout_ms: int,
+    checkin_str: str,
+    checkout_str: str,
+    log_after: Path,
+    on_restart,
+    url_principal: str,
+    urls_concorrentes: list[str] | None = None,
+    permitir_busca_externa: bool = False,
+) -> tuple[dict | None, str, str | None]:
+    """
+    Tenta coletar preço na URL principal; em falha/sem preço, tenta URLs concorrentes.
+    Retorna (menor_quarto, fonte_url, url_fonte).
+    fonte_url: "principal" | "concorrente" | "nenhum"
+    """
+    urls_concorrentes = [u for u in (urls_concorrentes or []) if isinstance(u, str) and u.strip()]
+    # Somente URL principal do projeto + URLs explícitas em urls_concorrentes (sem busca genérica / “similares”).
+    # permitir_busca_externa reservado para compatibilidade de config; não expande tentativas.
+    _ = permitir_busca_externa
+    tentativas = [("principal", url_principal)] + [("concorrente", u.strip()) for u in urls_concorrentes]
+    for fonte, base_url in tentativas:
+        url = _url_com_datas(base_url, checkin_str, checkout_str)
+        ok_goto, err_code, restarted = _safe_goto(
+            page=page,
+            url=url,
+            timeout_ms=timeout_ms,
+            data_alvo=f"{checkin_str}:{fonte}",
+            log_path=log_after,
+            on_restart=on_restart,
+        )
+        if restarted:
+            # sessão reiniciada; caller seguirá com mesmo page/context aberto.
+            pass
+        if not ok_goto:
+            logger.warning("Navegação falhou para %s (%s): %s", checkin_str, fonte, err_code)
+            continue
+        _aceitar_cookies(page)
+        page.wait_for_timeout(2000)
+        quartos = _extrair_quartos_pagina(page)
+        if not quartos:
+            logger.warning("Sem preço em %s (%s)", checkin_str, fonte)
+            continue
+        menor = min(quartos, key=lambda x: x["total"])
+        return menor, fonte, base_url
+    return None, "nenhum", None
+
+
 def _extrair_preco_unico(page) -> float:
     """Fallback: primeiro valor em R$ encontrado na página."""
     for seletor in SELETORES_PRECO:
@@ -307,9 +364,12 @@ def _extrair_quartos_pagina(page) -> list[dict]:
                     total = parsear_valor_preco(texto_preco)
                     if total <= 0:
                         continue
+                    ctx = _texto_container(el)
+                    ctx_l = (ctx or "").lower()
+                    if any(k in ctx_l for k in ["recomendad", "outras acomoda", "parceir", "ofertas correlat", "propriedades semelhantes"]):
+                        continue
                     nome = _nome_quarto_no_bloco(el)
                     if not nome:
-                        ctx = _texto_container(el)
                         linhas = [ln.strip() for ln in (ctx or "").split("\n") if ln.strip() and "máx" not in ln.lower() and "pessoas" not in ln.lower()]
                         nome = (linhas[0][:80] if linhas else "") or ""
                     else:
@@ -319,12 +379,11 @@ def _extrair_quartos_pagina(page) -> list[dict]:
                         nome = "Indefinido"
                     if not nome:
                         nome = "Indefinido"
-                    ctx = _texto_container(el)
                     tarifa = detectar_tipo_tarifa(ctx)
                     if not tarifa or not tarifa.strip():
                         logger.warning("Tipo de tarifa não identificado, usando Indefinido")
                         tarifa = "Indefinido"
-                    quartos.append({"nome": nome, "tarifa": tarifa, "total": total})
+                    quartos.append({"nome": nome, "tarifa": tarifa, "total": total, "container_strategy": seletor})
                 except Exception:
                     continue
             if quartos:
@@ -333,7 +392,7 @@ def _extrair_quartos_pagina(page) -> list[dict]:
             continue
     total_unico = _extrair_preco_unico(page)
     if total_unico > 0:
-        quartos.append({"nome": "Indefinido", "tarifa": "Indefinido", "total": total_unico})
+        quartos.append({"nome": "Indefinido", "tarifa": "Indefinido", "total": total_unico, "container_strategy": "fallback_unico"})
     return quartos
 
 
@@ -486,6 +545,8 @@ class BookingScraper:
         from core.config import asegurar_scraper_config
         asegurar_scraper_config(self.id_projeto)
         cfg = carregar_config_scraper(self.id_projeto) or {}
+        urls_concorrentes = [u for u in (cfg.get("urls_concorrentes") or []) if isinstance(u, str) and u.strip()]
+        permitir_busca_externa = bool(cfg.get("permitir_busca_externa", False))
         cfg_path = get_scraper_config_path(self.id_projeto)
         _log_scraper_config_trace(self.id_projeto, cfg_path, cfg)
         n_periodos_config = len(cfg.get("periodos_especiais") or cfg.get("datas_especiais") or [])
@@ -503,7 +564,7 @@ class BookingScraper:
             logger.warning("Projeto não encontrado; usando ano atual {} como ano_referencia", ano_referencia)
 
         noites_cfg = cfg.get("noites") or {}
-        noites_preferencial = int(noites_cfg.get("preferencial", 2))
+        noites_preferencial = _noites_preferencial_do_cfg(cfg)
         max_tentativas = int(noites_cfg.get("max_tentativas", 4))
         noites_preferencial = max(1, noites_preferencial)
         max_tentativas = max(1, max_tentativas)
@@ -530,6 +591,9 @@ class BookingScraper:
             total_especiais,
             total_coleta,
         )
+        logger.info("Carregando [{}] períodos especiais. Calendário final: [{}] normais, [{}] especiais.", total_especiais, total_normais, total_especiais)
+        for p in lista_especiais:
+            logger.info("Período especial carregado: {} | {} -> {} | tipo_coleta={}", p.get("periodo_nome"), p.get("checkin"), p.get("checkout"), p.get("tipo_coleta", "amostragem"))
         logger.info(
             "Calendário diário: {} dias totais; noites pref={}, max_tent={}",
             len(calendario_completo),
@@ -670,10 +734,21 @@ class BookingScraper:
 
                 noites_seq = _sequencia_noites_tentativas(noites_preferencial, max_tentativas)
                 checkin_date = date.fromisoformat(checkin_str)
+                tipo_coleta = str(periodo.get("tipo_coleta") or "amostragem").strip().lower()
+                if tipo_coleta == "pacote":
+                    try:
+                        checkout_cfg = date.fromisoformat(str(periodo.get("checkout"))[:10])
+                        noites_pacote = max(1, (checkout_cfg - checkin_date).days)
+                    except Exception:
+                        noites_pacote = max(1, int(periodo.get("noites") or noites_preferencial))
+                    noites_seq = [noites_pacote]
                 sucesso = False
                 for noites_reais in noites_seq:
-                    checkout_date = checkin_date + timedelta(days=noites_reais)
-                    checkout_str = checkout_date.strftime("%Y-%m-%d")
+                    if tipo_coleta == "pacote" and periodo.get("checkout"):
+                        checkout_str = str(periodo.get("checkout"))
+                    else:
+                        checkout_date = checkin_date + timedelta(days=noites_reais)
+                        checkout_str = checkout_date.strftime("%Y-%m-%d")
                     try:
                         logger.info(
                             ">>> [{}/{}] {} ({} noites) [TIPO: {}]",
@@ -683,29 +758,27 @@ class BookingScraper:
                             noites_reais,
                             tipo_label,
                         )
-                        url = _url_com_datas(self.url_booking, checkin_str, checkout_str)
-                        ok_goto, err_code, restarted = _safe_goto(
+                        menor, fonte_url, url_fonte = _coletar_menor_preco_com_concorrentes(
                             page=page,
-                            url=url,
                             timeout_ms=timeout_ms,
-                            data_alvo=checkin_str,
-                            log_path=log_after,
+                            checkin_str=checkin_str,
+                            checkout_str=checkout_str,
+                            log_after=log_after,
                             on_restart=_restart_session,
+                            url_principal=self.url_booking,
+                            urls_concorrentes=urls_concorrentes,
+                            permitir_busca_externa=permitir_busca_externa,
                         )
-                        if restarted and context:
-                            page = context.new_page()
-                        if not ok_goto:
-                            raise ValueError(f"Falha de navegação: {err_code}")
-                        _aceitar_cookies(page)
-                        page.wait_for_timeout(2000)
-                        quartos = _extrair_quartos_pagina(page)
-                        if not quartos:
-                            raise ValueError("Nenhum preço")
-                        menor = min(quartos, key=lambda x: x["total"])
+                        if menor is None:
+                            raise ValueError("Nenhum preço (principal/concorrentes)")
                         total = menor["total"]
                         preco_booking = round(total / noites_reais, 2)
+                        preco_booking_eh_total = False
+                        if tipo_coleta == "pacote":
+                            preco_booking = round(total, 2)
+                            preco_booking_eh_total = True
                         desconto = obter_desconto_dinamico(cfg, mes_ano)
-                        preco_direto = round(preco_booking * (1 - desconto), 2)
+                        preco_direto = round((total if tipo_coleta == "pacote" else preco_booking) * (1 - desconto), 2)
                         nome_quarto = (menor.get("nome") or "").strip() or "Indefinido"
                         coletados[checkin_str] = MarketBrutoRegistro(
                             checkin=checkin_str,
@@ -723,6 +796,13 @@ class BookingScraper:
                                 "periodo_id": periodo_id_meta,
                                 "periodo_nome": periodo_nome_meta,
                                 "periodo_source": periodo_source_meta,
+                                "fonte_url": fonte_url,
+                                "url_fonte": url_fonte,
+                                "page_host": urlparse(page.url).netloc if page and page.url else "",
+                                "page_url_final": page.url if page else "",
+                                "container_strategy": menor.get("container_strategy"),
+                                "tipo_coleta": periodo.get("tipo_coleta", "amostragem"),
+                                "preco_booking_eh_total": preco_booking_eh_total,
                             },
                         )
                         sucesso = True
@@ -829,6 +909,8 @@ def coletar_dados_mercado(url_booking: str, ano: int, id_projeto: str) -> DadosM
     headless = os.environ.get("HEADLESS", "false").lower() == "true"
     cfg_path = get_scraper_config_path(id_projeto)
     cfg = carregar_config_scraper(id_projeto) or {}
+    urls_concorrentes = [u for u in (cfg.get("urls_concorrentes") or []) if isinstance(u, str) and u.strip()]
+    permitir_busca_externa = bool(cfg.get("permitir_busca_externa", False))
     periodos = _periodos_dinamicos_do_config(cfg, hoje=date.today())
     _log_scraper_config_trace(id_projeto, cfg_path, cfg)
     diarias: dict[str, DiariaPeriodo] = {}
@@ -854,17 +936,21 @@ def coletar_dados_mercado(url_booking: str, ano: int, id_projeto: str) -> DadosM
 
             try:
                 logger.info(">>> Coletando {} ({} a {})", nome_periodo, checkin, checkout)
-                url = _url_com_datas(url_booking, checkin, checkout)
-                logger.info("Navegando para {}", datas_str)
-                page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                page.wait_for_load_state("networkidle", timeout=15000)
-                _aceitar_cookies(page)
-                page.wait_for_timeout(2000)
-
-                quartos = _extrair_quartos_pagina(page)
-                logger.info("Encontrados {} quartos", len(quartos))
-                if not quartos:
-                    raise ValueError("Nenhum preço encontrado")
+                menor, fonte_url, url_fonte = _coletar_menor_preco_com_concorrentes(
+                    page=page,
+                    timeout_ms=30000,
+                    checkin_str=checkin,
+                    checkout_str=checkout,
+                    log_after=EVIDENCE_STABILITY_DIR / "LOG_AFTER.jsonl",
+                    on_restart=None,
+                    url_principal=url_booking,
+                    urls_concorrentes=urls_concorrentes,
+                    permitir_busca_externa=permitir_busca_externa,
+                )
+                if not menor:
+                    raise ValueError("Nenhum preço encontrado (principal/concorrentes)")
+                quartos = [menor]
+                logger.info("Preço selecionado de fonte {} ({})", fonte_url, (url_fonte or "n/a"))
 
                 for q in quartos:
                     logger.info(
@@ -941,3 +1027,7 @@ def coletar_dados_mercado_expandido(url_booking: str, id_projeto: str) -> Market
     """Calendário diário 365 dias: gera market_bruto com um registro por dia do ano.
     Usa BookingScraper com fase de reconhecimento (calendário inferior) para pular datas indisponíveis."""
     return BookingScraper(url_booking, id_projeto).run_expandido()
+
+
+# Alias explícito para imports e sanity-checks (equivale a coletar_dados_mercado_expandido).
+run_expandido = coletar_dados_mercado_expandido

@@ -81,8 +81,15 @@ def _peso(codigo: str) -> int:
     return PESOS_PERIODO.get(codigo, 1)
 
 
-def _custo_fixo_mensal_total(projeto: Projeto) -> float:
-    """Soma todos os custos fixos mensais (incluindo aluguel) + folha de pagamento."""
+def _custo_arrendamento_mensal_projeto(projeto: Projeto) -> float:
+    """Rateio mensal do contrato (única fonte de arrendamento; ignora custos_fixos.aluguel)."""
+    arr = float(getattr(projeto, "arrendamento_total", 0.0) or 0.0)
+    prazo = max(1, int(getattr(projeto, "prazo_contrato_meses", 12) or 12))
+    return max(0.0, arr) / float(prazo)
+
+
+def custo_fixo_operacional_mensal_cadastro(projeto: Projeto) -> float:
+    """Custos fixos do cadastro (luz…outros), sem folha e sem arrendamento."""
     fin = getattr(projeto, "financeiro", None)
     if not fin or not getattr(fin, "custos_fixos", None):
         return 0.0
@@ -96,13 +103,27 @@ def _custo_fixo_mensal_total(projeto: Projeto) -> float:
         + float(cf.seguros)
         + float(cf.outros)
     )
-    aluguel = float(getattr(cf, "aluguel", 0.0) or 0.0)
+    return max(base, 0.0)
+
+
+def folha_mensal_projeto(projeto: Projeto) -> float:
+    """Folha de pagamento mensal (valor efetivo, incluindo soma de funcionários quando aplicável)."""
+    fin = getattr(projeto, "financeiro", None)
+    if not fin:
+        return 0.0
     if hasattr(fin, "calcular_folha_total_decimal"):
-        folha = float(fin.calcular_folha_total_decimal())
-    else:
-        folha = float(getattr(fin, "folha_pagamento_mensal", 0.0) or 0.0)
-    total = base + aluguel + folha
-    return max(total, 0.0)
+        return float(fin.calcular_folha_total_decimal())
+    return float(getattr(fin, "folha_pagamento_mensal", 0.0) or 0.0)
+
+
+def custo_fixo_mensal_sem_aluguel(projeto: Projeto) -> float:
+    """Custos fixos mensais sem o campo aluguel (luz…outros + folha). Usado na simulação com arrendamento do contrato."""
+    return max(custo_fixo_operacional_mensal_cadastro(projeto) + folha_mensal_projeto(projeto), 0.0)
+
+
+def _custo_fixo_mensal_total(projeto: Projeto) -> float:
+    """Fixos operacionais + folha + rateio do contrato (arrendamento_total ÷ prazo)."""
+    return max(custo_fixo_mensal_sem_aluguel(projeto) + _custo_arrendamento_mensal_projeto(projeto), 0.0)
 
 
 def _custo_variavel_por_noite(projeto: Projeto) -> float:
@@ -507,16 +528,16 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
     custos_variaveis_anuais = max(custos_variaveis_anuais, 0.0)
     impostos_anuais = max(impostos_anuais, 0.0)
 
-    # Quebra dos custos fixos anuais
+    # Quebra dos custos fixos anuais (arrendamento só via contrato no projeto)
     fin = getattr(projeto, "financeiro", None)
     cf = getattr(fin, "custos_fixos", None) if fin else None
-    aluguel_mensal = float(getattr(cf, "aluguel", 0.0) or 0.0) if cf else 0.0
+    custo_mensal_arrend = _custo_arrendamento_mensal_projeto(projeto)
     if fin and hasattr(fin, "calcular_folha_total_decimal"):
         folha_mensal = float(fin.calcular_folha_total_decimal())
     else:
         folha_mensal = float(getattr(fin, "folha_pagamento_mensal", 0.0) or 0.0) if fin else 0.0
 
-    # Custos fixos sem aluguel: demais fixos + folha
+    # Custos fixos sem rateio de contrato: demais fixos + folha
     outros_fixos_mensais = 0.0
     if cf:
         outros_fixos_mensais = (
@@ -529,9 +550,9 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
             + float(cf.outros)
         )
 
-    # Custos fixos anuais sem aluguel e sem folha (folha separada)
+    # Custos fixos anuais sem contrato e sem folha (folha separada)
     custos_fixos_anuais_sem_aluguel = max(outros_fixos_mensais, 0.0) * 12.0
-    custo_anual_aluguel = max(aluguel_mensal, 0.0) * 12.0
+    custo_anual_aluguel = max(custo_mensal_arrend, 0.0) * 12.0
     folha_pagamento_anual = max(folha_mensal, 0.0) * 12.0
     folha_pagamento_anual = float(
         Decimal(str(folha_pagamento_anual)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
@@ -553,10 +574,9 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
     )
 
     retorno_arrendamento_percentual = 0.0
-    if aluguel_mensal > 0:
-        base_arrendamento_anual = aluguel_mensal * 12.0
-        if base_arrendamento_anual > 0:
-            retorno_arrendamento_percentual = (lucro_liquido_anual / base_arrendamento_anual) * 100.0
+    base_arrendamento_total = float(getattr(projeto, "arrendamento_total", 0.0) or 0.0)
+    if base_arrendamento_total > 0:
+        retorno_arrendamento_percentual = (lucro_liquido_anual / base_arrendamento_total) * 100.0
 
     cenarios = _calcular_cenarios(
         faturamento_anual_total=faturamento_anual,

@@ -40,7 +40,11 @@ class CustosFixosMensais(BaseModel):
     contabilidade: float = Field(default=0.0, ge=0)
     seguros: float = Field(default=0.0, ge=0)
     outros: float = Field(default=0.0, ge=0)
-    aluguel: float = Field(default=0.0, ge=0, description="Aluguel/Arrendamento pretendido (mensal)")
+    aluguel: float = Field(
+        default=0.0,
+        ge=0,
+        description="Legado — ignorado; use projeto.arrendamento_total e prazo_contrato_meses.",
+    )
 
 
 class Funcionario(BaseModel):

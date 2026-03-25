@@ -244,7 +244,10 @@ def _periodos_especiais_de_config(id_projeto: str) -> list[dict]:
             "fim": fim_iso,
             "inicio_date": d_ini,
             "fim_date": d_fim,
+            "tipo_coleta": str(item.get("tipo_coleta") or "amostragem").strip().lower(),
         }
+        if periodo_dict["tipo_coleta"] not in {"amostragem", "pacote"}:
+            periodo_dict["tipo_coleta"] = "amostragem"
         # Meta opcional para auditoria
         periodo_dict["_meta"] = {"avancado": avancado}
         result.append(periodo_dict)
@@ -285,6 +288,16 @@ def resolve_periodo_por_checkin(id_projeto: str, checkin_date: str) -> dict | No
         if ini and fim and ini <= d <= fim:
             return p
     return None
+
+
+def obter_periodo_por_data(id_projeto: str, data_checkin: str | date) -> dict | None:
+    """Retorna período especial do config para uma data de check-in (Etapa 4).
+    Alias de resolve_periodo_por_checkin para nomenclatura unificada."""
+    if isinstance(data_checkin, date):
+        data_str = data_checkin.isoformat()
+    else:
+        data_str = str(data_checkin or "")[:10]
+    return resolve_periodo_por_checkin(id_projeto, data_str)
 
 
 def get_periodo_config_por_id(periodos_config: list[dict], periodo_id: str | None) -> dict | None:
@@ -377,12 +390,15 @@ def definir_periodos_12meses(noites: int = 2, id_projeto: Optional[str] = None) 
     periodos_list: list[tuple[date, date, str]] = []
     feriados_atuais: dict[tuple[int, int], str] = {}
     try:
+        cfg_explicita = bool(id_projeto and (carregar_config_scraper(id_projeto) or {}).get("periodos_especiais"))
         if id_projeto:
             periodos_list = _periodos_especiais_de_config(id_projeto)
-        if not periodos_list:
+        if not periodos_list and not cfg_explicita:
             for a in (hoje.year, hoje.year + 1):
                 periodos_list.extend(_periodos_especiais_fallback(a))
             feriados_atuais = FERIADOS_NACIONAIS
+        elif not periodos_list and cfg_explicita:
+            logger.warning("Config explicita de periodos_especiais detectada, sem fallback algoritmico (soberania estrita).")
         else:
             # Feriados nacionais também devem ser considerados junto da configuração.
             feriados_atuais = FERIADOS_NACIONAIS
@@ -450,12 +466,15 @@ def definir_calendario_soberano_ano(
     periodos_list: list[tuple[date, date, str]] = []
     feriados_atuais: dict[tuple[int, int], str] = {}
     try:
+        cfg_explicita = bool(id_projeto and (carregar_config_scraper(id_projeto) or {}).get("periodos_especiais"))
         if id_projeto:
             periodos_list = _periodos_especiais_de_config(id_projeto)
-        if not periodos_list:
+        if not periodos_list and not cfg_explicita:
             for a in (ano_fallback, ano_fallback + 1):
                 periodos_list.extend(_periodos_especiais_fallback(a))
             feriados_atuais = FERIADOS_NACIONAIS
+        elif not periodos_list and cfg_explicita:
+            logger.warning("Config explicita de periodos_especiais detectada, sem fallback algoritmico (soberania estrita).")
         else:
             feriados_atuais = FERIADOS_NACIONAIS
     except Exception as e:
@@ -471,10 +490,13 @@ def definir_calendario_soberano_ano(
     lista_normais: list[dict] = []
     lista_especiais: list[dict] = []
 
+    colisoes_removidas = 0
     def _append_normal(checkin: date, mes_ano: str, tipo: str) -> None:
+        nonlocal colisoes_removidas
         if checkin < hoje or checkin > fim_janela:
             return
         if eh_especial(checkin):
+            colisoes_removidas += 1
             return
         checkout = checkin + timedelta(days=noites)
         lista_normais.append({
@@ -536,7 +558,10 @@ def definir_calendario_soberano_ano(
         if not d_ini or not d_fim:
             continue
         delta_dias = (d_fim - d_ini).days + 1
-        if delta_dias <= 5:
+        tipo_coleta = (p.get("tipo_coleta") if isinstance(p, dict) else "amostragem") or "amostragem"
+        if tipo_coleta == "pacote":
+            checkins_periodo = [d_ini]
+        elif delta_dias <= 5:
             checkins_periodo = [d_ini]
         else:
             central = d_ini + timedelta(days=(d_fim - d_ini).days // 2)
@@ -553,14 +578,16 @@ def definir_calendario_soberano_ano(
             checkout = d + timedelta(days=noites)
             lista_especiais.append({
                 "checkin": d.strftime("%Y-%m-%d"),
-                "checkout": checkout.strftime("%Y-%m-%d"),
+                "checkout": (d_fim + timedelta(days=1)).strftime("%Y-%m-%d") if tipo_coleta == "pacote" else checkout.strftime("%Y-%m-%d"),
                 "mes_ano": mes_ano,
                 "tipo_dia": tipo_dia,
                 "categoria_dia": "especial",
-                "noites": noites,
+                "noites": max(1, (d_fim - d).days + 1) if tipo_coleta == "pacote" else noites,
                 "periodo_nome": nome or "Especial",
+                "tipo_coleta": tipo_coleta,
             })
-
+    if colisoes_removidas > 0:
+        logger.warning("Calendário soberano removeu {} datas normais por colisão com períodos especiais.", colisoes_removidas)
     return {"normais": lista_normais, "especiais": lista_especiais}
 
 
@@ -627,11 +654,11 @@ def gerar_calendario_diario_projeto(
 
 def generate_scaffold_from_metadata(metadata: dict) -> dict:
     """Gera scraper_config.json mínimo a partir de metadados.
-    metadata: nome, booking_url, timezone (opcional), noites_preferencial (default 2),
+    metadata: nome, booking_url, timezone (opcional), noites_preferencial (default 3),
     max_tentativas (default 5), descontos (default 0.20).
     Reutiliza _normalizar_valor_desconto para descontos.
     """
-    noites = int(metadata.get("noites_preferencial", 2))
+    noites = int(metadata.get("noites_preferencial", 3))
     noites = max(1, min(7, noites))
     max_tent = int(metadata.get("max_tentativas", 5))
     max_tent = max(1, min(10, max_tent))
@@ -642,6 +669,8 @@ def generate_scaffold_from_metadata(metadata: dict) -> dict:
         global_desc = _normalizar_valor_desconto(desc_raw if desc_raw is not None else 0.20)
     return {
         "periodos_especiais": [],
+        "urls_concorrentes": [],
+        "permitir_busca_externa": False,
         "amostragem": {
             "datas_normais_por_mes": 4,
             "incluir_fds": True,
@@ -661,19 +690,46 @@ def generate_scaffold_from_metadata(metadata: dict) -> dict:
 
 
 def _get_scraper_config_template() -> dict:
-    """Retorna o template padrão de scraper_config (feriados nacionais e estrutura mínima)."""
+    """Retorna o template padrão de scraper_config (feriados nacionais e estrutura mínima).
+    Lê periodos_especiais de data/configs/default_datas_especiais.json se existir; fallback para hardcoded."""
+    import json
+    from pathlib import Path
+
+    _fallback_periodos = [
+        {"inicio": "28/12/2026", "fim": "02/01/2027", "nome": "Réveillon"},
+        {"inicio": "15/02/2026", "fim": "19/02/2026", "nome": "Carnaval"},
+        {"inicio": "28/03/2026", "fim": "05/04/2026", "nome": "Semana Santa / Páscoa"},
+        {"inicio": "04/06/2026", "fim": "04/06/2026", "nome": "Corpus Christi"},
+        {"inicio": "10/07/2026", "fim": "25/07/2026", "nome": "Férias de Julho"},
+        {"inicio": "07/09/2026", "fim": "07/09/2026", "nome": "Independência"},
+        {"inicio": "12/10/2026", "fim": "12/10/2026", "nome": "Nossa Sra. Aparecida"},
+        {"inicio": "02/11/2026", "fim": "02/11/2026", "nome": "Finados"},
+        {"inicio": "15/11/2026", "fim": "15/11/2026", "nome": "Proclamação da República"},
+        {"inicio": "25/12/2026", "fim": "25/12/2026", "nome": "Natal"},
+    ]
+    path_tpl = Path(__file__).resolve().parent.parent / "data" / "configs" / "default_datas_especiais.json"
+    periodos = _fallback_periodos
+    if path_tpl.exists() and path_tpl.is_file():
+        try:
+            data = json.loads(path_tpl.read_text(encoding="utf-8"))
+            pe = data.get("periodos_especiais")
+            if pe and isinstance(pe, list) and len(pe) > 0:
+                periodos = pe
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning("Falha ao ler default_datas_especiais.json, usando fallback: {}", e)
+    periodos_norm = []
+    for p in periodos:
+        if not isinstance(p, dict):
+            continue
+        pp = dict(p)
+        pp["tipo_coleta"] = str(pp.get("tipo_coleta") or "amostragem").strip().lower()
+        if pp["tipo_coleta"] not in {"amostragem", "pacote"}:
+            pp["tipo_coleta"] = "amostragem"
+        periodos_norm.append(pp)
     return {
-        "periodos_especiais": [
-            {"inicio": "28/12/2026", "fim": "02/01/2027", "nome": "Réveillon"},
-            {"inicio": "14/02/2026", "fim": "18/02/2026", "nome": "Carnaval"},
-            {"inicio": "28/03/2026", "fim": "05/04/2026", "nome": "Semana Santa / Páscoa"},
-            {"inicio": "10/07/2026", "fim": "25/07/2026", "nome": "Férias de Julho"},
-            {"inicio": "07/09/2026", "fim": "07/09/2026", "nome": "Independência"},
-            {"inicio": "12/10/2026", "fim": "12/10/2026", "nome": "Nossa Sra. Aparecida"},
-            {"inicio": "02/11/2026", "fim": "02/11/2026", "nome": "Finados"},
-            {"inicio": "15/11/2026", "fim": "15/11/2026", "nome": "Proclamação da República"},
-            {"inicio": "25/12/2026", "fim": "25/12/2026", "nome": "Natal"},
-        ],
+        "periodos_especiais": periodos_norm,
+        "urls_concorrentes": [],
+        "permitir_busca_externa": False,
         "amostragem": {
             "datas_normais_por_mes": 4,
             "incluir_fds": True,
@@ -685,8 +741,9 @@ def _get_scraper_config_template() -> dict:
             "delay_max_s": 18,
             "headless": True,
             "stealth": True,
+            "timezone": "America/Sao_Paulo",
         },
-        "noites": {"preferencial": 2, "max_tentativas": 4},
+        "noites": {"preferencial": 3, "max_tentativas": 4},
         "descontos": {"global": 0.20, "por_mes": {}},
     }
 
