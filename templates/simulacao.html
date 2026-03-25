@@ -17,103 +17,284 @@
     .table-simulacao input { max-width: 120px; }
     .loading-overlay { opacity: 0.5; pointer-events: none; }
     .spinner-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
+    #painel-resultados-inner.painel-calculando { opacity: 0.45; pointer-events: none; transition: opacity 0.2s ease; }
+    #painel-resultados-inner { width: 100%; max-width: 100%; }
+    #painel-resultados { width: 100%; }
+    #simulacao-conteudo-inferior { width: 100%; max-width: 100%; }
+    .label-fin-row { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+    .sim-toolbar-cenarios { border-radius: 0.5rem; }
+    .sim-page-head { width: 100%; }
+    .table-simulacao .ocupacao-cell .form-range { min-width: 90px; max-width: 160px; }
+    .table-simulacao .ocupacion-val { min-width: 2.75rem; }
+    .sim-fileira-investidor { border-width: 2px !important; }
   </style>
 </head>
 <body class="bg-light">
   <div class="container-fluid py-4">
     {% include '_navbar_projeto.html' %}
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+
+    <div class="sim-page-head d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
       <h1 class="h5 mb-0">Simulador de Viabilidade Futura</h1>
+      <button type="button" class="btn btn-outline-secondary btn-sm rounded-circle p-2 lh-1" id="btn-glossario" data-bs-toggle="offcanvas" data-bs-target="#offcanvas-glossario" title="Glossário financeiro" aria-label="Glossário financeiro">
+        <i class="bi bi-question-lg"></i>
+      </button>
     </div>
 
-    <!-- Sliders Reativos (Cockpit) + Cenários Pré-definidos -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-white fw-bold">
-        <i class="bi bi-sliders me-1"></i> Controles Rápidos — Atualização em tempo real
-      </div>
-      <div class="card-body">
-        <div class="row g-3 align-items-end">
-          <div class="col-md-4">
-            <label class="form-label fw-bold" for="slider-ocupacao">
-              Ocupação Alvo: <span id="slider-ocupacao-val">40</span>%
-            </label>
-            <input type="range" class="form-range" id="slider-ocupacao" min="0" max="100" value="40" step="1">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label fw-bold" for="slider-adr-override">
-              ADR Override: <span id="slider-adr-val">—</span>
-            </label>
-            <input type="range" class="form-range" id="slider-adr-override" min="0" max="1500" value="0" step="10" title="0 = usar ADR base por mês">
-          </div>
-          <div class="col-md-4">
-            <div class="btn-group" role="group">
-              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-cenario-conservador" title="Ocupação 40%">Conservador 40%</button>
-              <button type="button" class="btn btn-outline-primary btn-sm" id="btn-cenario-moderado" title="Ocupação 60%">Moderado 60%</button>
-              <button type="button" class="btn btn-outline-success btn-sm" id="btn-cenario-otimista" title="Ocupação 80%">Otimista 80%</button>
-            </div>
+    <div class="card border-0 shadow-sm mb-3 sim-toolbar-cenarios bg-white">
+      <div class="card-body py-2 px-3">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <span class="text-muted small text-nowrap fw-semibold">Cenários</span>
+          <div id="toolbar-cenarios-pills" class="d-flex flex-wrap align-items-center gap-1 flex-grow-1 min-w-0"></div>
+          <span class="small text-muted" id="label-cenario-ativo" style="display: none;">Editando: <strong id="nome-cenario-ativo"></strong></span>
+          <button type="button" class="btn btn-success btn-sm text-nowrap" id="btn-salvar-cenario">Salvar cenário atual</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-limpar-cenario">Limpar</button>
+          <div class="btn-group">
+            <button type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Mais</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><button class="dropdown-item" type="button" id="btn-salvar-cenario-novo">Salvar como novo</button></li>
+              <li><button class="dropdown-item" type="button" id="btn-salvar-cenario-api">Salvar cenário (API)</button></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><button class="dropdown-item" type="button" id="btn-recarregar-cenarios-api">Recarregar cenários API</button></li>
+            </ul>
           </div>
         </div>
-        <p class="small text-muted mt-2 mb-0">Ao mover os sliders, a tabela e os gráficos são atualizados automaticamente via AJAX (sem recarregar a página).</p>
+        <div class="collapse mt-2" id="collapse-cenarios-api">
+          <div class="small text-muted mb-1"><code>/api/projeto/&lt;id&gt;/cenarios</code></div>
+          <div id="lista-cenarios-api" class="small border rounded p-2 bg-light" style="max-height: 180px; overflow: auto;">Nenhum cenário carregado.</div>
+        </div>
+        <button type="button" class="btn btn-link btn-sm px-0 mt-1" data-bs-toggle="collapse" data-bs-target="#collapse-cenarios-api" aria-expanded="false">Mostrar / ocultar cenários da API</button>
       </div>
     </div>
 
-    <!-- Cards de Resumo -->
-    <div class="row g-3 mb-4">
-      <div class="col-md-3">
-        <div class="card card-metric border-primary shadow-sm h-100">
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvas-glossario" aria-labelledby="offcanvas-glossario-label">
+      <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="offcanvas-glossario-label">Glossário financeiro</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+      </div>
+      <div class="offcanvas-body small">
+        <p class="mb-2"><strong>ADR:</strong> diária média projetada por quarto no mês.</p>
+        <p class="mb-2"><strong>EBITDA operacional:</strong> receita bruta menos fixos operacionais e folha (sem arrendamento no mês) e custos variáveis. O arrendamento entra como capital no fechamento.</p>
+        <p class="mb-2"><strong>Investimento total:</strong> valor total do contrato de arrendamento + investimento em reforma/enxoval (base de Payback e ROI).</p>
+        <p class="mb-2"><strong>Custo mensal de arrendamento (simulação):</strong> total do contrato ÷ prazo em meses (única fonte; custos fixos do cadastro não duplicam arrendamento).</p>
+        <p class="mb-0"><strong>Margem líquida média:</strong> lucro líquido anual ÷ receita anual.</p>
+      </div>
+    </div>
+
+    <div class="row g-4 align-items-start">
+      <!-- Coluna esquerda: controles -->
+      <div class="col-12 col-md-12 col-lg-4">
+        <div class="card shadow-sm mb-4 mb-lg-0">
+          <div class="card-header bg-white fw-bold">
+            <i class="bi bi-sliders me-1"></i> Simulação
+          </div>
           <div class="card-body">
-            <div class="card-title text-muted small text-uppercase">Receita Anual Projetada</div>
+            <div class="mb-3">
+              <label class="form-label label-fin-row fw-bold" for="slider-ocupacao">
+                Ocupação alvo <span id="slider-ocupacao-val">40</span>%
+                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> percentual médio de ocupação aplicado aos dias &quot;normais&quot; do calendário.<br><strong>Cálculo:</strong> noites vendidas normais = capacidade normal × ocupação.<br><strong>Ex.:</strong> 50% com 10 quartos e 20 dias normais → 100 diárias."></i>
+              </label>
+              <input type="range" class="form-range" id="slider-ocupacao" min="0" max="100" value="40" step="1">
+            </div>
+            <div class="mb-3">
+              <label class="form-label label-fin-row fw-bold" for="slider-adr-override">
+                ADR override: <span id="slider-adr-val">—</span>
+                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> diária média forçada em todos os meses (0 = usar ADR sugerido por mês).<br><strong>Cálculo:</strong> receita bruta mês = ADR × noites vendidas.<br><strong>Ex.:</strong> ADR R$ 400 e 500 noites → R$ 200.000."></i>
+              </label>
+              <input type="range" class="form-range" id="slider-adr-override" min="0" max="1500" value="0" step="10">
+            </div>
+            <div class="mb-3">
+              <label class="form-label label-fin-row fw-bold" for="arrendamento_total">
+                <i class="bi bi-building me-1"></i> Arrendamento total (contrato) (R$)
+                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> valor total pago pelo período contratado (visão de caixa).<br><strong>Cálculo (lucro):</strong> custo fixo mensal de arrendamento = total ÷ prazo (meses).<br><strong>Ex.:</strong> R$ 120.000 em 12 meses → R$ 10.000/mês de custo fixo na simulação."></i>
+              </label>
+              <input type="text" id="arrendamento_total" class="form-control moeda" value="R$ 0,00" autocomplete="off">
+            </div>
+            <div class="mb-3">
+              <label class="form-label label-fin-row fw-bold" for="prazo_contrato_meses">
+                Prazo do contrato (meses)
+                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> duração do contrato usada para ratear o custo mensal.<br><strong>Cálculo:</strong> custo mensal = arrendamento total ÷ prazo.<br><strong>Ex.:</strong> R$ 300.000 em 30 meses → R$ 10.000/mês."></i>
+              </label>
+              <input type="number" class="form-control" id="prazo_contrato_meses" min="1" max="600" value="12" step="1">
+            </div>
+            <div class="mb-3">
+              <label class="form-label label-fin-row fw-bold" for="investimento_reforma">
+                <i class="bi bi-hammer me-1"></i> Investimento em reforma / enxoval (R$)
+                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> CAPEX antecipado (melhorias, móveis, etc.).<br><strong>Cálculo (Payback/ROI):</strong> investimento total = arrendamento total + reforma.<br><strong>Ex.:</strong> contrato R$ 200k + reforma R$ 50k → investimento total R$ 250k."></i>
+              </label>
+              <input type="text" id="investimento_reforma" class="form-control moeda" value="R$ 0,00" autocomplete="off">
+            </div>
+            <div class="btn-group w-100" role="group">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-cenario-conservador">40%</button>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="btn-cenario-moderado">60%</button>
+              <button type="button" class="btn btn-outline-success btn-sm" id="btn-cenario-otimista">80%</button>
+            </div>
+            <p class="small text-muted mt-3 mb-0">Alterações recalculam lucro, payback e gráficos automaticamente.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coluna direita: resultados -->
+      <div class="col-12 col-md-12 col-lg-8">
+        <div id="painel-resultados" class="position-relative">
+          <div id="spinner-resultados" class="position-absolute top-50 start-50 translate-middle z-3 d-none" style="pointer-events:none;">
+            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Calculando...</span></div>
+          </div>
+          <div id="painel-resultados-inner">
+
+    <!-- FILEIRA 1: Eficiência da Operação -->
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">Eficiência da Operação (Ano 1)</span>
+    </div>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 mb-3">
+      <div class="col d-flex">
+        <div class="card card-metric border-primary shadow-sm h-100 w-100">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase label-fin-row">Receita anual
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> soma da receita bruta dos 12 meses.<br><strong>Cálculo:</strong> Σ (ADR × noites vendidas) por mês."></i>
+            </div>
             <div class="valor text-primary" id="card-receita">R$ 0,00</div>
           </div>
         </div>
       </div>
-      <div class="col-md-3">
-        <div class="card card-metric border-success shadow-sm h-100">
+      <div class="col d-flex">
+        <div class="card card-metric border-info shadow-sm h-100 w-100">
           <div class="card-body">
-            <div class="card-title text-muted small text-uppercase"><i class="bi bi-graph-up-arrow me-1"></i>Lucro Líquido Anual</div>
+            <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-graph-up me-1"></i>EBITDA operacional (ano 1)
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> resultado operacional antes de impostos, <strong>sem</strong> diluir arrendamento no custo fixo.<br><strong>Cálculo:</strong> Σ mensal (Receita − Fixos operacionais e folha − Custos variáveis)."></i>
+            </div>
+            <div class="valor text-info" id="card-ebitda-op-anual">R$ 0,00</div>
+          </div>
+        </div>
+      </div>
+      <div class="col d-flex">
+        <div class="card card-metric border-success shadow-sm h-100 w-100">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-graph-up-arrow me-1"></i>Lucro operacional (ano 1)
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> eficiência da operação: EBITDA operacional − impostos, somado no ano. <strong>Não</strong> subtrai o arrendamento total (capital)."></i>
+            </div>
             <div class="valor text-success" id="card-lucro">R$ 0,00</div>
           </div>
         </div>
       </div>
-      <div class="col-md-3">
-        <div class="card card-metric border-info shadow-sm h-100">
+      <div class="col d-flex">
+        <div class="card card-metric border-light shadow-sm h-100 w-100">
           <div class="card-body">
-            <div class="card-title text-muted small text-uppercase">Margem Líquida Média</div>
-            <div class="valor text-info" id="card-margem">0%</div>
+            <div class="card-title text-muted small text-uppercase label-fin-row">Margem operacional
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Cálculo:</strong> Lucro operacional anual ÷ Receita anual × 100%."></i>
+            </div>
+            <div class="valor text-body" id="card-margem">—</div>
           </div>
         </div>
       </div>
-      <div class="col-md-3">
-        <div class="card card-metric border-warning shadow-sm h-100">
-          <div class="card-body">
-            <div class="card-title text-muted small text-uppercase"><i class="bi bi-hourglass-split me-1"></i>Payback Estimado</div>
-            <div class="valor" id="card-payback" title="Retorno do investimento">—</div>
+    </div>
+
+    <!-- FILEIRA 2: Resultado Líquido do Investidor (destaque) -->
+    <div class="sim-fileira-investidor rounded-3 border border-success border-2 bg-success bg-opacity-10 p-3 mb-3">
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <span class="badge rounded-pill bg-success px-3 py-2">Resultado Líquido do Investidor (Ano 1)</span>
+        <span class="small text-success fw-semibold">Veredito final</span>
+      </div>
+      <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3">
+        <div class="col d-flex">
+          <div class="card card-metric border-success shadow-sm h-100 w-100 bg-white">
+            <div class="card-body">
+              <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-wallet2 me-1"></i>Resultado do investidor
+                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="O que sobra de fato no seu bolso após a operação pagar todos os custos e você recuperar o valor total investido (Arrendamento + Reforma) neste primeiro ano."></i>
+              </div>
+              <div class="valor text-success" id="card-resultado-investidor">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="col d-flex">
+          <div class="card card-metric border-success shadow-sm h-100 w-100 bg-white">
+            <div class="card-body">
+              <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-pie-chart me-1"></i>Margem do investidor
+                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="Quanto do faturamento bruto sobra como lucro real para o investidor após todas as despesas e investimentos de capital."></i>
+              </div>
+              <div class="valor text-body" id="card-margem-investidor">—</div>
+            </div>
           </div>
         </div>
       </div>
-      <div class="col-md-3">
-        <div class="card card-metric border-secondary shadow-sm h-100">
+    </div>
+
+    <!-- FILEIRA 3: Capital e Desembolso -->
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <span class="badge rounded-pill bg-dark bg-opacity-10 text-dark border px-3 py-2">Estrutura de Capital e Desembolso</span>
+    </div>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 mb-3">
+      <div class="col d-flex">
+        <div class="card card-metric border-dark shadow-sm h-100 w-100">
           <div class="card-body">
-            <div class="card-title text-muted small text-uppercase"><i class="bi bi-bullseye me-1"></i>Break-even Ocupação</div>
+            <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-piggy-bank me-1"></i>Investimento total (Arrendamento + Reforma)
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> cash out de capital — arrendamento total do contrato + investimento em reforma / enxoval.<br><strong>Base Payback:</strong> (Arrendamento + Reforma) ÷ Lucro operacional médio mensal."></i>
+            </div>
+            <div class="valor text-dark" id="card-invest-total">R$ 0,00</div>
+          </div>
+        </div>
+      </div>
+      <div class="col d-flex">
+        <div class="card card-metric border-secondary shadow-sm h-100 w-100">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-cash-stack me-1"></i>Desembolso total (ano 1)
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="Soma de todas as saídas de caixa no período: Custos Fixos, Variáveis, Impostos, Arrendamento e Reforma."></i>
+            </div>
+            <div class="valor text-secondary" id="card-desembolso-total">R$ 0,00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILEIRA 4: Retorno e Risco -->
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <span class="badge rounded-pill bg-warning bg-opacity-10 text-dark border border-warning border-opacity-50 px-3 py-2">Retorno e Risco</span>
+    </div>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 mb-4">
+      <div class="col d-flex">
+        <div class="card card-metric border-danger shadow-sm h-100 w-100">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-percent me-1"></i>ROI sobre capital (ano 1)
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="Retorno sobre o capital investido. Se negativo, indica que o investimento ainda não foi totalmente recuperado no primeiro ano."></i>
+            </div>
+            <div class="valor text-danger" id="card-roi">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="col d-flex">
+        <div class="card card-metric border-warning shadow-sm h-100 w-100">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-hourglass-split me-1"></i>Payback
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Cálculo:</strong> (Arrendamento total + Reforma) ÷ Lucro líquido <strong>operacional</strong> médio mensal (média dos 12 meses, após impostos, sem arrendamento no mês)."></i>
+            </div>
+            <div class="valor text-warning" id="card-payback">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="col d-flex">
+        <div class="card card-metric border-light shadow-sm h-100 w-100">
+          <div class="card-body">
+            <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-bullseye me-1"></i>Break-even ocupação
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> ocupação mínima para EBITDA <strong>operacional</strong> ≥ 0 no mês (sem arrendamento no fixo)."></i>
+            </div>
             <div class="valor text-secondary" id="card-breakeven-ocupacao">—</div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Gráficos: Evolução do Lucro Mensal e Sensibilidade (Ocupação) -->
+    <!-- Gráficos: Evolução, Sensibilidade, Composição de despesas -->
     <div class="row g-3 mb-4">
-      <div class="col-lg-6">
+      <div class="col-12 col-lg-4">
         <div class="card shadow-sm h-100">
           <div class="card-header bg-white fw-bold">
-            <i class="bi bi-graph-up me-1"></i> Evolução do Lucro Mensal
+            <i class="bi bi-graph-up me-1"></i> Evolução do Lucro Operacional Mensal
           </div>
           <div class="card-body" style="height: 280px;">
             <canvas id="chart-evolucao-mensal"></canvas>
           </div>
         </div>
       </div>
-      <div class="col-lg-6">
+      <div class="col-12 col-lg-4">
         <div class="card shadow-sm h-100">
           <div class="card-header bg-white fw-bold">
             <i class="bi bi-graph-up-arrow me-1"></i> Sensibilidade: Lucro vs. Ocupação
@@ -123,7 +304,36 @@
           </div>
         </div>
       </div>
+      <div class="col-12 col-lg-4">
+        <div class="card shadow-sm mb-3">
+          <div class="card-header bg-white fw-bold">
+            <i class="bi bi-pie-chart me-1"></i> Composição — fixos operacionais (mensais)
+          </div>
+          <div class="card-body" style="height: 220px;">
+            <canvas id="chart-composicao-despesas"></canvas>
+          </div>
+        </div>
+        <div class="card shadow-sm border-primary border-opacity-50">
+          <div class="card-body py-3">
+            <div class="small fw-bold text-primary mb-2"><i class="bi bi-speedometer2 me-1"></i>Peso do investimento de capital</div>
+            <p class="small text-muted mb-2 mb-0" id="peso-capital-texto">—</p>
+            <div class="progress mt-2" style="height: 1.25rem;">
+              <div id="peso-capital-bar" class="progress-bar bg-secondary" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <p class="small text-muted mt-2 mb-0">Relação entre investimento total (arrendamento + reforma) e lucro operacional anual.</p>
+          </div>
+        </div>
+      </div>
     </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bloco inferior em largura total (evita “buraco” à esquerda sob a coluna Simulação) -->
+    <div class="row g-4">
+      <div class="col-12" id="simulacao-conteudo-inferior">
 
     <!-- Detalhamento de Custos (Accordion) -->
     <div class="accordion mb-4 shadow-sm" id="accordion-custos">
@@ -171,21 +381,8 @@
       </div>
     </div>
 
-    <!-- Investimento Inicial -->
-    <div class="card mb-4 shadow-sm">
-      <div class="card-body">
-        <label class="form-label fw-bold" for="investimento_inicial">
-          <i class="bi bi-cash-stack me-1"></i> Investimento Inicial (R$)
-        </label>
-        <input type="text" id="investimento_inicial" class="form-control form-control-lg moeda" value="R$ 0,00" placeholder="R$ 0,00" style="max-width: 280px;">
-      </div>
-    </div>
-
     <!-- Tabela de Metas -->
     <div class="card shadow-sm position-relative" id="card-tabela">
-      <div class="spinner-overlay d-none" id="spinner">
-        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Carregando...</span></div>
-      </div>
       <div class="card-header bg-white fw-bold">Metas Mensais (Ocupação e ADR)</div>
       <div class="card-body p-0" id="tabela-container">
         <div class="table-responsive">
@@ -196,16 +393,49 @@
                 <th>ADR Sugerido (R$)</th>
                 <th>Ocupação Meta (%)</th>
                 <th class="text-end">Receita Bruta</th>
-                <th class="text-end">Custos Fixos</th>
+                <th class="text-end">Fixos operac.</th>
                 <th class="text-end">Custos Var.</th>
-                <th class="text-end">EBITDA</th>
-                <th class="text-end">Lucro Líquido</th>
-                <th class="text-end">Break-even %</th>
+                <th class="text-end">EBITDA operac.
+                  <i class="bi bi-question-circle text-primary ms-1"
+                     data-bs-toggle="tooltip" data-bs-html="true"
+                     title="<strong>EBITDA operacional:</strong> Receita − Custos fixos operacionais e folha (sem arrendamento) − Custos variáveis."></i>
+                </th>
+                <th class="text-end">Lucro operac.
+                  <i class="bi bi-question-circle text-primary ms-1"
+                     data-bs-toggle="tooltip" data-bs-html="true"
+                     title="<strong>Lucro operacional:</strong> EBITDA operacional − Impostos. O arrendamento entra no fechamento anual (capital), não aqui."></i>
+                </th>
+                <th class="text-end">Break-even %
+                  <i class="bi bi-question-circle text-primary ms-1"
+                     data-bs-toggle="tooltip" data-bs-html="true"
+                     title="<strong>O que é:</strong> ocupação mínima para EBITDA = 0 naquele mês.<br><strong>Cálculo:</strong> a partir da equação receita líquida de comissão = fixos + var. por noite.<br><strong>Ex.:</strong> ~55% significa precisar vender 55% das diárias para empatar operação."></i>
+                </th>
               </tr>
             </thead>
             <tbody id="tbody-meses">
               <!-- Preenchido via JS -->
             </tbody>
+            <tfoot class="table-secondary">
+              <tr class="fw-bold">
+                <th scope="row" class="text-end small">Resumo anual (12 meses)</th>
+                <td class="text-end" id="tfoot-adr-medio" title="Média do ADR usado nos 12 meses">—</td>
+                <td class="text-end" id="tfoot-ocp-medio" title="Média da meta de ocupação">—</td>
+                <td class="text-end" id="tfoot-sum-receita" title="Soma da receita bruta">—</td>
+                <td class="text-end" id="tfoot-sum-fixos" title="Soma dos fixos operacionais">—</td>
+                <td class="text-end" id="tfoot-sum-var" title="Soma dos custos variáveis">—</td>
+                <td class="text-end" id="tfoot-sum-ebitda" title="Soma do EBITDA operacional">—</td>
+                <td class="text-end" id="tfoot-sum-lucro" title="Soma do lucro operacional">—</td>
+                <td class="text-end" id="tfoot-be-medio" title="Média do break-even % (meses com valor válido)">—</td>
+              </tr>
+              <tr class="fw-bold table-warning" id="tfoot-row-invest-capital">
+                <td colspan="7" class="text-end small">(−) Investimento de capital (arrendamento + reforma)</td>
+                <td colspan="2" class="text-end" id="tfoot-invest-capital">—</td>
+              </tr>
+              <tr class="fw-bold" id="tfoot-row-resultado-investidor">
+                <td colspan="7" class="text-end small">(=) Resultado líquido do investidor (ano 1)</td>
+                <td colspan="2" class="text-end" id="tfoot-resultado-investidor">—</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -276,46 +506,6 @@
       </div>
     </div>
 
-    <!-- Cenários salvos -->
-    <div class="card shadow-sm mt-4 mb-4">
-      <div class="card-header bg-white d-flex align-items-center justify-content-between flex-wrap gap-2">
-        <span class="fw-bold"><i class="bi bi-folder2 me-1"></i> Cenários salvos</span>
-        <div class="d-flex flex-wrap gap-1">
-          <span class="align-self-center small text-muted" id="label-cenario-ativo" style="display: none;">Editando: <strong id="nome-cenario-ativo"></strong></span>
-          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-limpar-cenario" title="Limpar seleção e editar como novo cenário">
-            Limpar
-          </button>
-          <button type="button" class="btn btn-success btn-sm" id="btn-salvar-cenario" title="Salvar (atualiza o cenário em edição ou cria novo)">
-            💾 Salvar
-          </button>
-          <button type="button" class="btn btn-outline-success btn-sm" id="btn-salvar-cenario-api" title="Salvar cenário simplificado na nova API">
-            Salvar Cenário
-          </button>
-          <button type="button" class="btn btn-primary btn-sm" id="btn-salvar-cenario-novo" title="Sempre criar um novo cenário com nome">
-            Salvar como Novo
-          </button>
-        </div>
-      </div>
-      <div class="card-body">
-        <p class="text-muted small mb-2">Carregue um cenário para preencher metas e investimento; use Salvar para atualizar ou Salvar como Novo para criar cópia.</p>
-        <ul class="list-group list-group-flush" id="lista-cenarios">
-          <li class="list-group-item text-muted small" id="lista-cenarios-vazia">Nenhum cenário salvo. Salve o cenário atual para começar.</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="card shadow-sm mt-4 mb-4">
-      <div class="card-header bg-white fw-bold">
-        <i class="bi bi-archive me-1"></i> Carregar Cenários Salvos (API Wave 4)
-      </div>
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <span class="small text-muted">Fonte: <code>/api/projeto/&lt;id&gt;/cenarios</code></span>
-          <button type="button" class="btn btn-outline-primary btn-sm" id="btn-recarregar-cenarios-api">Recarregar</button>
-        </div>
-        <ul class="list-group list-group-flush" id="lista-cenarios-api">
-          <li class="list-group-item text-muted small">Nenhum cenário carregado.</li>
-        </ul>
       </div>
     </div>
 
@@ -353,6 +543,7 @@
       var chartEvolucaoMensal = null;
       var chartSensibilidadeOcupacao = null;
       var chartBreakEvenReceitaCustos = null;
+      var chartComposicaoDespesas = null;
       var ultimoResultado = null;
       var cenarioAtivoId = null;
       var cenarioAtivoNome = null;
@@ -363,12 +554,107 @@
       }
 
       function formatarPct(val) {
-        if (val == null || isNaN(val)) return '—';
-        return (val * 100).toFixed(1).replace('.', ',') + '%';
+        var n = Number(val);
+        if (!Number.isFinite(n)) return '—';
+        return (n * 100).toFixed(1).replace('.', ',') + '%';
+      }
+
+      function formatarPctSafe(val) {
+        var n = Number(val);
+        if (!Number.isFinite(n)) n = 0;
+        return n.toFixed(1).replace('.', ',') + '%';
+      }
+
+      function limparRodapeMetas() {
+        ['tfoot-adr-medio', 'tfoot-ocp-medio', 'tfoot-sum-receita', 'tfoot-sum-fixos', 'tfoot-sum-var', 'tfoot-sum-ebitda', 'tfoot-sum-lucro', 'tfoot-be-medio', 'tfoot-invest-capital', 'tfoot-resultado-investidor'].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.textContent = '—';
+        });
+        var rowRi = document.getElementById('tfoot-row-resultado-investidor');
+        if (rowRi) rowRi.className = 'fw-bold';
+        var riEl = document.getElementById('tfoot-resultado-investidor');
+        if (riEl) riEl.className = 'text-end';
+      }
+
+      function atualizarRodapeCapital(resultado) {
+        var res = resultado && resultado.resumo;
+        var invEl = document.getElementById('tfoot-invest-capital');
+        var riEl = document.getElementById('tfoot-resultado-investidor');
+        var rowRi = document.getElementById('tfoot-row-resultado-investidor');
+        if (!res) return;
+        var inv = Number(res.investimento_total);
+        if (invEl) invEl.textContent = Number.isFinite(inv) ? formatarMoeda(inv) : '—';
+        var ri = Number(res.resultado_investidor_ano1);
+        if (riEl) {
+          riEl.textContent = Number.isFinite(ri) ? formatarMoeda(ri) : '—';
+          riEl.className = 'text-end fw-bold ' + (ri >= 0 ? 'text-success' : 'text-danger');
+        }
+        if (rowRi) {
+          rowRi.className = 'fw-bold ' + (!Number.isFinite(ri) ? '' : (ri >= 0 ? 'table-success' : 'table-danger'));
+        }
+      }
+
+      function atualizarRodapeMetas(resultado) {
+        var meses = (resultado && resultado.meses) ? resultado.meses : [];
+        if (!meses.length) {
+          limparRodapeMetas();
+          return;
+        }
+        var n = meses.length;
+        var sumR = 0;
+        var sumCf = 0;
+        var sumCv = 0;
+        var sumEb = 0;
+        var sumLuc = 0;
+        var sumAdr = 0;
+        var sumOcp = 0;
+        var sumBe = 0;
+        var countBe = 0;
+        meses.forEach(function (r) {
+          sumR += Number(r.receita_bruta) || 0;
+          sumCf += Number(r.custos_fixos) || 0;
+          sumCv += Number(r.custos_variaveis) || 0;
+          sumEb += Number(r.ebitda) || 0;
+          sumLuc += Number(r.lucro_liquido) || 0;
+          sumAdr += Number(r.adr) || 0;
+          var om = r.ocupacao_meta;
+          if (om == null || om === undefined) {
+            var ma = r.mes_ano || '';
+            var tr = document.querySelector('#tbody-meses tr[data-mes="' + ma + '"]');
+            if (tr) {
+              var ro = tr.querySelector('.range-ocupacao');
+              if (ro) om = (parseInt(ro.value, 10) || 0) / 100;
+            }
+          }
+          sumOcp += Number(om) || 0;
+          var be = r.break_even_ocupacao_pct;
+          if (r.break_even_status !== 'inviavel' && be != null && Number.isFinite(Number(be))) {
+            sumBe += Number(be);
+            countBe++;
+          }
+        });
+        function setText(id, txt) {
+          var el = document.getElementById(id);
+          if (el) el.textContent = txt;
+        }
+        setText('tfoot-adr-medio', n ? formatarMoeda(sumAdr / n) : '—');
+        setText('tfoot-ocp-medio', n ? formatarPct(sumOcp / n) : '—');
+        setText('tfoot-sum-receita', formatarMoeda(sumR));
+        setText('tfoot-sum-fixos', formatarMoeda(sumCf));
+        setText('tfoot-sum-var', formatarMoeda(sumCv));
+        setText('tfoot-sum-ebitda', formatarMoeda(sumEb));
+        setText('tfoot-sum-lucro', formatarMoeda(sumLuc));
+        setText('tfoot-be-medio', countBe ? formatarPct(sumBe / countBe) : '—');
+        atualizarRodapeCapital(resultado);
       }
 
       function obterValorNumerico(el) {
-        if (!el || !el.value) return 0;
+        if (!el) return 0;
+        if (el.type === 'range') {
+          var r = parseInt(el.value, 10);
+          return Number.isFinite(r) ? Math.max(0, Math.min(100, r)) : 0;
+        }
+        if (!el.value) return 0;
         var v = parseFloat(String(el.value).replace(',', '.'));
         return isNaN(v) ? 0 : Math.max(0, v);
       }
@@ -380,6 +666,29 @@
         }
         var v = el.value.replace(/\D/g, '');
         return v ? parseFloat(v) / 100 : 0;
+      }
+
+      function corpoInvestimentoSimulacao() {
+        var prEl = document.getElementById('prazo_contrato_meses');
+        var prazo = prEl ? parseInt(prEl.value, 10) : 12;
+        if (isNaN(prazo) || prazo < 1) prazo = 12;
+        if (prazo > 600) prazo = 600;
+        return {
+          investimento_reforma: valorMoedaInput(document.getElementById('investimento_reforma')),
+          arrendamento_total: valorMoedaInput(document.getElementById('arrendamento_total')),
+          prazo_contrato_meses: prazo
+        };
+      }
+
+      function initTooltipsNoContainer(root) {
+        if (typeof bootstrap === 'undefined') return;
+        var scope = root && root.querySelectorAll ? root : document.body;
+        var nodes = scope.querySelectorAll ? scope.querySelectorAll('[data-bs-toggle="tooltip"]') : [];
+        nodes.forEach(function (el) {
+          var ex = bootstrap.Tooltip.getInstance(el);
+          if (ex) ex.dispose();
+          bootstrap.Tooltip.getOrCreateInstance(el, { html: true, sanitize: false });
+        });
       }
 
       function aplicarMascaraMoeda() {
@@ -400,14 +709,14 @@
       }
 
       function setLoading(loading) {
-        var card = document.getElementById('card-tabela');
-        var spinner = document.getElementById('spinner');
+        var inner = document.getElementById('painel-resultados-inner');
+        var spin = document.getElementById('spinner-resultados');
         if (loading) {
-          card.classList.add('loading-overlay');
-          spinner.classList.remove('d-none');
+          if (inner) inner.classList.add('painel-calculando');
+          if (spin) spin.classList.remove('d-none');
         } else {
-          card.classList.remove('loading-overlay');
-          spinner.classList.add('d-none');
+          if (inner) inner.classList.remove('painel-calculando');
+          if (spin) spin.classList.add('d-none');
         }
       }
 
@@ -439,10 +748,11 @@
           el.innerHTML = '<p class="text-muted mb-0">Nenhum dado financeiro configurado para este projeto.</p>';
           return;
         }
+        var notaSim = '<p class="small alert alert-light border py-2 mb-3"><i class="bi bi-info-circle me-1"></i>O <strong>arrendamento</strong> entra só como <strong>total do contrato ÷ prazo</strong> (painel à esquerda). Custos fixos abaixo são <strong>operacionais</strong> (sem duplicar arrendamento).</p>';
         var cf = fin.custos_fixos || {};
         var cv = fin.custos_variaveis || {};
-        var html = '<table class="table table-sm mb-0"><thead class="table-light"><tr><th>Nome do Custo</th><th>Tipo</th><th class="text-end">Valor</th></tr></thead><tbody>';
-        ['luz','agua','internet','iptu','contabilidade','seguros','outros','aluguel'].forEach(function (k) {
+        var html = notaSim + '<table class="table table-sm mb-0"><thead class="table-light"><tr><th>Nome do Custo</th><th>Tipo</th><th class="text-end">Valor</th></tr></thead><tbody>';
+        ['luz','agua','internet','iptu','contabilidade','seguros','outros'].forEach(function (k) {
           var v = cf[k] != null ? cf[k] : 0;
           html += '<tr><td>' + (k.charAt(0).toUpperCase() + k.slice(1)) + '</td><td>Fixo</td><td class="text-end">' + formatarMoeda(v) + '</td></tr>';
         });
@@ -489,20 +799,31 @@
           var fonteFallbackMedia = info.fonte === 'fallback_media' && !ms;
           var fonteFallbackRef = info.fonte === 'fallback_ref';
           var fontePropagadoPeriodo = info.fonte === 'propagado_periodo';
+          var fonteConcorrente = info.fonte === 'concorrente_url';
           var nomeRef = info.nome_referencia || info.id_referencia || '';
           var adrClass = fonteFallbackRef ? 'adr-fallback-ref' : (fontePropagadoPeriodo ? 'adr-fallback-ref' : (fonteFallbackMedia ? 'adr-fallback' : ''));
           var badgeRef = fonteFallbackRef && nomeRef ? '<span class="badge bg-info ms-1" title="ADR da referência ' + nomeRef + '">Ref: ' + nomeRef + '</span>' : '';
           var badgePropagado = fontePropagadoPeriodo ? '<span class="badge bg-secondary ms-1" title="ADR expandido do período especial"><i class="bi bi-clipboard-plus"></i> Estimado pelo Período</span>' : '';
-          var iconMedia = fonteFallbackMedia ? '<i class="bi bi-info-circle text-warning" title="Valor sugerido (média dos meses disponíveis)"></i>' : '';
+          var fonteTexto = 'Fonte: ' + (
+            info.fonte === 'curado' ? 'Curado' :
+            info.fonte === 'direto' ? 'Direto' :
+            info.fonte === 'propagado_periodo' ? 'Propagação de Evento' :
+            info.fonte === 'concorrente_url' ? ('URL Concorrente (' + (info.concorrente_url || 'não identificada') + ')') :
+            info.fonte === 'fallback_ref' ? ('Projeto de Referência (' + (nomeRef || 'n/a') + ')') :
+            'Média Mensal'
+          );
+          var iconFonte = '<i class="bi bi-info-circle text-warning" data-bs-toggle="tooltip" title="' + fonteTexto.replace(/"/g, '&quot;') + '"></i>';
           var tr = document.createElement('tr');
           tr.setAttribute('data-mes', mesAno);
           tr.innerHTML =
             '<td><strong>' + mesesNomes[m - 1] + ' ' + anoRef + '</strong></td>' +
             '<td><div class="d-flex align-items-center gap-1 flex-wrap">' +
             '<input type="number" class="form-control form-control-sm input-adr ' + adrClass + '" data-mes="' + mesAno + '" min="0" step="0.01" value="' + adrSug + '" placeholder="0">' +
-            badgeRef + badgePropagado + iconMedia +
+            badgeRef + badgePropagado + (fonteConcorrente ? '<span class="badge bg-warning text-dark ms-1">Concorrente</span>' : '') + iconFonte +
             '</div></td>' +
-            '<td><input type="number" class="form-control form-control-sm input-ocupacao" data-mes="' + mesAno + '" min="0" max="100" step="1" value="' + ocupSug + '" placeholder="0"></td>' +
+            '<td><div class="d-flex align-items-center gap-2 ocupacao-cell flex-wrap">' +
+            '<input type="range" class="form-range range-ocupacao flex-grow-1 input-ocupacao" data-mes="' + mesAno + '" min="0" max="100" step="1" value="' + ocupSug + '">' +
+            '<span class="badge bg-secondary ocupacion-val">' + ocupSug + '%</span></div></td>' +
             '<td class="text-end out-receita">—</td>' +
             '<td class="text-end out-custos-fixos">—</td>' +
             '<td class="text-end out-custos-var">—</td>' +
@@ -512,6 +833,10 @@
           tbody.appendChild(tr);
         }
         anexarListeners();
+        initTooltipsNoContainer(document.getElementById('painel-resultados-inner'));
+        var elInf = document.getElementById('simulacao-conteudo-inferior');
+        if (elInf) initTooltipsNoContainer(elInf);
+        limparRodapeMetas();
       }
 
       function aplicarSlidersNaTabela() {
@@ -521,9 +846,13 @@
         var ocp = parseInt(ocpSlider.value, 10) || 40;
         var adrOverride = parseInt(adrSlider.value, 10) || 0;
         document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
-          var ocpInp = tr.querySelector('.input-ocupacao');
+          var ocpInp = tr.querySelector('.range-ocupacao');
           var adrInp = tr.querySelector('.input-adr');
-          if (ocpInp) ocpInp.value = ocp;
+          if (ocpInp) {
+            ocpInp.value = String(ocp);
+            var b = tr.querySelector('.ocupacion-val');
+            if (b) b.textContent = ocp + '%';
+          }
           if (adrInp && adrOverride > 0) adrInp.value = adrOverride;
         });
       }
@@ -538,20 +867,27 @@
       }
 
       function anexarListeners() {
-        document.querySelectorAll('.input-adr, .input-ocupacao').forEach(function (el) {
+        document.querySelectorAll('.input-adr').forEach(function (el) {
           el.addEventListener('input', function () {
             var v = parseFloat(el.value);
-            if (el.classList.contains('input-ocupacao') && (v < 0 || v > 100)) {
-              el.value = Math.max(0, Math.min(100, v));
-            }
-            if (el.classList.contains('input-adr') && v < 0) el.value = 0;
+            if (v < 0) el.value = 0;
             debounce(executarCalculo);
           });
         });
-        var investEl = document.getElementById('investimento_inicial');
-        if (investEl) {
-          investEl.addEventListener('input', function () { debounce(executarCalculo); });
-        }
+        document.querySelectorAll('.range-ocupacao').forEach(function (el) {
+          el.addEventListener('input', function () {
+            var badge = el.closest('td') && el.closest('td').querySelector('.ocupacion-val');
+            if (badge) badge.textContent = el.value + '%';
+            debounce(executarCalculo);
+          });
+        });
+        var reformaEl = document.getElementById('investimento_reforma');
+        if (reformaEl) reformaEl.addEventListener('input', function () { debounce(executarCalculo); });
+        var arrTotEl = document.getElementById('arrendamento_total');
+        if (arrTotEl) arrTotEl.addEventListener('input', function () { debounce(executarCalculo); });
+        var prazoEl = document.getElementById('prazo_contrato_meses');
+        if (prazoEl) prazoEl.addEventListener('input', function () { debounce(executarCalculo); });
+        if (prazoEl) prazoEl.addEventListener('change', function () { debounce(executarCalculo); });
         var ocpSlider = document.getElementById('slider-ocupacao');
         var adrSlider = document.getElementById('slider-adr-override');
         if (ocpSlider) {
@@ -586,7 +922,8 @@
         document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
           var mesAno = tr.getAttribute('data-mes');
           var adr = obterValorNumerico(tr.querySelector('.input-adr'));
-          var ocup = obterValorNumerico(tr.querySelector('.input-ocupacao'));
+          var ro = tr.querySelector('.range-ocupacao');
+          var ocup = ro ? obterValorNumerico(ro) : obterValorNumerico(tr.querySelector('.input-ocupacao'));
           metas[mesAno] = { ocupacao: ocup / 100, adr: adr };
         });
         return metas;
@@ -617,33 +954,199 @@
             beCell.className = 'text-end out-breakeven' + (r.break_even_status === 'inviavel' ? ' break-even-inviavel' : '');
           }
         });
+        atualizarRodapeMetas(resultado);
+      }
+
+      function resumoValorMoeda(res, chavePrim, chaveFallback) {
+        if (!res) return null;
+        var v = res[chavePrim];
+        if (v == null && chaveFallback) v = res[chaveFallback];
+        if (v == null || !Number.isFinite(Number(v))) return null;
+        return Number(v);
       }
 
       function atualizarCards(resumo) {
         if (!resumo) return;
-        document.getElementById('card-receita').textContent = formatarMoeda(resumo.receita_anual);
-        document.getElementById('card-lucro').textContent = formatarMoeda(resumo.lucro_anual);
-        var margem = (resumo.receita_anual && resumo.receita_anual > 0)
-          ? ((resumo.lucro_anual / resumo.receita_anual) * 100).toFixed(1).replace('.', ',') + '%'
-          : '0%';
-        document.getElementById('card-margem').textContent = margem;
-        var payEl = document.getElementById('card-payback');
-        if (resumo.payback_status === 'indefinido') {
-          payEl.textContent = 'Lucro insuficiente para Payback';
-          payEl.className = 'valor payback-indefinido';
-        } else {
-          payEl.textContent = resumo.payback_meses != null
-            ? 'Retorno em ' + Math.round(resumo.payback_meses) + ' meses'
-            : '—';
-          payEl.className = 'valor text-warning';
+        function txtMoeda(n) {
+          return n != null ? formatarMoeda(n) : '—';
         }
+        function clsValorSinal(n) {
+          if (n == null || !Number.isFinite(Number(n))) return 'valor text-secondary';
+          return Number(n) >= 0 ? 'valor text-success' : 'valor text-danger';
+        }
+        var recEl = document.getElementById('card-receita');
+        if (recEl) {
+          recEl.textContent = txtMoeda(resumoValorMoeda(resumo, 'receita_anual', null));
+          recEl.className = 'valor text-primary';
+        }
+        var eb = resumoValorMoeda(resumo, 'ebitda_operacional_anual', 'ebitda_anual');
+        var ebitdaEl = document.getElementById('card-ebitda-op-anual');
+        if (ebitdaEl) {
+          ebitdaEl.textContent = txtMoeda(eb);
+          ebitdaEl.className = clsValorSinal(eb);
+        }
+        var lucOp = resumoValorMoeda(resumo, 'lucro_operacional_anual', 'lucro_anual');
+        var lucEl = document.getElementById('card-lucro');
+        if (lucEl) {
+          lucEl.textContent = txtMoeda(lucOp);
+          lucEl.className = clsValorSinal(lucOp);
+        }
+        var invTotEl = document.getElementById('card-invest-total');
+        if (invTotEl) {
+          var invT = resumoValorMoeda(resumo, 'investimento_total', null);
+          invTotEl.textContent = invT != null ? formatarMoeda(invT) : '—';
+          invTotEl.className = 'valor text-dark';
+        }
+        var recA = resumoValorMoeda(resumo, 'receita_anual', null);
+        var lucA = lucOp;
+        var margem = (recA != null && lucA != null && recA > 0)
+          ? ((lucA / recA) * 100).toFixed(1).replace('.', ',') + '%'
+          : '—';
+        var margEl = document.getElementById('card-margem');
+        if (margEl) {
+          margEl.textContent = margem;
+          if (recA != null && lucA != null && recA > 0) {
+            margEl.className = clsValorSinal(lucA);
+          } else {
+            margEl.className = 'valor text-secondary';
+          }
+        }
+        var riVal = resumoValorMoeda(resumo, 'resultado_investidor_ano1', null);
+        var riEl = document.getElementById('card-resultado-investidor');
+        if (riEl) {
+          riEl.textContent = txtMoeda(riVal);
+          riEl.className = clsValorSinal(riVal);
+        }
+        var miRaw = resumo.margem_investidor_pct;
+        var miNum = (miRaw != null && Number.isFinite(Number(miRaw))) ? Number(miRaw) : null;
+        if (miNum == null && recA != null && recA > 0 && riVal != null) {
+          miNum = (riVal / recA) * 100;
+        }
+        var miEl = document.getElementById('card-margem-investidor');
+        if (miEl) {
+          miEl.textContent = (miNum != null && Number.isFinite(miNum)) ? formatarPctSafe(miNum) : '—';
+          miEl.className = (miNum != null && Number.isFinite(miNum)) ? clsValorSinal(miNum) : 'valor text-secondary';
+        }
+        var payEl = document.getElementById('card-payback');
+        if (payEl) {
+          if (resumo.payback_status === 'indefinido') {
+            payEl.textContent = 'Lucro operacional insuficiente';
+            payEl.className = 'valor payback-indefinido';
+          } else {
+            var pm = resumo.payback_meses;
+            payEl.textContent = (pm != null && Number.isFinite(Number(pm)))
+              ? 'Retorno em ' + Math.round(Number(pm)) + ' meses'
+              : '—';
+            payEl.className = 'valor text-warning';
+          }
+        }
+        var roiEl = document.getElementById('card-roi');
+        if (roiEl) {
+          if (resumo.roi_anual_pct != null && Number.isFinite(Number(resumo.roi_anual_pct))) {
+            var roiN = Number(resumo.roi_anual_pct);
+            roiEl.textContent = formatarPctSafe(roiN);
+            roiEl.className = clsValorSinal(roiN);
+          } else {
+            roiEl.textContent = '—';
+            roiEl.className = 'valor text-secondary';
+          }
+        }
+        var desTotEl = document.getElementById('card-desembolso-total');
+        if (desTotEl) {
+          var dt = resumoValorMoeda(resumo, 'desembolso_total_ano1', null);
+          desTotEl.textContent = txtMoeda(dt);
+          desTotEl.className = 'valor text-secondary';
+        }
+      }
+
+      function limparSaidaSimulacaoAteCarregar() {
+        ultimoResultado = null;
+        [
+          'card-receita', 'card-ebitda-op-anual', 'card-lucro', 'card-margem',
+          'card-resultado-investidor', 'card-margem-investidor',
+          'card-invest-total', 'card-payback', 'card-roi', 'card-desembolso-total'
+        ].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.textContent = '—';
+        });
+        var recD = document.getElementById('card-receita');
+        if (recD) recD.className = 'valor text-primary';
+        var ebD = document.getElementById('card-ebitda-op-anual');
+        if (ebD) ebD.className = 'valor text-info';
+        var lucD = document.getElementById('card-lucro');
+        if (lucD) lucD.className = 'valor text-success';
+        var margD = document.getElementById('card-margem');
+        if (margD) margD.className = 'valor text-body';
+        var riD = document.getElementById('card-resultado-investidor');
+        if (riD) riD.className = 'valor text-success';
+        var miD = document.getElementById('card-margem-investidor');
+        if (miD) miD.className = 'valor text-body';
+        var invD = document.getElementById('card-invest-total');
+        if (invD) invD.className = 'valor text-dark';
+        var desD = document.getElementById('card-desembolso-total');
+        if (desD) desD.className = 'valor text-secondary';
+        var roiD = document.getElementById('card-roi');
+        if (roiD) roiD.className = 'valor text-danger';
+        var payD = document.getElementById('card-payback');
+        if (payD) payD.className = 'valor text-warning';
+        var cardBe = document.getElementById('card-breakeven-ocupacao');
+        if (cardBe) cardBe.textContent = '—';
+        document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
+          ['.out-receita', '.out-custos-fixos', '.out-custos-var', '.out-ebitda', '.out-lucro', '.out-breakeven'].forEach(function (sel) {
+            var c = tr.querySelector(sel);
+            if (!c) return;
+            c.textContent = '—';
+            if (sel === '.out-breakeven') c.className = 'text-end out-breakeven';
+          });
+        });
+        limparRodapeMetas();
+        var pesoTxt = document.getElementById('peso-capital-texto');
+        var pesoBar = document.getElementById('peso-capital-bar');
+        if (pesoTxt) pesoTxt.textContent = '…';
+        if (pesoBar) {
+          pesoBar.style.width = '0%';
+          pesoBar.className = 'progress-bar bg-secondary';
+        }
+      }
+
+      function atualizarPesoCapital() {
+        var txt = document.getElementById('peso-capital-texto');
+        var bar = document.getElementById('peso-capital-bar');
+        if (!txt || !bar) return;
+        var res = (ultimoResultado && ultimoResultado.resumo) ? ultimoResultado.resumo : null;
+        if (!res) {
+          txt.textContent = '—';
+          bar.style.width = '0%';
+          bar.className = 'progress-bar bg-secondary';
+          return;
+        }
+        var inv = Number(res.investimento_total) || 0;
+        var luc = Number(res.lucro_operacional_anual != null ? res.lucro_operacional_anual : res.lucro_anual) || 0;
+        if (inv <= 0) {
+          txt.textContent = 'Informe arrendamento e/ou reforma para comparar.';
+          bar.style.width = '0%';
+          bar.className = 'progress-bar bg-secondary';
+          return;
+        }
+        if (luc <= 0) {
+          txt.textContent = 'Investimento ' + formatarMoeda(inv) + ' — lucro operacional anual não cobre o capital no ano 1.';
+          bar.style.width = '100%';
+          bar.className = 'progress-bar bg-danger';
+          return;
+        }
+        var mult = inv / luc;
+        txt.textContent = 'Investimento total ≈ ' + (mult % 1 < 0.05 ? mult.toFixed(1) : mult.toFixed(2)) + '× o lucro operacional anual.';
+        var pct = Math.min(100, (luc / inv) * 100);
+        bar.style.width = pct + '%';
+        bar.setAttribute('aria-valuenow', String(Math.round(pct)));
+        bar.className = 'progress-bar ' + (pct >= 50 ? 'bg-success' : (pct >= 25 ? 'bg-warning text-dark' : 'bg-danger'));
       }
 
       function atualizarUIPerfilCenario() {
         var label = document.getElementById('label-cenario-ativo');
         var nomeEl = document.getElementById('nome-cenario-ativo');
         if (cenarioAtivoId && label && nomeEl) {
-          label.style.display = '';
+          label.style.display = 'inline';
           nomeEl.textContent = cenarioAtivoNome || 'Sem nome';
         } else if (label) {
           label.style.display = 'none';
@@ -653,11 +1156,13 @@
       function salvarCenario(comoNovo) {
         if (!dadosCarregados) return;
         var metas = coletarMetas();
-        var invest = valorMoedaInput(document.getElementById('investimento_inicial'));
+        var inv = corpoInvestimentoSimulacao();
         var payload = {
           metas_mensais: metas,
-          investimento_inicial: invest,
-          resultado: ultimoResultado || null
+          investimento_reforma: inv.investimento_reforma,
+          arrendamento_total: inv.arrendamento_total,
+          prazo_contrato_meses: inv.prazo_contrato_meses,
+          investimento_inicial: inv.investimento_reforma
         };
         if (comoNovo || !cenarioAtivoId) {
           var nome = (prompt('Nome do cenário:', '') || '').trim();
@@ -732,15 +1237,15 @@
           .catch(function () { mostrarToast('Erro ao salvar cenário na nova API.', false); });
       }
 
-      function executarCalculo() {
+      function executarCalculo(aposSucesso) {
         if (!dadosCarregados) return;
         setLoading(true);
         var metas = coletarMetas();
-        var invest = valorMoedaInput(document.getElementById('investimento_inicial'));
+        var inv = corpoInvestimentoSimulacao();
         fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/calcular', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ metas_mensais: metas, investimento_inicial: invest })
+          body: JSON.stringify(Object.assign({ metas_mensais: metas }, inv))
         })
           .then(function (res) { return res.json(); })
           .then(function (json) {
@@ -751,9 +1256,15 @@
               atualizarGrafico(json.data);
               atualizarGraficos(json.data);
               atualizarDetalheCustosVar(json.data);
+              atualizarComposicaoDespesas();
+              initTooltipsNoContainer(document.getElementById('painel-resultados-inner'));
+              var elInf2 = document.getElementById('simulacao-conteudo-inferior');
+              if (elInf2) initTooltipsNoContainer(elInf2);
+              atualizarPesoCapital();
               buscarCurvaSensibilidade();
               atualizarGraficoBreakEvenReceitaCustos();
               calcularMatrizSensibilidade();
+              if (typeof aposSucesso === 'function') aposSucesso();
             }
           })
           .catch(function () {
@@ -771,7 +1282,7 @@
             labels: mesesNomes,
             datasets: [
               {
-                label: 'Lucro Líquido (R$)',
+                label: 'Lucro operacional (R$)',
                 data: [],
                 borderWidth: 2,
                 tension: 0.2,
@@ -870,7 +1381,9 @@
                 callbacks: {
                   label: function (ctx) {
                     if (ctx.datasetIndex === 1) return ctx.dataset.label + ': R$ 0,00';
-                    var pct = ctx.dataIndex < ctx.chart.data.labels.length ? (Number(ctx.chart.data.labels[ctx.dataIndex]) * 100) : 0;
+                    var lbl = ctx.chart.data.labels[ctx.dataIndex];
+                    var n = Number(lbl);
+                    var pct = Number.isFinite(n) ? (n * 100).toFixed(0) : '0';
                     return 'Ocupação ' + pct + '%: ' + formatarMoeda(ctx.raw);
                   }
                 }
@@ -879,7 +1392,13 @@
             scales: {
               x: {
                 title: { display: true, text: 'Ocupação (%)' },
-                ticks: { callback: function (_, i, vals) { var v = vals[i]; return (Number(v) * 100) + '%'; } }
+                ticks: {
+                  callback: function (val) {
+                    var n = Number(val);
+                    if (!Number.isFinite(n)) return '';
+                    return (n * 100).toFixed(0) + '%';
+                  }
+                }
               },
               y: {
                 beginAtZero: true,
@@ -899,8 +1418,8 @@
             labels: mesesNomes,
             datasets: [
               { label: 'Receita Bruta', data: [], borderColor: '#198754', backgroundColor: 'rgba(25,135,84,0.1)', tension: 0.2, fill: false },
-              { label: 'Custos Totais', data: [], borderColor: '#dc3545', backgroundColor: 'rgba(220,53,69,0.1)', tension: 0.2, fill: false },
-              { label: 'Lucro Líquido', data: [], borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.1)', tension: 0.2, fill: false }
+              { label: 'Custos (op. + var. + imp.)', data: [], borderColor: '#dc3545', backgroundColor: 'rgba(220,53,69,0.1)', tension: 0.2, fill: false },
+              { label: 'Lucro operacional', data: [], borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.1)', tension: 0.2, fill: false }
             ]
           },
           options: {
@@ -1045,7 +1564,7 @@
             labels: mesesNomes,
             datasets: [
               { label: 'Receita Bruta', data: [], backgroundColor: 'rgba(25,135,84,0.7)' },
-              { label: 'Custos Totais', data: [], backgroundColor: 'rgba(220,53,69,0.7)' },
+              { label: 'Custos (fixos op. + var. + imp.)', data: [], backgroundColor: 'rgba(220,53,69,0.7)' },
               {
                 label: 'Break-even (Receita = Custos)',
                 data: [],
@@ -1094,10 +1613,74 @@
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { tooltip: { callbacks: { label: function (c) { return 'Ocupação ' + (c.label * 100) + '%: ' + formatarMoeda(c.raw); } } } },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function (c) {
+                    var n = Number(c.label);
+                    var pct = Number.isFinite(n) ? (n * 100).toFixed(0) : '0';
+                    return 'Ocupação ' + pct + '%: ' + formatarMoeda(c.raw);
+                  }
+                }
+              }
+            },
             scales: { x: { title: { display: true, text: 'Ocupação' } }, y: { beginAtZero: true } }
           }
         });
+      }
+
+      function inicializarChartComposicaoDespesas() {
+        var ctx = document.getElementById('chart-composicao-despesas');
+        if (!ctx || typeof Chart === 'undefined') return;
+        chartComposicaoDespesas = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Custos operacionais (cadastro)', 'Folha de pagamento'],
+            datasets: [{
+              data: [1, 1],
+              backgroundColor: ['#6c757d', '#0d6efd'],
+              borderWidth: 1,
+              hoverOffset: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom' },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    var v = Number(ctx.raw) || 0;
+                    var arr = ctx.dataset.data.map(function (x) { return Number(x) || 0; });
+                    var sum = arr.reduce(function (a, b) { return a + b; }, 0) || 1;
+                    var pct = (v / sum) * 100;
+                    return ctx.label + ': ' + formatarMoeda(v) + ' (' + (Number.isFinite(pct) ? pct.toFixed(1) : '0') + '%)';
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      function atualizarComposicaoDespesas() {
+        if (!chartComposicaoDespesas || !dadosBase || !ultimoResultado) return;
+        var fin = dadosBase.financeiro;
+        var res = ultimoResultado.resumo || {};
+        if (!fin) return;
+        var cf = fin.custos_fixos || {};
+        var op = ['luz', 'agua', 'internet', 'iptu', 'contabilidade', 'seguros', 'outros'].reduce(function (s, k) {
+          return s + Number(cf[k] != null ? cf[k] : 0);
+        }, 0);
+        var folha = Number(fin.folha_total != null ? fin.folha_total : fin.folha_pagamento_mensal || 0);
+        var data = [Math.max(0, op), Math.max(0, folha)];
+        var sum = data.reduce(function (a, b) { return a + b; }, 0);
+        if (sum <= 0) {
+          data = [1, 1];
+        }
+        chartComposicaoDespesas.data.datasets[0].data = data;
+        chartComposicaoDespesas.update();
       }
 
       function inicializarChartBreakEvenReceitaCustos() {
@@ -1156,7 +1739,7 @@
         if (!tbody) return;
         var variacoes = [-0.10, -0.05, 0, 0.05, 0.10];
         var base = coletarMetas();
-        var invest = valorMoedaInput(document.getElementById('investimento_inicial'));
+        var inv = corpoInvestimentoSimulacao();
         tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Calculando matriz...</td></tr>';
         var html = '';
         for (var r = 0; r < variacoes.length; r++) {
@@ -1169,7 +1752,7 @@
               var res = await fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/calcular', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ metas_mensais: metas, investimento_inicial: invest })
+                body: JSON.stringify(Object.assign({ metas_mensais: metas }, inv))
               });
               var json = await res.json();
               lucro = Number((((json || {}).data || {}).resumo || {}).lucro_anual || 0);
@@ -1184,7 +1767,7 @@
       async function atualizarGraficoBreakEvenReceitaCustos() {
         if (!dadosCarregados || !chartBreakEvenReceitaCustos) return;
         var base = coletarMetas();
-        var invest = valorMoedaInput(document.getElementById('investimento_inicial'));
+        var inv = corpoInvestimentoSimulacao();
         var labels = [];
         var receitas = [];
         var custos = [];
@@ -1200,7 +1783,7 @@
             var res = await fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/calcular', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ metas_mensais: metas, investimento_inicial: invest })
+              body: JSON.stringify(Object.assign({ metas_mensais: metas }, inv))
             });
             var json = await res.json();
             var data = (json || {}).data || {};
@@ -1251,11 +1834,11 @@
       function buscarCurvaSensibilidade() {
         if (!dadosCarregados) return;
         var metas = coletarMetas();
-        var invest = valorMoedaInput(document.getElementById('investimento_inicial'));
+        var inv = corpoInvestimentoSimulacao();
         fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/curva-sensibilidade', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ metas_mensais: metas, investimento_inicial: invest, passo_ocupacao: 0.1 })
+          body: JSON.stringify(Object.assign({ metas_mensais: metas, passo_ocupacao: 0.1 }, inv))
         })
           .then(function (res) { return res.json(); })
           .then(function (json) {
@@ -1278,60 +1861,62 @@
             var bePct = estimarBreakEvenOcupacao(pts);
             var cardBe = document.getElementById('card-breakeven-ocupacao');
             if (cardBe) {
-              cardBe.textContent = bePct != null ? (bePct.toFixed(1).replace('.', ',') + '%') : '—';
+              cardBe.textContent = (bePct != null && Number.isFinite(Number(bePct)))
+                ? (Number(bePct).toFixed(1).replace('.', ',') + '%')
+                : '—';
             }
           })
           .catch(function () {});
       }
 
       function listarCenarios() {
+        var wrap = document.getElementById('toolbar-cenarios-pills');
+        if (!wrap) return;
         fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/cenarios?t=' + Date.now(), { cache: 'no-store' })
           .then(function (res) { return res.json(); })
           .then(function (json) {
-            var ul = document.getElementById('lista-cenarios');
-            var vazia = document.getElementById('lista-cenarios-vazia');
+            wrap.innerHTML = '';
             if (!json.success || !json.data || !json.data.cenarios) {
-              if (vazia) vazia.classList.remove('d-none');
+              wrap.innerHTML = '<span class="text-muted small">Não foi possível carregar cenários.</span>';
               return;
             }
             var cenarios = json.data.cenarios;
-            if (vazia && vazia.parentNode) vazia.remove();
-            while (ul.firstChild) ul.removeChild(ul.firstChild);
             if (cenarios.length === 0) {
-              ul.appendChild(vazia);
-              vazia.classList.remove('d-none');
+              wrap.innerHTML = '<span class="text-muted small">Nenhum cenário salvo ainda.</span>';
               return;
             }
-            if (vazia) vazia.classList.add('d-none');
             cenarios.forEach(function (c) {
-              var li = document.createElement('li');
-              li.className = 'list-group-item d-flex align-items-center justify-content-between flex-wrap gap-2';
-              li.setAttribute('data-cenario-id', c.id || '');
-              if (c.id && c.id === cenarioAtivoId) {
-                li.classList.add('list-group-item-primary');
-              }
-              var info = document.createElement('span');
+              var isAtivo = c.id && c.id === cenarioAtivoId;
               var dataStr = c.criado_em ? new Date(c.criado_em).toLocaleString('pt-BR') : '';
-              var lucroStr = c.lucro_anual != null ? formatarMoeda(c.lucro_anual) : '—';
-              var payStr = c.payback_meses != null ? c.payback_meses + ' meses' : (c.payback_status || '—');
-              info.innerHTML = '<strong>' + (c.nome || 'Sem nome') + '</strong> <span class="text-muted small">' + dataStr + '</span><br><span class="small">Lucro anual: ' + lucroStr + ' · Payback: ' + payStr + '</span>';
-              var btns = document.createElement('span');
-              var btnCarregar = document.createElement('button');
-              btnCarregar.className = 'btn btn-sm btn-outline-primary';
-              btnCarregar.textContent = 'Carregar';
-              btnCarregar.onclick = function () { carregarCenario(c.id); };
-              var btnExcluir = document.createElement('button');
-              btnExcluir.className = 'btn btn-sm btn-outline-danger ms-1';
-              btnExcluir.textContent = 'Excluir';
-              btnExcluir.onclick = function () { excluirCenario(c.id); };
-              btns.appendChild(btnCarregar);
-              btns.appendChild(btnExcluir);
-              li.appendChild(info);
-              li.appendChild(btns);
-              ul.appendChild(li);
+              var lucroStr = (c.lucro_anual != null && c.lucro_anual !== undefined && Number.isFinite(Number(c.lucro_anual)))
+                ? formatarMoeda(c.lucro_anual)
+                : 'Recalcular ao abrir';
+              var grupo = document.createElement('div');
+              grupo.className = 'btn-group btn-group-sm';
+              grupo.setAttribute('role', 'group');
+              var btn = document.createElement('button');
+              btn.type = 'button';
+              btn.className = 'btn rounded-pill ' + (isAtivo ? 'btn-primary' : 'btn-outline-primary');
+              btn.textContent = c.nome || 'Sem nome';
+              btn.title = (dataStr ? dataStr + ' · ' : '') + 'Lucro: ' + lucroStr;
+              btn.onclick = function () { carregarCenario(c.id); };
+              var btnX = document.createElement('button');
+              btnX.type = 'button';
+              btnX.className = 'btn btn-outline-danger rounded-pill px-2';
+              btnX.innerHTML = '<i class="bi bi-x-lg"></i>';
+              btnX.title = 'Excluir cenário';
+              btnX.onclick = function (e) {
+                e.stopPropagation();
+                excluirCenario(c.id);
+              };
+              grupo.appendChild(btn);
+              grupo.appendChild(btnX);
+              wrap.appendChild(grupo);
             });
           })
-          .catch(function () {});
+          .catch(function () {
+            wrap.innerHTML = '<span class="text-danger small">Erro ao listar cenários.</span>';
+          });
       }
 
       function carregarCenarioApiSimples(c) {
@@ -1339,42 +1924,49 @@
         var ocpPct = Number(c.ocupacao_alvo || 0) * 100;
         document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
           var adrInp = tr.querySelector('.input-adr');
-          var ocpInp = tr.querySelector('.input-ocupacao');
+          var ocpInp = tr.querySelector('.range-ocupacao');
           if (adrInp) adrInp.value = adr.toFixed(2);
-          if (ocpInp) ocpInp.value = Math.round(ocpPct);
+          if (ocpInp) {
+            ocpInp.value = String(Math.round(ocpPct));
+            var b = tr.querySelector('.ocupacion-val');
+            if (b) b.textContent = Math.round(ocpPct) + '%';
+          }
         });
         executarCalculo();
         mostrarToast('Cenário "' + (c.nome || 'Sem nome') + '" carregado.', true);
       }
 
       function listarCenariosApiNova() {
-        var ul = document.getElementById('lista-cenarios-api');
-        if (!ul) return;
-        ul.innerHTML = '<li class="list-group-item text-muted small">Carregando...</li>';
+        var box = document.getElementById('lista-cenarios-api');
+        if (!box) return;
+        box.innerHTML = '<span class="text-muted">Carregando...</span>';
         fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/cenarios?t=' + Date.now(), { cache: 'no-store' })
           .then(function (res) { return res.json(); })
           .then(function (json) {
-            ul.innerHTML = '';
+            box.innerHTML = '';
             var cenarios = (((json || {}).data || {}).cenarios) || [];
             if (!json.success || cenarios.length === 0) {
-              ul.innerHTML = '<li class="list-group-item text-muted small">Nenhum cenário salvo na API nova.</li>';
+              box.innerHTML = '<span class="text-muted small">Nenhum cenário na API.</span>';
               return;
             }
             cenarios.forEach(function (c) {
-              var li = document.createElement('li');
-              li.className = 'list-group-item d-flex align-items-center justify-content-between flex-wrap gap-2';
-              li.innerHTML = '<span><strong>' + (c.nome || 'Sem nome') + '</strong><br><span class="small text-muted">Ocupação: ' + formatarPct(c.ocupacao_alvo) + ' · ADR: ' + formatarMoeda(c.adr_projetado) + ' · Lucro: ' + formatarMoeda(c.lucro_estimado) + '</span></span>';
+              var row = document.createElement('div');
+              row.className = 'd-flex justify-content-between align-items-start gap-2 py-1 border-bottom';
+              var sp = document.createElement('div');
+              sp.className = 'small';
+              sp.innerHTML = '<strong>' + (c.nome || 'Sem nome') + '</strong><br><span class="text-muted">Ocupação: ' + formatarPct(c.ocupacao_alvo) + ' · ADR: ' + formatarMoeda(c.adr_projetado) + ' · Lucro: ' + formatarMoeda(c.lucro_estimado) + '</span>';
               var btn = document.createElement('button');
               btn.type = 'button';
-              btn.className = 'btn btn-sm btn-outline-primary';
+              btn.className = 'btn btn-sm btn-outline-primary flex-shrink-0';
               btn.textContent = 'Carregar';
               btn.onclick = function () { carregarCenarioApiSimples(c); };
-              li.appendChild(btn);
-              ul.appendChild(li);
+              row.appendChild(sp);
+              row.appendChild(btn);
+              box.appendChild(row);
             });
           })
           .catch(function () {
-            ul.innerHTML = '<li class="list-group-item text-danger small">Falha ao carregar cenários da API nova.</li>';
+            box.innerHTML = '<span class="text-danger small">Falha ao carregar cenários da API.</span>';
           });
       }
 
@@ -1388,20 +1980,18 @@
             cenarioAtivoNome = (c.nome || '').trim() || null;
             atualizarUIPerfilCenario();
             aplicarMetas(c.metas_mensais || {});
-            var invEl = document.getElementById('investimento_inicial');
-            if (invEl) invEl.value = formatarMoeda(c.investimento_inicial != null ? c.investimento_inicial : 0);
-            if (c.resultado) {
-              atualizarTabelaComResultado(c.resultado);
-              if (c.resultado.resumo) atualizarCards(c.resultado.resumo);
-              atualizarGrafico(c.resultado);
-              atualizarGraficos(c.resultado);
-              atualizarDetalheCustosVar(c.resultado);
-            }
-            buscarCurvaSensibilidade();
-            atualizarGraficoBreakEvenReceitaCustos();
-            calcularMatrizSensibilidade();
-            listarCenarios();
-            mostrarToast('Cenário carregado. Use Salvar para atualizar ou Salvar como Novo para criar cópia.', true);
+            var refV = c.investimento_reforma != null ? c.investimento_reforma : (c.investimento_inicial != null ? c.investimento_inicial : 0);
+            var refEl = document.getElementById('investimento_reforma');
+            if (refEl) refEl.value = formatarMoeda(refV);
+            var arrTot2 = document.getElementById('arrendamento_total');
+            if (arrTot2) arrTot2.value = formatarMoeda(c.arrendamento_total != null ? c.arrendamento_total : 0);
+            var prazo2 = document.getElementById('prazo_contrato_meses');
+            if (prazo2) prazo2.value = c.prazo_contrato_meses != null ? c.prazo_contrato_meses : 12;
+            limparSaidaSimulacaoAteCarregar();
+            executarCalculo(function () {
+              listarCenarios();
+              mostrarToast('Cenário carregado (recalculado). Use Salvar para atualizar ou Salvar como Novo para criar cópia.', true);
+            });
           })
           .catch(function () { mostrarToast('Erro ao carregar cenário.', false); });
       }
@@ -1428,9 +2018,14 @@
           var row = document.querySelector('#tbody-meses tr[data-mes="' + mesAno + '"]');
           if (row) {
             var adrInp = row.querySelector('.input-adr');
-            var ocpInp = row.querySelector('.input-ocupacao');
+            var ocpInp = row.querySelector('.range-ocupacao');
             if (adrInp) adrInp.value = m.adr != null ? m.adr : '';
-            if (ocpInp) ocpInp.value = m.ocupacao != null ? Math.round(m.ocupacao * 100) : '';
+            if (ocpInp) {
+              var ov = m.ocupacao != null ? Math.round(m.ocupacao * 100) : 40;
+              ocpInp.value = String(ov);
+              var b = row.querySelector('.ocupacion-val');
+              if (b) b.textContent = ov + '%';
+            }
           }
         }
       }
@@ -1468,9 +2063,27 @@
             renderizarCustos(dadosBase);
             renderizarTabela();
             atualizarLabelsSliders();
-            if (dadosSalvos && dadosSalvos.investimento_inicial != null) {
-              var invEl = document.getElementById('investimento_inicial');
-              if (invEl) invEl.value = formatarMoeda(dadosSalvos.investimento_inicial);
+            var temSalvosInv = dadosSalvos && (
+              dadosSalvos.investimento_reforma != null || dadosSalvos.investimento_inicial != null ||
+              dadosSalvos.arrendamento_total != null || dadosSalvos.prazo_contrato_meses != null
+            );
+            if (temSalvosInv) {
+              var refS = dadosSalvos.investimento_reforma != null ? dadosSalvos.investimento_reforma : (dadosSalvos.investimento_inicial || 0);
+              var arrS = dadosSalvos.arrendamento_total != null ? dadosSalvos.arrendamento_total : (dadosBase.arrendamento_total || 0);
+              var prS = dadosSalvos.prazo_contrato_meses != null ? dadosSalvos.prazo_contrato_meses : (dadosBase.prazo_contrato_meses || 12);
+              var rEl = document.getElementById('investimento_reforma');
+              if (rEl) rEl.value = formatarMoeda(refS);
+              var aEl = document.getElementById('arrendamento_total');
+              if (aEl) aEl.value = formatarMoeda(arrS);
+              var pEl = document.getElementById('prazo_contrato_meses');
+              if (pEl) pEl.value = prS;
+            } else {
+              var rEl0 = document.getElementById('investimento_reforma');
+              if (rEl0) rEl0.value = formatarMoeda(dadosBase.investimento_reforma != null ? dadosBase.investimento_reforma : 0);
+              var aEl0 = document.getElementById('arrendamento_total');
+              if (aEl0) aEl0.value = formatarMoeda(dadosBase.arrendamento_total != null ? dadosBase.arrendamento_total : 0);
+              var pEl0 = document.getElementById('prazo_contrato_meses');
+              if (pEl0) pEl0.value = dadosBase.prazo_contrato_meses != null ? dadosBase.prazo_contrato_meses : 12;
             }
             inicializarGraficoSensibilidade();
             inicializarGraficoBarras();
@@ -1478,6 +2091,8 @@
             inicializarChartEvolucaoMensal();
             inicializarChartSensibilidadeOcupacao();
             inicializarChartBreakEvenReceitaCustos();
+            inicializarChartComposicaoDespesas();
+            initTooltipsNoContainer(document.body);
             executarCalculo();
             listarCenarios();
             listarCenariosApiNova();
