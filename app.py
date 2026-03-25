@@ -4,7 +4,7 @@ import os
 import sys
 import unicodedata
 from datetime import date, datetime
-from typing import List
+from typing import Any, List
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
 from flask import Flask, jsonify, render_template, request
@@ -23,6 +23,7 @@ from core.projetos import (
     backup_scraper_config_before_action,
     carregar_projeto,
     create_project_scaffold,
+    excluir_projeto_seguro,
     gerar_id_projeto,
     get_backups_dir,
     get_market_bruto_path,
@@ -62,6 +63,69 @@ class CenarioPayload(BaseModel):
     lucro_estimado: float
 
 
+def _simulacao_investimento_from_body(body: dict | None) -> dict[str, Any]:
+    """Extrai overrides de investimento (compatível com investimento_inicial legado)."""
+    body = body or {}
+    inv_r = body.get("investimento_reforma")
+    if inv_r is None and body.get("investimento_inicial") is not None:
+        inv_r = body.get("investimento_inicial")
+    arr_tot = body.get("arrendamento_total")
+    prazo = body.get("prazo_contrato_meses")
+    prazo_i = None if prazo is None else int(prazo)
+    if prazo_i is not None:
+        prazo_i = max(1, min(600, prazo_i))
+    return {
+        "investimento_reforma": None if inv_r is None else float(inv_r),
+        "arrendamento_total": None if arr_tot is None else float(arr_tot),
+        "prazo_contrato_meses": prazo_i,
+    }
+
+
+def _persistir_overrides_simulacao_no_projeto(id_projeto: str, body: dict | None) -> None:
+    """Grava no projeto os parâmetros de contrato/reforma enviados pelo simulador (fonte única)."""
+    ov = _simulacao_investimento_from_body(body)
+    if all(ov[k] is None for k in ("arrendamento_total", "prazo_contrato_meses", "investimento_reforma")):
+        return
+    p = carregar_projeto(id_projeto)
+    arr_f = float(ov["arrendamento_total"]) if ov["arrendamento_total"] is not None else float(p.arrendamento_total)
+    pr_i = int(ov["prazo_contrato_meses"]) if ov["prazo_contrato_meses"] is not None else int(p.prazo_contrato_meses or 12)
+    pr_i = max(1, min(600, pr_i))
+    ref_f = float(ov["investimento_reforma"]) if ov["investimento_reforma"] is not None else float(p.investimento_reforma)
+    if (
+        round(float(p.arrendamento_total), 2) == round(arr_f, 2)
+        and int(p.prazo_contrato_meses or 12) == pr_i
+        and round(float(p.investimento_reforma), 2) == round(ref_f, 2)
+    ):
+        return
+    p.arrendamento_total = arr_f
+    p.prazo_contrato_meses = pr_i
+    p.investimento_reforma = ref_f
+    salvar_projeto(p)
+
+
+def _simulacao_investimento_para_persistencia(id_projeto: str, body: dict | None) -> dict[str, Any]:
+    """Valores concretos para salvar cenário (preenche com projeto quando omitidos no body)."""
+    from core.projetos import carregar_projeto
+
+    ov = _simulacao_investimento_from_body(body)
+    p = carregar_projeto(id_projeto)
+    ref = ov["investimento_reforma"]
+    if ref is None:
+        ref = float(p.investimento_reforma)
+    arr = ov["arrendamento_total"]
+    if arr is None:
+        arr = float(p.arrendamento_total)
+    prazo = ov["prazo_contrato_meses"]
+    if prazo is None:
+        prazo = int(p.prazo_contrato_meses or 12)
+    return {
+        "investimento_reforma": ref,
+        "arrendamento_total": arr,
+        "prazo_contrato_meses": prazo,
+        "investimento_inicial": ref,
+    }
+
+
 def _log_io_error(evento: str, id_projeto: str, erro: str) -> None:
     try:
         from pathlib import Path
@@ -97,6 +161,22 @@ def _log_system_event(action: str, id_projeto: str, extra: dict | None = None) -
             f.write(json.dumps(payload, ensure_ascii=False) + "\n")
     except Exception:
         pass
+
+
+_correcao_curadoria_crud_event_logged = False
+
+
+def _emit_correcao_curadoria_crud_event(id_projeto: str) -> None:
+    """Registra uma vez por processo o evento de auditoria da correção Curadoria + CRUD."""
+    global _correcao_curadoria_crud_event_logged
+    if _correcao_curadoria_crud_event_logged:
+        return
+    _correcao_curadoria_crud_event_logged = True
+    _log_system_event(
+        "correcao_curadoria_crud_projetos_applied",
+        id_projeto or "system",
+        {"evento": "correcao_curadoria_crud_projetos_applied"},
+    )
 
 
 def _strict_periodos_ativo(id_projeto: str) -> bool:
@@ -175,7 +255,8 @@ def _normalize_percent(v) -> float:
 def _normalizar_financeiro_para_persistencia(financeiro: DadosFinanceiros) -> DadosFinanceiros:
     """Arredonda monetários (2) e percentuais (4) mantendo contrato atual."""
     payload = financeiro.model_dump(mode="python")
-    cf = payload.get("custos_fixos") or {}
+    cf = dict(payload.get("custos_fixos") or {})
+    cf["aluguel"] = 0.0
     cv = payload.get("custos_variaveis") or {}
     payload["custos_fixos"] = {k: _quantize_decimal(v, 2) for k, v in cf.items()}
     payload["custos_variaveis"] = {k: _quantize_decimal(v, 2) for k, v in cv.items()}
@@ -369,6 +450,9 @@ class CriarProjetoBody(BaseModel):
     ano_referencia: int = Field(default_factory=lambda: date.today().year, ge=2000, le=2100)
     financeiro: DadosFinanceiros | None = None
     infraestrutura: Infraestrutura | None = None
+    arrendamento_total: float | None = Field(default=None, ge=0)
+    prazo_contrato_meses: int | None = Field(default=None, ge=1, le=600)
+    investimento_reforma: float | None = Field(default=None, ge=0)
 
 
 class CriarPousadaBody(BaseModel):
@@ -406,6 +490,9 @@ class AtualizarProjetoBody(BaseModel):
     infraestrutura: Infraestrutura | None = None
     projetos_referencia: List[str] | None = None
     markup_referencia: float | None = None
+    arrendamento_total: float | None = Field(default=None, ge=0)
+    prazo_contrato_meses: int | None = Field(default=None, ge=1, le=600)
+    investimento_reforma: float | None = Field(default=None, ge=0)
 
 
 @app.get("/")
@@ -626,7 +713,7 @@ def criar_projeto():
         financeiro = _normalizar_financeiro_para_persistencia(financeiro_raw)
     except (ValueError, InvalidOperation, ValidationError) as e:
         return jsonify({"success": False, "message": f"Payload financeiro inválido: {e}", "data": None}), 400
-    projeto = Projeto(
+    projeto_kwargs: dict = dict(
         id=id_projeto,
         nome=payload.nome,
         url_booking=payload.url_booking,
@@ -637,6 +724,13 @@ def criar_projeto():
         infraestrutura=payload.infraestrutura,
         dados_mercado=None,
     )
+    if payload.arrendamento_total is not None:
+        projeto_kwargs["arrendamento_total"] = float(payload.arrendamento_total)
+    if payload.prazo_contrato_meses is not None:
+        projeto_kwargs["prazo_contrato_meses"] = int(payload.prazo_contrato_meses)
+    if payload.investimento_reforma is not None:
+        projeto_kwargs["investimento_reforma"] = float(payload.investimento_reforma)
+    projeto = Projeto(**projeto_kwargs)
     salvar_projeto(projeto)
     logger.info("Projeto criado via POST: {}", id_projeto)
     return jsonify({
@@ -648,7 +742,11 @@ def criar_projeto():
 
 @app.put("/api/projeto/<id>")
 def api_atualizar_projeto(id: str):
-    """Atualiza projeto existente; aceita campos parciais (incl. financeiro completo)."""
+    """Atualiza projeto existente; aceita campos parciais.
+
+    Campos cadastrais (nome, URL, quartos, faturamento, ano, infraestrutura, referências, markup)
+    e financeiro são aplicados de forma explícita quando presentes no JSON (None = não alterar).
+    """
     try:
         projeto = carregar_projeto(id)
     except ArquivoProjetoNaoEncontrado:
@@ -668,21 +766,21 @@ def api_atualizar_projeto(id: str):
             "message": str(e),
             "data": None,
         }), 400
+
+    # Cadastro e metadados centrais (não financeiros)
     if payload.nome is not None:
-        projeto.nome = payload.nome
+        nome_limpo = str(payload.nome).strip()
+        if not nome_limpo:
+            return jsonify({"success": False, "message": "Nome não pode ser vazio.", "data": None}), 400
+        projeto.nome = nome_limpo
     if payload.url_booking is not None:
-        projeto.url_booking = payload.url_booking
+        projeto.url_booking = str(payload.url_booking).strip()
     if payload.numero_quartos is not None:
         projeto.numero_quartos = payload.numero_quartos
     if payload.faturamento_anual is not None:
         projeto.faturamento_anual = payload.faturamento_anual
     if payload.ano_referencia is not None:
         projeto.ano_referencia = payload.ano_referencia
-    if payload.financeiro is not None:
-        try:
-            projeto.financeiro = _normalizar_financeiro_para_persistencia(payload.financeiro)
-        except (ValueError, InvalidOperation, ValidationError) as e:
-            return jsonify({"success": False, "message": f"Payload financeiro inválido: {e}", "data": None}), 400
     if payload.infraestrutura is not None:
         projeto.infraestrutura = payload.infraestrutura
     if payload.projetos_referencia is not None:
@@ -691,12 +789,48 @@ def api_atualizar_projeto(id: str):
     if payload.markup_referencia is not None:
         v = float(payload.markup_referencia)
         projeto.markup_referencia = v if 0.01 <= v <= 10.0 else None
+    if payload.arrendamento_total is not None:
+        projeto.arrendamento_total = float(payload.arrendamento_total)
+    if payload.prazo_contrato_meses is not None:
+        pr = int(payload.prazo_contrato_meses)
+        projeto.prazo_contrato_meses = max(1, min(600, pr))
+    if payload.investimento_reforma is not None:
+        projeto.investimento_reforma = float(payload.investimento_reforma)
+
+    # Financeiro (folha, custos, impostos, etc.)
+    if payload.financeiro is not None:
+        try:
+            projeto.financeiro = _normalizar_financeiro_para_persistencia(payload.financeiro)
+        except (ValueError, InvalidOperation, ValidationError) as e:
+            return jsonify({"success": False, "message": f"Payload financeiro inválido: {e}", "data": None}), 400
+
     salvar_projeto(projeto)
     logger.info("Projeto atualizado via PUT: {}", id)
+    _emit_correcao_curadoria_crud_event(projeto.id)
     return jsonify({
         "success": True,
         "message": "Projeto atualizado.",
         "data": {"id": projeto.id},
+    }), 200
+
+
+@app.delete("/api/projeto/<id>")
+def api_excluir_projeto(id: str):
+    """Exclui a pousada e todos os arquivos em data/projects/<id>/ (e artefatos legados na raiz)."""
+    try:
+        resultado = excluir_projeto_seguro(id)
+    except ValueError as e:
+        return jsonify({"success": False, "message": str(e), "data": None}), 400
+    except ArquivoProjetoNaoEncontrado:
+        return jsonify({"success": False, "message": "Projeto não encontrado.", "data": None}), 404
+    except OSError as e:
+        logger.warning("Falha ao excluir projeto {}: {}", id, e)
+        return jsonify({"success": False, "message": "Falha ao remover arquivos do projeto.", "data": None}), 500
+    _emit_correcao_curadoria_crud_event(resultado.get("id_projeto") or id)
+    return jsonify({
+        "success": True,
+        "message": "Pousada excluída.",
+        "data": resultado,
     }), 200
 
 
@@ -1434,7 +1568,11 @@ def curadoria_mercado(id: str):
 
 @app.post("/api/projeto/<id>/curadoria")
 def api_salvar_curadoria(id: str):
-    """Recebe ajustes (preco_curado, status) e grava market_curado_<id>.json; R3."""
+    """Recebe ajustes de curadoria e grava market_curado.json.
+
+    Aceita preço digitado manualmente (`preco_curado`, `preco_curado_manual`) ou do preview
+    (`preco_curado_sugerido`), nesta ordem de precedência.
+    """
     try:
         projeto = carregar_projeto(id)
     except ArquivoProjetoNaoEncontrado:
@@ -1484,7 +1622,11 @@ def api_salvar_curadoria(id: str):
             continue
         base = bruto_por_checkin[checkin]
 
-        preco_sugerido_raw = item.get("preco_curado_sugerido", item.get("preco_curado"))
+        preco_sugerido_raw = None
+        for _key in ("preco_curado", "preco_curado_manual", "preco_curado_sugerido"):
+            if item.get(_key) is not None:
+                preco_sugerido_raw = item.get(_key)
+                break
         if preco_sugerido_raw is None:
             # Mantém compatibilidade: sem valor curado explícito, não persiste registro.
             continue
@@ -1599,6 +1741,7 @@ def api_salvar_curadoria(id: str):
     if regs_efetivo:
         analise = gerar_analise_curado(projeto, regs_efetivo)
         data_response["analise"] = analise.model_dump(mode="json")
+    _emit_correcao_curadoria_crud_event(id)
     return jsonify({
         "success": True,
         "message": "Ajustes salvos e validados.",
@@ -1789,6 +1932,10 @@ def scraper_config_post(id_projeto: str):
                 return jsonify({"success": False, "message": f"Data início maior que fim em: {p.get('nome', '')}"}), 400
         except (KeyError, ValueError) as e:
             return jsonify({"success": False, "message": f"Data inválida: {e}"}), 400
+        tipo_coleta = str(p.get("tipo_coleta") or "amostragem").strip().lower()
+        if tipo_coleta not in {"amostragem", "pacote"}:
+            return jsonify({"success": False, "message": f"tipo_coleta inválido no período {p.get('nome', '')}"}), 400
+        p["tipo_coleta"] = tipo_coleta
     # Validar descontos (se existirem); aceita decimal (0.15) ou percentual (15)
     from core.config import _normalizar_valor_desconto
 
@@ -1813,8 +1960,42 @@ def scraper_config_post(id_projeto: str):
             return jsonify({"success": False, "message": f"Desconto inválido para mês {mes}."}), 400
     descontos["por_mes"] = por_mes
     body["descontos"] = descontos
+    # Validar urls_concorrentes (opcional)
+    urls_concorrentes = body.get("urls_concorrentes", [])
+    if urls_concorrentes is None:
+        urls_concorrentes = []
+    if not isinstance(urls_concorrentes, list):
+        return jsonify({"success": False, "message": "urls_concorrentes deve ser uma lista de URLs."}), 400
+    urls_norm: list[str] = []
+    for u in urls_concorrentes:
+        s = str(u or "").strip()
+        if not s:
+            continue
+        if not (s.startswith("http://") or s.startswith("https://")):
+            return jsonify({"success": False, "message": f"URL concorrente inválida: {s}"}), 400
+        urls_norm.append(s)
+    body["urls_concorrentes"] = urls_norm
+    permitir_busca_externa = bool(body.get("permitir_busca_externa", False))
+    body["permitir_busca_externa"] = permitir_busca_externa
 
     salvar_config_scraper(id_projeto, body)
+    _log_system_event(
+        "inteligencia_competitiva_applied",
+        id_projeto,
+        {
+            "evento": "inteligencia_competitiva_applied",
+            "urls_concorrentes_count": len(urls_norm),
+        },
+    )
+    _log_system_event(
+        "master_integridade_scraper_applied",
+        id_projeto,
+        {
+            "evento": "master_integridade_scraper_applied",
+            "permitir_busca_externa": bool(body.get("permitir_busca_externa", False)),
+            "periodos_especiais_count": len(periodos),
+        },
+    )
     return jsonify({"success": True, "message": "Configurações salvas."})
 
 
@@ -1852,6 +2033,8 @@ def api_scraper_importar_template(id_projeto: str):
             continue
         nome = str(p.get("nome") or "").strip()
         if nome and nome.lower() not in nomes_existentes:
+            if "tipo_coleta" not in p:
+                p["tipo_coleta"] = "amostragem"
             existentes.append(p)
             nomes_existentes.add(nome.lower())
             adicionados += 1
@@ -2012,25 +2195,31 @@ def api_simulacao_dados_base(id: str):
             "numero_quartos": projeto.numero_quartos or 1,
             "ano_referencia": projeto.ano_referencia or 2025,
             "financeiro": financeiro,
+            "investimento_reforma": float(getattr(projeto, "investimento_reforma", 0) or 0),
+            "arrendamento_total": float(getattr(projeto, "arrendamento_total", 0) or 0),
+            "prazo_contrato_meses": int(getattr(projeto, "prazo_contrato_meses", 12) or 12),
         },
     })
 
 
 @app.post("/api/projeto/<id>/simulacao/salvar")
 def api_simulacao_salvar(id: str):
-    """Salva metas_mensais e investimento_inicial em simulacao_salva.json."""
+    """Salva metas_mensais e parâmetros de investimento em simulacao_salva.json."""
     try:
         carregar_projeto(id)
     except ArquivoProjetoNaoEncontrado:
         return jsonify({"success": False, "message": "Projeto não encontrado"}), 404
     body = request.get_json(force=True, silent=True) or {}
     metas_mensais = body.get("metas_mensais") or {}
-    investimento_inicial = float(body.get("investimento_inicial") or 0)
+    snap = _simulacao_investimento_para_persistencia(id, body)
     path = get_simulacao_salva_path(id)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "metas_mensais": metas_mensais,
-        "investimento_inicial": investimento_inicial,
+        "investimento_reforma": snap["investimento_reforma"],
+        "arrendamento_total": snap["arrendamento_total"],
+        "prazo_contrato_meses": snap["prazo_contrato_meses"],
+        "investimento_inicial": snap["investimento_inicial"],
     }
     try:
         with open(path, "w", encoding="utf-8") as f:
@@ -2051,14 +2240,24 @@ def api_simulacao_calcular(id: str):
 
     body = request.get_json(force=True, silent=True) or {}
     metas_mensais = body.get("metas_mensais") or {}
-    investimento_inicial = float(body.get("investimento_inicial") or 0)
-    resultado = calcular_projecao(id, metas_mensais, investimento_inicial)
+    ov = _simulacao_investimento_from_body(body)
+    resultado = calcular_projecao(
+        id,
+        metas_mensais,
+        ov["investimento_reforma"],
+        ov["arrendamento_total"],
+        ov["prazo_contrato_meses"],
+    )
     if "erro" in resultado:
         return jsonify({
             "success": False,
             "message": resultado.get("erro", "Erro na simulação"),
             "data": None,
         }), 404
+    try:
+        _persistir_overrides_simulacao_no_projeto(id, body)
+    except Exception:
+        logger.warning("Não foi possível persistir overrides de simulação no projeto {}", id)
     _log_system_event("etapa5_simulador_viabilidade_applied", id, {
         "evento": "etapa5_simulador_viabilidade_applied",
         "payback_meses": (resultado.get("resumo") or {}).get("payback_meses"),
@@ -2084,7 +2283,7 @@ def api_simulacao_projecao(id: str):
         ocupacao_alvo = float(ocupacao_alvo)
         ocupacao_alvo = max(0.0, min(1.0, ocupacao_alvo))
     adr_override = body.get("adr_override")
-    investimento_inicial = float(body.get("investimento_inicial") or 0)
+    ov = _simulacao_investimento_from_body(body)
 
     metas_mensais = body.get("metas_mensais")
     if not metas_mensais and ocupacao_alvo is not None:
@@ -2092,13 +2291,23 @@ def api_simulacao_projecao(id: str):
     if not metas_mensais:
         metas_mensais = construir_metas_para_projecao(id, ocupacao_alvo=ocupacao_alvo or 0.4, adr_override=adr_override)
 
-    resultado = calcular_projecao(id, metas_mensais, investimento_inicial)
+    resultado = calcular_projecao(
+        id,
+        metas_mensais,
+        ov["investimento_reforma"],
+        ov["arrendamento_total"],
+        ov["prazo_contrato_meses"],
+    )
     if "erro" in resultado:
         return jsonify({
             "success": False,
             "message": resultado.get("erro", "Erro na simulação"),
             "data": None,
         }), 404
+    try:
+        _persistir_overrides_simulacao_no_projeto(id, body)
+    except Exception:
+        logger.warning("Não foi possível persistir overrides de simulação no projeto {}", id)
 
     resumo = resultado.get("resumo") or {}
     break_even_pct = None
@@ -2122,6 +2331,8 @@ def api_simulacao_projecao(id: str):
                 "lucro_anual": resumo.get("lucro_anual"),
                 "ebitda_anual": resumo.get("ebitda_anual"),
                 "lucro_medio_mensal": resumo.get("lucro_medio_mensal"),
+                "investimento_total": resumo.get("investimento_total"),
+                "roi_anual_pct": resumo.get("roi_anual_pct"),
             },
             "break_even_pct": break_even_pct,
             "break_even_receita_media": resumo.get("break_even_receita_media"),
@@ -2141,11 +2352,22 @@ def api_simulacao_curva_sensibilidade(id: str):
     from core.analise.simulacao import calcular_curva_sensibilidade
 
     body = request.get_json(force=True, silent=True) or {}
-    investimento_inicial = float(body.get("investimento_inicial") or 0)
+    ov = _simulacao_investimento_from_body(body)
     metas_mensais = body.get("metas_mensais") or {}
     passo = float(body.get("passo_ocupacao") or 0.1)
     passo = max(0.05, min(0.25, passo))
-    pontos = calcular_curva_sensibilidade(id, investimento_inicial, metas_mensais, passo_ocupacao=passo)
+    pontos = calcular_curva_sensibilidade(
+        id,
+        ov["investimento_reforma"],
+        metas_mensais,
+        passo_ocupacao=passo,
+        arrendamento_total=ov["arrendamento_total"],
+        prazo_contrato_meses=ov["prazo_contrato_meses"],
+    )
+    try:
+        _persistir_overrides_simulacao_no_projeto(id, body)
+    except Exception:
+        logger.warning("Não foi possível persistir overrides de simulação no projeto {}", id)
     return jsonify({"success": True, "data": {"pontos": pontos}})
 
 
@@ -2192,11 +2414,17 @@ def _migrar_simulacao_salva_para_cenarios(id_projeto: str) -> list[dict]:
     except (json.JSONDecodeError, OSError):
         return []
     metas = dados.get("metas_mensais") or {}
-    invest = float(dados.get("investimento_inicial") or 0)
-    from core.analise.simulacao import calcular_projecao
-    resultado = calcular_projecao(id_projeto, metas, invest)
-    if "erro" in resultado:
-        resultado = {"meses": [], "resumo": {}}
+    invest = float(
+        dados.get("investimento_reforma")
+        if dados.get("investimento_reforma") is not None
+        else (dados.get("investimento_inicial") or 0)
+    )
+    arr_tot = dados.get("arrendamento_total")
+    prazo_d = dados.get("prazo_contrato_meses")
+    p = carregar_projeto(id_projeto)
+    arr_f = float(arr_tot) if arr_tot is not None else float(p.arrendamento_total)
+    prazo_i = int(prazo_d) if prazo_d is not None else int(p.prazo_contrato_meses or 12)
+    prazo_i = max(1, min(600, prazo_i))
     import uuid
     from datetime import datetime
     cenario = {
@@ -2204,8 +2432,10 @@ def _migrar_simulacao_salva_para_cenarios(id_projeto: str) -> list[dict]:
         "nome": "Cenário atual",
         "criado_em": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "metas_mensais": metas,
+        "investimento_reforma": invest,
+        "arrendamento_total": arr_f,
+        "prazo_contrato_meses": prazo_i,
         "investimento_inicial": invest,
-        "resultado": resultado,
     }
     cenarios = [cenario]
     _salvar_cenarios(id_projeto, cenarios)
@@ -2304,11 +2534,8 @@ def api_simulacao_criar_ou_atualizar_cenario(id: str):
     from datetime import datetime
     import uuid
     metas_mensais = body.get("metas_mensais") or {}
-    investimento_inicial = float(body.get("investimento_inicial") or 0)
-    resultado = body.get("resultado")
-    if not resultado or not isinstance(resultado, dict):
-        from core.analise.simulacao import calcular_projecao
-        resultado = calcular_projecao(id, metas_mensais, investimento_inicial)
+    snap = _simulacao_investimento_para_persistencia(id, body)
+    # Fonte única de cálculo: não persistir resultado (payload pode enviar; ignoramos).
     cenarios = _carregar_cenarios(id)
     if not cenarios:
         cenarios = _migrar_simulacao_salva_para_cenarios(id)
@@ -2317,8 +2544,11 @@ def api_simulacao_criar_ou_atualizar_cenario(id: str):
         cenario = cenarios[idx]
         cenario["nome"] = (body.get("nome") or "").strip() or cenario.get("nome") or "Sem nome"
         cenario["metas_mensais"] = metas_mensais
-        cenario["investimento_inicial"] = investimento_inicial
-        cenario["resultado"] = resultado
+        cenario["investimento_reforma"] = snap["investimento_reforma"]
+        cenario["arrendamento_total"] = snap["arrendamento_total"]
+        cenario["prazo_contrato_meses"] = snap["prazo_contrato_meses"]
+        cenario["investimento_inicial"] = snap["investimento_inicial"]
+        cenario.pop("resultado", None)
         _salvar_cenarios(id, cenarios)
         return jsonify({
             "success": True,
@@ -2333,8 +2563,10 @@ def api_simulacao_criar_ou_atualizar_cenario(id: str):
         "nome": nome,
         "criado_em": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "metas_mensais": metas_mensais,
-        "investimento_inicial": investimento_inicial,
-        "resultado": resultado,
+        "investimento_reforma": snap["investimento_reforma"],
+        "arrendamento_total": snap["arrendamento_total"],
+        "prazo_contrato_meses": snap["prazo_contrato_meses"],
+        "investimento_inicial": snap["investimento_inicial"],
     }
     cenarios.append(cenario)
     _salvar_cenarios(id, cenarios)
@@ -2357,7 +2589,8 @@ def api_simulacao_obter_cenario(id: str, cid: str):
         cenarios = _migrar_simulacao_salva_para_cenarios(id)
     for c in cenarios:
         if c.get("id") == cid:
-            return jsonify({"success": True, "data": c})
+            c_out = {k: v for k, v in c.items() if k != "resultado"}
+            return jsonify({"success": True, "data": c_out})
     return jsonify({"success": False, "message": "Cenário não encontrado", "data": None}), 404
 
 
