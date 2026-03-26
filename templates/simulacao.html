@@ -27,6 +27,7 @@
     .table-simulacao .ocupacao-cell .form-range { min-width: 90px; max-width: 160px; }
     .table-simulacao .ocupacion-val { min-width: 2.75rem; }
     .sim-fileira-investidor { border-width: 2px !important; }
+    #simulacao-tab-content.tab-content { min-height: 120px; }
   </style>
 </head>
 <body class="bg-light">
@@ -38,32 +39,6 @@
       <button type="button" class="btn btn-outline-secondary btn-sm rounded-circle p-2 lh-1" id="btn-glossario" data-bs-toggle="offcanvas" data-bs-target="#offcanvas-glossario" title="Glossário financeiro" aria-label="Glossário financeiro">
         <i class="bi bi-question-lg"></i>
       </button>
-    </div>
-
-    <div class="card border-0 shadow-sm mb-3 sim-toolbar-cenarios bg-white">
-      <div class="card-body py-2 px-3">
-        <div class="d-flex flex-wrap align-items-center gap-2">
-          <span class="text-muted small text-nowrap fw-semibold">Cenários</span>
-          <div id="toolbar-cenarios-pills" class="d-flex flex-wrap align-items-center gap-1 flex-grow-1 min-w-0"></div>
-          <span class="small text-muted" id="label-cenario-ativo" style="display: none;">Editando: <strong id="nome-cenario-ativo"></strong></span>
-          <button type="button" class="btn btn-success btn-sm text-nowrap" id="btn-salvar-cenario">Salvar cenário atual</button>
-          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-limpar-cenario">Limpar</button>
-          <div class="btn-group">
-            <button type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Mais</button>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><button class="dropdown-item" type="button" id="btn-salvar-cenario-novo">Salvar como novo</button></li>
-              <li><button class="dropdown-item" type="button" id="btn-salvar-cenario-api">Salvar cenário (API)</button></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><button class="dropdown-item" type="button" id="btn-recarregar-cenarios-api">Recarregar cenários API</button></li>
-            </ul>
-          </div>
-        </div>
-        <div class="collapse mt-2" id="collapse-cenarios-api">
-          <div class="small text-muted mb-1"><code>/api/projeto/&lt;id&gt;/cenarios</code></div>
-          <div id="lista-cenarios-api" class="small border rounded p-2 bg-light" style="max-height: 180px; overflow: auto;">Nenhum cenário carregado.</div>
-        </div>
-        <button type="button" class="btn btn-link btn-sm px-0 mt-1" data-bs-toggle="collapse" data-bs-target="#collapse-cenarios-api" aria-expanded="false">Mostrar / ocultar cenários da API</button>
-      </div>
     </div>
 
     <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvas-glossario" aria-labelledby="offcanvas-glossario-label">
@@ -90,17 +65,26 @@
           <div class="card-body">
             <div class="mb-3">
               <label class="form-label label-fin-row fw-bold" for="slider-ocupacao">
-                Ocupação alvo <span id="slider-ocupacao-val">40</span>%
-                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> percentual médio de ocupação aplicado aos dias &quot;normais&quot; do calendário.<br><strong>Cálculo:</strong> noites vendidas normais = capacidade normal × ocupação.<br><strong>Ex.:</strong> 50% com 10 quartos e 20 dias normais → 100 diárias."></i>
+                Ocupação Média-Alvo <span id="slider-ocupacao-val">40</span>%
+                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Ocupação média-alvo:</strong> média anual desejada (ponderada por dias de cada mês). A tabela ajusta cada mês proporcionalmente para manter a sazonalidade.<br><strong>0%:</strong> força ocupação uniforme 0% em todos os meses (fallback)."></i>
               </label>
-              <input type="range" class="form-range" id="slider-ocupacao" min="0" max="100" value="40" step="1">
+              <div class="d-flex align-items-center gap-2">
+                <input type="range" class="form-range flex-grow-1" id="slider-ocupacao" min="0" max="100" value="40" step="0.1">
+                <div class="input-group input-group-sm" style="width: 92px;">
+                  <input type="number" class="form-control" id="input-slider-ocupacao" min="0" max="100" step="1" value="40">
+                  <span class="input-group-text">%</span>
+                </div>
+              </div>
             </div>
             <div class="mb-3">
               <label class="form-label label-fin-row fw-bold" for="slider-adr-override">
-                ADR override: <span id="slider-adr-val">—</span>
-                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> diária média forçada em todos os meses (0 = usar ADR sugerido por mês).<br><strong>Cálculo:</strong> receita bruta mês = ADR × noites vendidas.<br><strong>Ex.:</strong> ADR R$ 400 e 500 noites → R$ 200.000."></i>
+                ADR Médio-Alvo: <span id="slider-adr-val">—</span>
+                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>ADR médio-alvo (R$):</strong> média anual desejada (ponderada por dias de cada mês). Cada mês é escalado mantendo a forma da curva.<br><strong>0:</strong> mantém os ADR da tabela (sem escala global)."></i>
               </label>
-              <input type="range" class="form-range" id="slider-adr-override" min="0" max="1500" value="0" step="10">
+              <div class="d-flex align-items-center gap-2">
+                <input type="range" class="form-range flex-grow-1" id="slider-adr-override" min="0" max="1500" value="0" step="1">
+                <input type="number" class="form-control form-control-sm" id="input-slider-adr" min="0" step="5" value="0" style="width: 92px;">
+              </div>
             </div>
             <div class="mb-3">
               <label class="form-label label-fin-row fw-bold" for="arrendamento_total">
@@ -149,8 +133,8 @@
       <div class="col d-flex">
         <div class="card card-metric border-primary shadow-sm h-100 w-100">
           <div class="card-body">
-            <div class="card-title text-muted small text-uppercase label-fin-row">Receita anual
-              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> soma da receita bruta dos 12 meses.<br><strong>Cálculo:</strong> Σ (ADR × noites vendidas) por mês."></i>
+            <div class="card-title text-muted small text-uppercase label-fin-row" title="Receita bruta total do primeiro ano de operação: soma dos 12 meses. Cálculo: Σ mensal (ADR × noites vendidas), considerando calendário (dias normais e especiais).">Receita (Ano 1)
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Receita bruta (Ano 1):</strong> soma da receita bruta dos 12 meses do primeiro ano.<br><strong>Cálculo:</strong> Σ mensal (ADR × noites vendidas), respeitando capacidade, ocupação meta e calendário (dias normais vs. especiais)."></i>
             </div>
             <div class="valor text-primary" id="card-receita">R$ 0,00</div>
           </div>
@@ -159,8 +143,8 @@
       <div class="col d-flex">
         <div class="card card-metric border-info shadow-sm h-100 w-100">
           <div class="card-body">
-            <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-graph-up me-1"></i>EBITDA operacional (ano 1)
-              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> resultado operacional antes de impostos, <strong>sem</strong> diluir arrendamento no custo fixo.<br><strong>Cálculo:</strong> Σ mensal (Receita − Fixos operacionais e folha − Custos variáveis)."></i>
+            <div class="card-title text-muted small text-uppercase label-fin-row" title="EBITDA operacional acumulado no Ano 1: resultado antes de impostos, sem tratar arrendamento como custo operacional mensal."><i class="bi bi-graph-up me-1"></i>EBITDA Operac. (Ano 1)
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>EBITDA operacional (Ano 1):</strong> resultado operacional antes de impostos, <strong>sem</strong> diluir arrendamento no custo fixo operacional.<br><strong>Cálculo:</strong> Σ mensal (Receita bruta − Custos fixos operacionais e folha − Custos variáveis)."></i>
             </div>
             <div class="valor text-info" id="card-ebitda-op-anual">R$ 0,00</div>
           </div>
@@ -169,8 +153,8 @@
       <div class="col d-flex">
         <div class="card card-metric border-success shadow-sm h-100 w-100">
           <div class="card-body">
-            <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-graph-up-arrow me-1"></i>Lucro operacional (ano 1)
-              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> eficiência da operação: EBITDA operacional − impostos, somado no ano. <strong>Não</strong> subtrai o arrendamento total (capital)."></i>
+            <div class="card-title text-muted small text-uppercase label-fin-row" title="Lucro operacional líquido no Ano 1: EBITDA operacional menos impostos; não inclui recuperação de capital (arrendamento total)."><i class="bi bi-graph-up-arrow me-1"></i>Lucro Operac. (Ano 1)
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Lucro operacional (Ano 1):</strong> EBITDA operacional − impostos sobre o faturamento, somado nos 12 meses.<br><strong>Obs.:</strong> <strong>não</strong> subtrai o arrendamento total pago (visão de capital)."></i>
             </div>
             <div class="valor text-success" id="card-lucro">R$ 0,00</div>
           </div>
@@ -198,8 +182,8 @@
         <div class="col d-flex">
           <div class="card card-metric border-success shadow-sm h-100 w-100 bg-white">
             <div class="card-body">
-              <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-wallet2 me-1"></i>Resultado do investidor
-                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="O que sobra de fato no seu bolso após a operação pagar todos os custos e você recuperar o valor total investido (Arrendamento + Reforma) neste primeiro ano."></i>
+              <div class="card-title text-muted small text-uppercase label-fin-row" title="Lucro operacional acumulado no ano menos arrendamento total do contrato e menos investimento em reforma/enxoval (cash out de capital no Ano 1)."><i class="bi bi-wallet2 me-1"></i>Resultado Investidor
+                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Resultado do investidor (Ano 1):</strong> Σ lucro operacional mensal − arrendamento total do contrato − reforma/enxoval.<br>Mede o que sobra após custos operacionais, impostos e desembolsos de capital (arrendamento + reforma) no primeiro ano."></i>
               </div>
               <div class="valor text-success" id="card-resultado-investidor">—</div>
             </div>
@@ -208,8 +192,8 @@
         <div class="col d-flex">
           <div class="card card-metric border-success shadow-sm h-100 w-100 bg-white">
             <div class="card-body">
-              <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-pie-chart me-1"></i>Margem do investidor
-                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="Quanto do faturamento bruto sobra como lucro real para o investidor após todas as despesas e investimentos de capital."></i>
+              <div class="card-title text-muted small text-uppercase label-fin-row" title="Resultado do investidor ÷ receita bruta anual × 100%. Indica quanto do faturamento vira retorno líquido ao investidor após capital."><i class="bi bi-pie-chart me-1"></i>Margem Investidor
+                <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Margem do investidor:</strong> (Resultado do investidor no Ano 1) ÷ (Receita bruta anual) × 100%.<br>Relaciona o lucro líquido para o investidor (após capital) com o faturamento bruto."></i>
               </div>
               <div class="valor text-body" id="card-margem-investidor">—</div>
             </div>
@@ -226,8 +210,8 @@
       <div class="col d-flex">
         <div class="card card-metric border-dark shadow-sm h-100 w-100">
           <div class="card-body">
-            <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-piggy-bank me-1"></i>Investimento total (Arrendamento + Reforma)
-              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> cash out de capital — arrendamento total do contrato + investimento em reforma / enxoval.<br><strong>Base Payback:</strong> (Arrendamento + Reforma) ÷ Lucro operacional médio mensal."></i>
+            <div class="card-title text-muted small text-uppercase label-fin-row" title="Investimento total de capital: soma do arrendamento total do contrato e do investimento em reforma e enxoval (CAPEX)."><i class="bi bi-piggy-bank me-1"></i>Investimento Total
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Investimento total:</strong> Arrendamento total (valor pago pelo contrato) + Reforma/enxoval (CAPEX).<br><strong>Uso:</strong> base para ROI sobre capital e payback; não confunde com desembolso operacional mensal."></i>
             </div>
             <div class="valor text-dark" id="card-invest-total">R$ 0,00</div>
           </div>
@@ -236,8 +220,8 @@
       <div class="col d-flex">
         <div class="card card-metric border-secondary shadow-sm h-100 w-100">
           <div class="card-body">
-            <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-cash-stack me-1"></i>Desembolso total (ano 1)
-              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="Soma de todas as saídas de caixa no período: Custos Fixos, Variáveis, Impostos, Arrendamento e Reforma."></i>
+            <div class="card-title text-muted small text-uppercase label-fin-row" title="Soma de todas as saídas de caixa no primeiro ano: fixos operacionais, folha, variáveis, impostos, parcela de arrendamento e reforma conforme o motor."><i class="bi bi-cash-stack me-1"></i>Desembolso (Ano 1)
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Desembolso total (Ano 1):</strong> Σ mensal de custos fixos operacionais, folha, custos variáveis, impostos, mais o reconhecimento de caixa de arrendamento e reforma no período.<br>Inclui a saída de capital (arrendamento + reforma) quando aplicável ao modelo."></i>
             </div>
             <div class="valor text-secondary" id="card-desembolso-total">R$ 0,00</div>
           </div>
@@ -253,8 +237,8 @@
       <div class="col d-flex">
         <div class="card card-metric border-danger shadow-sm h-100 w-100">
           <div class="card-body">
-            <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-percent me-1"></i>ROI sobre capital (ano 1)
-              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="Retorno sobre o capital investido. Se negativo, indica que o investimento ainda não foi totalmente recuperado no primeiro ano."></i>
+            <div class="card-title text-muted small text-uppercase label-fin-row" title="Return on Investment: Resultado do investidor no Ano 1 dividido pelo investimento total (Arrendamento + Reforma), em %."><i class="bi bi-percent me-1"></i>ROI Capital (Ano 1)
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>ROI sobre capital (Ano 1):</strong> (Resultado do investidor) ÷ (Investimento total: Arrendamento + Reforma) × 100%.<br>Valor negativo indica que o retorno líquido do ano não cobriu o capital desembolsado."></i>
             </div>
             <div class="valor text-danger" id="card-roi">—</div>
           </div>
@@ -273,14 +257,47 @@
       <div class="col d-flex">
         <div class="card card-metric border-light shadow-sm h-100 w-100">
           <div class="card-body">
-            <div class="card-title text-muted small text-uppercase label-fin-row"><i class="bi bi-bullseye me-1"></i>Break-even ocupação
-              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>O que é:</strong> ocupação mínima para EBITDA <strong>operacional</strong> ≥ 0 no mês (sem arrendamento no fixo)."></i>
+            <div class="card-title text-muted small text-uppercase label-fin-row" title="Ocupação mínima mensal (%) para que o EBITDA operacional seja não negativo, dados ADR e custos do mês (arrendamento não diluído no fixo operacional)."><i class="bi bi-bullseye me-1"></i>Break-even Ocup.
+              <i class="bi bi-question-circle text-primary" data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Break-even de ocupação:</strong> menor taxa de ocupação (dias normais) que zera o EBITDA <strong>operacional</strong> no mês — fixos operacionais + folha e variáveis; <strong>sem</strong> incluir arrendamento como custo fixo operacional mensal."></i>
             </div>
             <div class="valor text-secondary" id="card-breakeven-ocupacao">—</div>
           </div>
         </div>
       </div>
     </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Abas: detalhes (abaixo dos KPI; largura total) -->
+    <div class="row g-3 mb-4">
+      <div class="col-12">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 px-1">
+          <span class="badge rounded-pill bg-secondary text-wrap text-start" id="badge-cenario-ativo-global" title="Cenário carregado da lista ou edição livre">Cenário ativo: <span id="badge-cenario-ativo-nome">—</span></span>
+          <span class="small text-muted" id="label-cenario-ativo" style="display: none;">Editando: <strong id="nome-cenario-ativo"></strong></span>
+        </div>
+        <ul class="nav nav-tabs" id="simulacao-tabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-operacao" data-bs-toggle="tab" data-bs-target="#tab-pane-operacao" type="button" role="tab" aria-controls="tab-pane-operacao" aria-selected="true">
+              <i class="bi bi-kanban me-1"></i> Operação (Ano 1)
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-viabilidade" data-bs-toggle="tab" data-bs-target="#tab-pane-viabilidade" type="button" role="tab" aria-controls="tab-pane-viabilidade" aria-selected="false">
+              <i class="bi bi-calendar-range me-1"></i> Viabilidade do Contrato
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-cenarios" data-bs-toggle="tab" data-bs-target="#tab-pane-cenarios" type="button" role="tab" aria-controls="tab-pane-cenarios" aria-selected="false">
+              <i class="bi bi-bookmarks me-1"></i> Cenários Salvos
+            </button>
+          </li>
+        </ul>
+        <div class="tab-content border border-top-0 rounded-bottom bg-white p-3 p-md-4 shadow-sm" id="simulacao-tab-content">
+          <div class="tab-pane fade show active" id="tab-pane-operacao" role="tabpanel" aria-labelledby="tab-operacao" tabindex="0">
+            <div id="simulacao-conteudo-inferior">
 
     <!-- Gráficos: Evolução, Sensibilidade, Composição de despesas -->
     <div class="row g-3 mb-4">
@@ -325,15 +342,6 @@
         </div>
       </div>
     </div>
-
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Bloco inferior em largura total (evita “buraco” à esquerda sob a coluna Simulação) -->
-    <div class="row g-4">
-      <div class="col-12" id="simulacao-conteudo-inferior">
 
     <!-- Detalhamento de Custos (Accordion) -->
     <div class="accordion mb-4 shadow-sm" id="accordion-custos">
@@ -506,6 +514,161 @@
       </div>
     </div>
 
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="tab-pane-viabilidade" role="tabpanel" aria-labelledby="tab-viabilidade" tabindex="0">
+            <div class="d-flex justify-content-end mb-3">
+              <button type="button" class="btn btn-outline-dark btn-sm" id="btn-gerar-relatorio-pdf">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Gerar Relatório PDF
+              </button>
+            </div>
+            <div class="card shadow-sm mb-4 border-primary border-opacity-25">
+              <div class="card-header bg-white fw-semibold">
+                <i class="bi bi-currency-exchange me-1"></i> Sugestão de Arrendamento
+              </div>
+              <div class="card-body">
+                <p class="small text-muted mb-3">
+                  Calcula o lucro operacional médio mensal com arrendamento e reforma zerados no motor; subtrai uma margem mínima sobre a receita média mensal para estimar quanto pode ser pago de arrendamento por mês.
+                </p>
+                <div class="row g-3 align-items-end flex-wrap">
+                  <div class="col-12 col-md-3">
+                    <label for="input-margem-sugestao-arrendamento" class="form-label small mb-1">Margem mínima desejada (%)</label>
+                    <input type="number" id="input-margem-sugestao-arrendamento" class="form-control" value="15" min="0" max="100" step="0.1" />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label for="sugestao-arrendamento-cenario" class="form-label small mb-1">Base de metas (opcional)</label>
+                    <select id="sugestao-arrendamento-cenario" class="form-select">
+                      <option value="">Curva padrão do projeto</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-auto">
+                    <button type="button" class="btn btn-primary" id="btn-calcular-sugestao-arrendamento">Calcular Sugestão</button>
+                  </div>
+                </div>
+                <div id="sugestao-arrendamento-resultado" class="mt-4 d-none">
+                  <div id="sugestao-arrendamento-conteudo"></div>
+                </div>
+              </div>
+            </div>
+            <div id="plurianual-alerta-payback" class="alert alert-warning d-none mb-3" role="alert">
+              <i class="bi bi-exclamation-triangle me-2"></i>Investimento não recuperado no prazo do contrato.
+            </div>
+            <div class="row row-cols-1 row-cols-md-3 g-3 mb-4">
+              <div class="col">
+                <div class="card border-0 shadow-sm bg-light h-100">
+                  <div class="card-body py-3">
+                    <div class="small text-muted text-uppercase">Payback real (mês)</div>
+                    <div class="fs-5 fw-bold text-primary" id="plurianual-card-payback">—</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col">
+                <div class="card border-0 shadow-sm bg-light h-100">
+                  <div class="card-body py-3">
+                    <div class="small text-muted text-uppercase">Resultado final do contrato (R$)</div>
+                    <div class="fs-5 fw-bold text-success" id="plurianual-card-resultado">—</div>
+                    <div class="small text-muted mt-1">Lucro oper. acumulado − investimento total</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col">
+                <div class="card border-0 shadow-sm bg-light h-100">
+                  <div class="card-body py-3">
+                    <div class="small text-muted text-uppercase">ROI total do contrato</div>
+                    <div class="fs-5 fw-bold text-success" id="plurianual-card-roi">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card shadow-sm mb-4">
+              <div class="card-header bg-white fw-bold">
+                <i class="bi bi-graph-up me-1"></i> Lucro acumulado × investimento total (payback)
+              </div>
+              <div class="card-body" style="min-height: 320px;">
+                <canvas id="chart-plurianual-contrato"></canvas>
+              </div>
+            </div>
+            <div class="card shadow-sm">
+              <div class="card-header bg-white fw-bold">
+                <i class="bi bi-table me-1"></i> Resumo por ano (contrato)
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover table-striped mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Ano</th>
+                        <th class="text-end">Lucro operacional anual</th>
+                        <th class="text-end">Saldo acumulado (fim do ano)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tbody-plurianual-anos">
+                      <tr><td colspan="3" class="text-muted text-center py-3">Execute um cálculo para ver a projeção.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="tab-pane-cenarios" role="tabpanel" aria-labelledby="tab-cenarios" tabindex="0">
+            <div class="card border-0 shadow-sm sim-toolbar-cenarios bg-light">
+              <div class="card-body py-2 px-3">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                  <span class="text-muted small text-nowrap fw-semibold">Cenários</span>
+                  <div id="toolbar-cenarios-pills" class="d-flex flex-wrap align-items-center gap-1 flex-grow-1 min-w-0"></div>
+                  <button type="button" class="btn btn-success btn-sm text-nowrap" id="btn-salvar-cenario">Salvar cenário atual</button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-limpar-cenario">Limpar</button>
+                  <div class="btn-group">
+                    <button type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Mais</button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      <li><button class="dropdown-item" type="button" id="btn-salvar-cenario-novo">Salvar como novo</button></li>
+                      <li><button class="dropdown-item" type="button" id="btn-salvar-cenario-api">Salvar cenário (API)</button></li>
+                      <li><hr class="dropdown-divider"></li>
+                      <li><button class="dropdown-item" type="button" id="btn-recarregar-cenarios-api">Recarregar cenários API</button></li>
+                    </ul>
+                  </div>
+                </div>
+                <div class="collapse mt-2" id="collapse-cenarios-api">
+                  <div class="small text-muted mb-1"><code>/api/projeto/&lt;id&gt;/cenarios</code></div>
+                  <div id="lista-cenarios-api" class="small border rounded p-2 bg-white" style="max-height: 180px; overflow: auto;">Nenhum cenário carregado.</div>
+                </div>
+                <button type="button" class="btn btn-link btn-sm px-0 mt-1" data-bs-toggle="collapse" data-bs-target="#collapse-cenarios-api" aria-expanded="false">Mostrar / ocultar cenários da API</button>
+              </div>
+            </div>
+            <div class="card border-0 shadow-sm mt-3">
+              <div class="card-header bg-white border-bottom py-3">
+                <h6 class="mb-1 fw-semibold">Comparativo de viabilidade</h6>
+                <p class="mb-0 small text-muted">KPIs recalculados com as metas de cada cenário e os custos e investimento <strong>atuais</strong> do projeto.</p>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-hover table-sm align-middle mb-0 sim-table-cenarios">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Cenário</th>
+                        <th class="text-end">Lucro anual</th>
+                        <th class="text-end">ROI</th>
+                        <th class="text-end">Payback (meses)</th>
+                        <th class="text-end">Margem investidor</th>
+                        <th class="text-end">Investimento total</th>
+                        <th class="text-end text-nowrap"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="tbody-comparativo-cenarios">
+                      <tr><td colspan="7" class="text-muted text-center py-4">Carregue ou salve cenários para comparar.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="mt-4" style="min-height: 280px; max-height: 360px;">
+                  <canvas id="chart-cenarios-comparativo" aria-label="Gráfico comparativo de cenários"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
 
@@ -544,9 +707,13 @@
       var chartSensibilidadeOcupacao = null;
       var chartBreakEvenReceitaCustos = null;
       var chartComposicaoDespesas = null;
+      var chartPlurianualContrato = null;
+      var chartCenariosComparativo = null;
       var ultimoResultado = null;
       var cenarioAtivoId = null;
       var cenarioAtivoNome = null;
+      var snapshotOcupacaoBase = null;
+      var snapshotAdrBase = null;
 
       function formatarMoeda(val) {
         if (val == null || isNaN(val)) return 'R$ 0,00';
@@ -735,6 +902,11 @@
         return anoRef + '-' + String(mes).padStart(2, '0');
       }
 
+      /** Dias no mês civil (ano bissexto incluído). */
+      function diasNoMes(ano, mesUmADoze) {
+        return new Date(ano, mesUmADoze, 0).getDate();
+      }
+
       function renderizarCustos(dados) {
         var premissaEl = document.getElementById('premissa-pessoas-diaria');
         if (premissaEl && dados) {
@@ -757,9 +929,21 @@
           html += '<tr><td>' + (k.charAt(0).toUpperCase() + k.slice(1)) + '</td><td>Fixo</td><td class="text-end">' + formatarMoeda(v) + '</td></tr>';
         });
         html += '<tr class="table-light"><td><strong>Folha de pagamento</strong></td><td>Fixo</td><td class="text-end"><strong>' + formatarMoeda(fin.folha_pagamento_mensal) + '</strong></td></tr>';
+        function cvItemValorSim(raw) {
+          if (raw == null) return 0;
+          if (typeof raw === 'object' && raw !== null && 'valor' in raw) return Number(raw.valor) || 0;
+          return Number(raw) || 0;
+        }
+        function cvItemRotuloIncidencia(raw) {
+          var inc = (raw && typeof raw === 'object' && raw.incidencia) ? raw.incidencia : 'hospede_noite';
+          var map = { hospede_noite: 'hóspede·noite', uh_noite: 'UH·noite', reserva: 'reserva', percentual_receita: '% receita' };
+          return map[inc] || inc;
+        }
         ['cafe_manha','amenities','lavanderia','outros'].forEach(function (k) {
-          var v = cv[k] != null ? cv[k] : 0;
-          html += '<tr><td>' + (k === 'cafe_manha' ? 'Café da manhã' : k.charAt(0).toUpperCase() + k.slice(1)) + '</td><td>Variável</td><td class="text-end">' + formatarMoeda(v) + ' / noite</td></tr>';
+          var raw = cv[k];
+          var v = cvItemValorSim(raw);
+          var rot = cvItemRotuloIncidencia(raw);
+          html += '<tr><td>' + (k === 'cafe_manha' ? 'Café da manhã' : k.charAt(0).toUpperCase() + k.slice(1)) + '</td><td>Variável</td><td class="text-end">' + formatarMoeda(v) + ' / ' + rot + '</td></tr>';
         });
         var comissao = (fin.comissao_venda_pct != null ? fin.comissao_venda_pct : 0);
         if (comissao > 0) {
@@ -768,8 +952,10 @@
         html += '</tbody></table>';
         html += '<p class="mt-2 mb-1 small fw-bold">Custos variáveis por noite:</p><table class="table table-sm mb-0"><thead class="table-light"><tr><th>Item</th><th class="text-end">R$/noite</th></tr></thead><tbody>';
         ['cafe_manha','amenities','lavanderia','outros'].forEach(function (k) {
-          var v = cv[k] != null ? cv[k] : 0;
-          html += '<tr><td>' + (k === 'cafe_manha' ? 'Café da manhã' : k.charAt(0).toUpperCase() + k.slice(1)) + '</td><td class="text-end">' + formatarMoeda(v) + '</td></tr>';
+          var raw = cv[k];
+          var v = cvItemValorSim(raw);
+          var rot = cvItemRotuloIncidencia(raw);
+          html += '<tr><td>' + (k === 'cafe_manha' ? 'Café da manhã' : k.charAt(0).toUpperCase() + k.slice(1)) + '</td><td class="text-end">' + formatarMoeda(v) + ' <span class="text-muted">(' + rot + ')</span></td></tr>';
         });
         html += '</tbody></table>';
         html += '<p class="mt-2 mb-0 small text-muted">Custo fixo mensal total: <strong>' + formatarMoeda(dados.custo_fixo_mensal) + '</strong> | Custo variável por noite: <strong>' + formatarMoeda(dados.custo_var_por_noite) + '</strong></p>';
@@ -823,7 +1009,9 @@
             '</div></td>' +
             '<td><div class="d-flex align-items-center gap-2 ocupacao-cell flex-wrap">' +
             '<input type="range" class="form-range range-ocupacao flex-grow-1 input-ocupacao" data-mes="' + mesAno + '" min="0" max="100" step="1" value="' + ocupSug + '">' +
-            '<span class="badge bg-secondary ocupacion-val">' + ocupSug + '%</span></div></td>' +
+            '<button type="button" class="badge bg-secondary border-0 ocupacion-val" title="Clique para editar">' + ocupSug + '%</button>' +
+            '<input type="number" class="form-control form-control-sm input-ocupacao-number d-none" min="0" max="100" step="1" value="' + ocupSug + '" style="width:72px;">' +
+            '</div></td>' +
             '<td class="text-end out-receita">—</td>' +
             '<td class="text-end out-custos-fixos">—</td>' +
             '<td class="text-end out-custos-var">—</td>' +
@@ -839,31 +1027,153 @@
         limparRodapeMetas();
       }
 
-      function aplicarSlidersNaTabela() {
+      function mediasPonderadasTabela(baseOcp, baseAdr) {
+        var sumOcp = 0;
+        var sumAdr = 0;
+        var den = 0;
+        document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
+          var mesAno = tr.getAttribute('data-mes') || '';
+          var partes = mesAno.split('-');
+          var mes = partes.length >= 2 ? parseInt(partes[1], 10) : 1;
+          if (!Number.isFinite(mes) || mes < 1 || mes > 12) mes = 1;
+          var dias = diasNoMes(anoRef, mes);
+          var ro = tr.querySelector('.range-ocupacao');
+          var adrInp = tr.querySelector('.input-adr');
+          var ocpLin = baseOcp && baseOcp[mesAno] != null ? Number(baseOcp[mesAno]) : (ro ? parseFloat(ro.value) || 0 : 0);
+          var adrLin = baseAdr && baseAdr[mesAno] != null ? Number(baseAdr[mesAno]) : (adrInp ? parseFloat(String(adrInp.value).replace(',', '.')) || 0 : 0);
+          sumOcp += ocpLin * dias;
+          sumAdr += adrLin * dias;
+          den += dias;
+        });
+        return {
+          mediaOcp: den > 0 ? sumOcp / den : 0,
+          mediaAdr: den > 0 ? sumAdr / den : 0,
+        };
+      }
+
+      function capturarSnapshotMestre(tipo) {
+        if (tipo !== 'ocupacao' && tipo !== 'adr') return;
+        var snapO = {};
+        var snapA = {};
+        document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
+          var mesAno = tr.getAttribute('data-mes') || '';
+          var ro = tr.querySelector('.range-ocupacao');
+          var adrInp = tr.querySelector('.input-adr');
+          snapO[mesAno] = ro ? (parseFloat(ro.value) || 0) : 0;
+          snapA[mesAno] = adrInp ? (parseFloat(String(adrInp.value).replace(',', '.')) || 0) : 0;
+        });
+        if (tipo === 'ocupacao') snapshotOcupacaoBase = snapO;
+        if (tipo === 'adr') snapshotAdrBase = snapA;
+      }
+
+      function invalidarSnapshotsMestres() {
+        snapshotOcupacaoBase = null;
+        snapshotAdrBase = null;
+      }
+
+      function atualizarSlidersMestresPelaTabela() {
+        var ocpSlider = document.getElementById('slider-ocupacao');
+        var adrSlider = document.getElementById('slider-adr-override');
+        var ocpNum = document.getElementById('input-slider-ocupacao');
+        var adrNum = document.getElementById('input-slider-adr');
+        if (!ocpSlider || !adrSlider) return;
+        var medias = mediasPonderadasTabela();
+        var mediaOcp = Math.max(0, Math.min(100, medias.mediaOcp));
+        var mediaAdr = Math.max(0, medias.mediaAdr);
+        ocpSlider.value = mediaOcp.toFixed(1);
+        adrSlider.value = mediaAdr.toFixed(2);
+        if (ocpNum) ocpNum.value = String(Math.round(mediaOcp));
+        if (adrNum) adrNum.value = String(Math.round(mediaAdr));
+        atualizarLabelsSliders();
+      }
+
+      function aplicarSlidersNaTabela(tipo) {
         var ocpSlider = document.getElementById('slider-ocupacao');
         var adrSlider = document.getElementById('slider-adr-override');
         if (!ocpSlider || !adrSlider || !dadosBase) return;
-        var ocp = parseInt(ocpSlider.value, 10) || 40;
-        var adrOverride = parseInt(adrSlider.value, 10) || 0;
-        document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
-          var ocpInp = tr.querySelector('.range-ocupacao');
-          var adrInp = tr.querySelector('.input-adr');
-          if (ocpInp) {
-            ocpInp.value = String(ocp);
-            var b = tr.querySelector('.ocupacion-val');
-            if (b) b.textContent = ocp + '%';
+
+        if (tipo === 'ocupacao') {
+          var ocpTarget = parseFloat(ocpSlider.value);
+          if (!Number.isFinite(ocpTarget)) ocpTarget = 40;
+          ocpTarget = Math.max(0, Math.min(100, ocpTarget));
+          var baseO = snapshotOcupacaoBase;
+          if (!baseO) {
+            capturarSnapshotMestre('ocupacao');
+            baseO = snapshotOcupacaoBase || {};
           }
-          if (adrInp && adrOverride > 0) adrInp.value = adrOverride;
-        });
+          var mediasO = mediasPonderadasTabela(baseO, null);
+          if (mediasO.mediaOcp <= 0) {
+            document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
+              var ocpInp = tr.querySelector('.range-ocupacao');
+              var b = tr.querySelector('.ocupacion-val');
+              var nInp = tr.querySelector('.input-ocupacao-number');
+              var fixo = Math.round(ocpTarget);
+              if (ocpInp) ocpInp.value = String(fixo);
+              if (nInp) nInp.value = String(fixo);
+              if (b) b.textContent = fixo + '%';
+            });
+          } else {
+            var fatorOcp = ocpTarget / mediasO.mediaOcp;
+            document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
+              var mesAno = tr.getAttribute('data-mes') || '';
+              var ocpInp = tr.querySelector('.range-ocupacao');
+              var b = tr.querySelector('.ocupacion-val');
+              var nInp = tr.querySelector('.input-ocupacao-number');
+              if (!ocpInp) return;
+              var atual = baseO[mesAno] != null ? Number(baseO[mesAno]) : (parseFloat(ocpInp.value) || 0);
+              var novo = Math.max(0, Math.min(100, Math.round(atual * fatorOcp)));
+              ocpInp.value = String(novo);
+              if (nInp) nInp.value = String(novo);
+              if (b) b.textContent = novo + '%';
+            });
+          }
+        } else if (tipo === 'adr') {
+          var adrTarget = parseFloat(adrSlider.value);
+          if (!Number.isFinite(adrTarget)) adrTarget = 0;
+          adrTarget = Math.max(0, adrTarget);
+          var baseA = snapshotAdrBase;
+          if (!baseA) {
+            capturarSnapshotMestre('adr');
+            baseA = snapshotAdrBase || {};
+          }
+          var mediasA = mediasPonderadasTabela(null, baseA);
+          if (mediasA.mediaAdr <= 0) {
+            document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
+              var adrInp = tr.querySelector('.input-adr');
+              if (adrInp) adrInp.value = String(Math.round(adrTarget));
+            });
+          } else {
+            var fatorAdr = adrTarget / mediasA.mediaAdr;
+            document.querySelectorAll('#tbody-meses tr[data-mes]').forEach(function (tr) {
+              var mesAno = tr.getAttribute('data-mes') || '';
+              var adrInp = tr.querySelector('.input-adr');
+              if (!adrInp) return;
+              var atualAdr = baseA[mesAno] != null ? Number(baseA[mesAno]) : (parseFloat(String(adrInp.value).replace(',', '.')) || 0);
+              var novoAdr = Math.max(0, Math.round(atualAdr * fatorAdr));
+              adrInp.value = String(novoAdr);
+            });
+          }
+        }
+        atualizarSlidersMestresPelaTabela();
       }
 
       function atualizarLabelsSliders() {
         var ocpSlider = document.getElementById('slider-ocupacao');
         var adrSlider = document.getElementById('slider-adr-override');
+        var ocpNum = document.getElementById('input-slider-ocupacao');
+        var adrNum = document.getElementById('input-slider-adr');
         var ocpVal = document.getElementById('slider-ocupacao-val');
         var adrVal = document.getElementById('slider-adr-val');
-        if (ocpSlider && ocpVal) ocpVal.textContent = ocpSlider.value;
-        if (adrSlider && adrVal) adrVal.textContent = parseInt(adrSlider.value, 10) > 0 ? 'R$ ' + parseInt(adrSlider.value, 10).toLocaleString('pt-BR') : '— (base)';
+        if (ocpSlider && ocpVal) {
+          var ov = parseFloat(ocpSlider.value);
+          ocpVal.textContent = Number.isFinite(ov) ? ov.toFixed(1).replace('.', ',') : '0,0';
+          if (ocpNum && document.activeElement !== ocpNum) ocpNum.value = String(Math.round(ov || 0));
+        }
+        if (adrSlider && adrVal) {
+          var av = parseFloat(adrSlider.value);
+          adrVal.textContent = Number.isFinite(av) ? ('R$ ' + av.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : '—';
+          if (adrNum && document.activeElement !== adrNum) adrNum.value = String(Math.round(av || 0));
+        }
       }
 
       function anexarListeners() {
@@ -871,14 +1181,58 @@
           el.addEventListener('input', function () {
             var v = parseFloat(el.value);
             if (v < 0) el.value = 0;
+            invalidarSnapshotsMestres();
+            atualizarSlidersMestresPelaTabela();
+            debounce(executarCalculo);
+          });
+          el.addEventListener('change', function () {
+            invalidarSnapshotsMestres();
+            atualizarSlidersMestresPelaTabela();
             debounce(executarCalculo);
           });
         });
         document.querySelectorAll('.range-ocupacao').forEach(function (el) {
           el.addEventListener('input', function () {
             var badge = el.closest('td') && el.closest('td').querySelector('.ocupacion-val');
+            var nInp = el.closest('td') && el.closest('td').querySelector('.input-ocupacao-number');
             if (badge) badge.textContent = el.value + '%';
+            if (nInp) nInp.value = String(parseInt(el.value, 10) || 0);
+            invalidarSnapshotsMestres();
+            atualizarSlidersMestresPelaTabela();
             debounce(executarCalculo);
+          });
+        });
+        document.querySelectorAll('.ocupacion-val').forEach(function (badge) {
+          badge.addEventListener('click', function () {
+            var cell = badge.closest('.ocupacao-cell');
+            if (!cell) return;
+            var nInp = cell.querySelector('.input-ocupacao-number');
+            if (!nInp) return;
+            nInp.classList.remove('d-none');
+            nInp.focus();
+            nInp.select();
+          });
+        });
+        document.querySelectorAll('.input-ocupacao-number').forEach(function (el) {
+          function aplicarNumero() {
+            var cell = el.closest('.ocupacao-cell');
+            if (!cell) return;
+            var range = cell.querySelector('.range-ocupacao');
+            var badge = cell.querySelector('.ocupacion-val');
+            var v = parseInt(el.value, 10);
+            if (!Number.isFinite(v)) v = 0;
+            v = Math.max(0, Math.min(100, v));
+            el.value = String(v);
+            if (range) range.value = String(v);
+            if (badge) badge.textContent = v + '%';
+            invalidarSnapshotsMestres();
+            atualizarSlidersMestresPelaTabela();
+            debounce(executarCalculo);
+          }
+          el.addEventListener('input', aplicarNumero);
+          el.addEventListener('change', aplicarNumero);
+          el.addEventListener('blur', function () {
+            el.classList.add('d-none');
           });
         });
         var reformaEl = document.getElementById('investimento_reforma');
@@ -890,17 +1244,73 @@
         if (prazoEl) prazoEl.addEventListener('change', function () { debounce(executarCalculo); });
         var ocpSlider = document.getElementById('slider-ocupacao');
         var adrSlider = document.getElementById('slider-adr-override');
+        var ocpNum = document.getElementById('input-slider-ocupacao');
+        var adrNum = document.getElementById('input-slider-adr');
+        if (ocpSlider) {
+          ocpSlider.addEventListener('focus', function () { capturarSnapshotMestre('ocupacao'); });
+          ocpSlider.addEventListener('pointerdown', function () { capturarSnapshotMestre('ocupacao'); });
+          ocpSlider.addEventListener('mousedown', function () { capturarSnapshotMestre('ocupacao'); });
+        }
+        if (adrSlider) {
+          adrSlider.addEventListener('focus', function () { capturarSnapshotMestre('adr'); });
+          adrSlider.addEventListener('pointerdown', function () { capturarSnapshotMestre('adr'); });
+          adrSlider.addEventListener('mousedown', function () { capturarSnapshotMestre('adr'); });
+        }
         if (ocpSlider) {
           ocpSlider.addEventListener('input', function () {
             atualizarLabelsSliders();
-            aplicarSlidersNaTabela();
+            aplicarSlidersNaTabela('ocupacao');
             debounce(executarCalculo);
           });
         }
         if (adrSlider) {
           adrSlider.addEventListener('input', function () {
             atualizarLabelsSliders();
-            aplicarSlidersNaTabela();
+            aplicarSlidersNaTabela('adr');
+            debounce(executarCalculo);
+          });
+        }
+        if (ocpNum && ocpSlider) {
+          ocpNum.addEventListener('focus', function () { capturarSnapshotMestre('ocupacao'); });
+          ocpNum.addEventListener('input', function () {
+            var v = parseInt(ocpNum.value, 10);
+            if (!Number.isFinite(v)) v = 0;
+            v = Math.max(0, Math.min(100, v));
+            ocpSlider.value = String(v);
+            atualizarLabelsSliders();
+            aplicarSlidersNaTabela('ocupacao');
+            debounce(executarCalculo);
+          });
+          ocpNum.addEventListener('change', function () {
+            var v = parseInt(ocpNum.value, 10);
+            if (!Number.isFinite(v)) v = 0;
+            v = Math.max(0, Math.min(100, v));
+            ocpNum.value = String(v);
+            ocpSlider.value = String(v);
+            atualizarLabelsSliders();
+            aplicarSlidersNaTabela('ocupacao');
+            debounce(executarCalculo);
+          });
+        }
+        if (adrNum && adrSlider) {
+          adrNum.addEventListener('focus', function () { capturarSnapshotMestre('adr'); });
+          adrNum.addEventListener('input', function () {
+            var v = parseFloat(adrNum.value);
+            if (!Number.isFinite(v)) v = 0;
+            v = Math.max(0, v);
+            adrSlider.value = String(v);
+            atualizarLabelsSliders();
+            aplicarSlidersNaTabela('adr');
+            debounce(executarCalculo);
+          });
+          adrNum.addEventListener('change', function () {
+            var v = parseFloat(adrNum.value);
+            if (!Number.isFinite(v)) v = 0;
+            v = Math.max(0, v);
+            adrNum.value = String(Math.round(v));
+            adrSlider.value = String(v);
+            atualizarLabelsSliders();
+            aplicarSlidersNaTabela('adr');
             debounce(executarCalculo);
           });
         }
@@ -908,8 +1318,9 @@
         var btnMod = document.getElementById('btn-cenario-moderado');
         var btnOti = document.getElementById('btn-cenario-otimista');
         function aplicarCenario(ocupPct) {
+          capturarSnapshotMestre('ocupacao');
           if (ocpSlider) { ocpSlider.value = ocupPct; atualizarLabelsSliders(); }
-          aplicarSlidersNaTabela();
+          aplicarSlidersNaTabela('ocupacao');
           executarCalculo();
         }
         if (btnCons) btnCons.addEventListener('click', function () { aplicarCenario(40); });
@@ -1107,6 +1518,7 @@
           pesoBar.style.width = '0%';
           pesoBar.className = 'progress-bar bg-secondary';
         }
+        limparProjecaoPlurianualUI();
       }
 
       function atualizarPesoCapital() {
@@ -1145,12 +1557,157 @@
       function atualizarUIPerfilCenario() {
         var label = document.getElementById('label-cenario-ativo');
         var nomeEl = document.getElementById('nome-cenario-ativo');
+        var badgeNome = document.getElementById('badge-cenario-ativo-nome');
         if (cenarioAtivoId && label && nomeEl) {
           label.style.display = 'inline';
           nomeEl.textContent = cenarioAtivoNome || 'Sem nome';
-        } else if (label) {
-          label.style.display = 'none';
+          if (badgeNome) badgeNome.textContent = cenarioAtivoNome || 'Sem nome';
+        } else {
+          if (label) label.style.display = 'none';
+          if (badgeNome) badgeNome.textContent = 'Edição livre (sem cenário salvo)';
         }
+      }
+
+      function redimensionarGraficosSimulacao() {
+        function r(c) {
+          try {
+            if (c && typeof c.resize === 'function') c.resize();
+          } catch (e) { /* noop */ }
+        }
+        r(chartEvolucaoMensal);
+        r(chartSensibilidadeOcupacao);
+        r(chartComposicaoDespesas);
+        r(graficoSensibilidade);
+        r(graficoBarras);
+        r(graficoCurvaOcupacao);
+        r(chartBreakEvenReceitaCustos);
+        r(chartPlurianualContrato);
+        r(chartCenariosComparativo);
+      }
+
+      function limparProjecaoPlurianualUI() {
+        var al = document.getElementById('plurianual-alerta-payback');
+        if (al) al.classList.add('d-none');
+        var pb = document.getElementById('plurianual-card-payback');
+        if (pb) pb.textContent = '—';
+        var res = document.getElementById('plurianual-card-resultado');
+        if (res) { res.textContent = '—'; res.className = 'fs-5 fw-bold text-success'; }
+        var roi = document.getElementById('plurianual-card-roi');
+        if (roi) { roi.textContent = '—'; roi.className = 'fs-5 fw-bold text-success'; }
+        var tb = document.getElementById('tbody-plurianual-anos');
+        if (tb) tb.innerHTML = '<tr><td colspan="3" class="text-muted text-center py-3">Execute um cálculo para ver a projeção.</td></tr>';
+        if (chartPlurianualContrato) {
+          try { chartPlurianualContrato.destroy(); } catch (e) { /* noop */ }
+          chartPlurianualContrato = null;
+        }
+      }
+
+      function renderizarProjecaoPlurianual(dados) {
+        limparProjecaoPlurianualUI();
+        if (!dados || !Array.isArray(dados.meses) || dados.meses.length === 0) {
+          return;
+        }
+        var inv = Number(dados.investimento_total);
+        var mesPay = dados.mes_payback;
+        var paybackOk = dados.payback_atingido === true;
+        var al = document.getElementById('plurianual-alerta-payback');
+        if (al) {
+          if (!paybackOk && inv > 0) al.classList.remove('d-none');
+          else al.classList.add('d-none');
+        }
+        var elPb = document.getElementById('plurianual-card-payback');
+        if (elPb) {
+          if (mesPay != null && Number.isFinite(Number(mesPay))) {
+            elPb.textContent = 'Mês ' + String(mesPay);
+          } else {
+            elPb.textContent = 'Não atingido';
+          }
+        }
+        var resFin = Number(dados.resultado_pos_investimento);
+        var elRes = document.getElementById('plurianual-card-resultado');
+        if (elRes) {
+          elRes.textContent = formatarMoeda(resFin);
+          elRes.className = 'fs-5 fw-bold ' + (resFin >= 0 ? 'text-success' : 'text-danger');
+        }
+        var roiPct = dados.roi_total_contrato_pct;
+        var elRoi = document.getElementById('plurianual-card-roi');
+        if (elRoi) {
+          if (roiPct != null && Number.isFinite(Number(roiPct))) {
+            elRoi.textContent = formatarPctSafe(Number(roiPct));
+            elRoi.className = 'fs-5 fw-bold ' + (Number(roiPct) >= 0 ? 'text-success' : 'text-danger');
+          } else {
+            elRoi.textContent = '—';
+          }
+        }
+        var tb = document.getElementById('tbody-plurianual-anos');
+        if (tb && Array.isArray(dados.anos)) {
+          tb.innerHTML = '';
+          dados.anos.forEach(function (a) {
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+              '<td>' + String(a.ano) + '</td>' +
+              '<td class="text-end">' + formatarMoeda(a.lucro_operacional_anual) + '</td>' +
+              '<td class="text-end">' + formatarMoeda(a.saldo_acumulado_fim_ano) + '</td>';
+            tb.appendChild(tr);
+          });
+        }
+        var labels = dados.meses.map(function (m) { return String(m.mes_contrato); });
+        var saldos = dados.meses.map(function (m) { return Number(m.saldo_acumulado) || 0; });
+        var linhaInv = dados.meses.map(function () { return inv; });
+        var ctx = document.getElementById('chart-plurianual-contrato');
+        if (!ctx || typeof Chart === 'undefined') return;
+        if (chartPlurianualContrato) {
+          try { chartPlurianualContrato.destroy(); } catch (e) { /* noop */ }
+          chartPlurianualContrato = null;
+        }
+        chartPlurianualContrato = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Lucro operacional acumulado',
+                data: saldos,
+                borderColor: 'rgb(25, 135, 84)',
+                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                fill: true,
+                tension: 0.1,
+                pointRadius: labels.length > 120 ? 0 : 2,
+                borderWidth: 2
+              },
+              {
+                label: 'Investimento total (referência)',
+                data: linhaInv,
+                borderColor: 'rgb(13, 110, 253)',
+                backgroundColor: 'transparent',
+                fill: false,
+                pointRadius: 0,
+                borderWidth: 2,
+                borderDash: [6, 4]
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+              x: { title: { display: true, text: 'Mês do contrato' } },
+              y: { title: { display: true, text: 'R$' } }
+            },
+            plugins: {
+              legend: { display: true },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    var v = ctx.parsed.y;
+                    return ctx.dataset.label + ': ' + formatarMoeda(v);
+                  }
+                }
+              }
+            }
+          }
+        });
       }
 
       function salvarCenario(comoNovo) {
@@ -1168,6 +1725,8 @@
           var nome = (prompt('Nome do cenário:', '') || '').trim();
           if (nome === '') nome = 'Sem nome ' + new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
           payload.nome = nome;
+          var descNova = (prompt('Descrição (opcional):', '') || '').trim();
+          if (descNova) payload.descricao = descNova;
         } else {
           payload.id = cenarioAtivoId;
         }
@@ -1264,6 +1823,8 @@
               buscarCurvaSensibilidade();
               atualizarGraficoBreakEvenReceitaCustos();
               calcularMatrizSensibilidade();
+              if (json.data.plurianual) renderizarProjecaoPlurianual(json.data.plurianual);
+              requestAnimationFrame(function () { redimensionarGraficosSimulacao(); });
               if (typeof aposSucesso === 'function') aposSucesso();
             }
           })
@@ -1485,11 +2046,22 @@
           detalhes.forEach(function (d) {
             var sub = d.subtotal_mensal != null ? d.subtotal_mensal : 0;
             total += sub;
+            var qtd = (d.quantidade_calculo != null && d.quantidade_calculo !== undefined) ? d.quantidade_calculo : diarias;
+            var rot = d.rotulo_quantidade || 'noites';
+            var vuTxt;
+            if (d.incidencia === 'percentual_receita') {
+              vuTxt = (d.valor_unitario != null ? Number(d.valor_unitario) : 0) + '% rec.';
+            } else if (d.incidencia === 'comissao_venda') {
+              vuTxt = (d.valor_unitario != null ? Number(d.valor_unitario) : 0) + '%';
+            } else {
+              vuTxt = formatarMoeda(d.valor_unitario);
+            }
             var tr = document.createElement('tr');
             tr.innerHTML =
               '<td>' + (d.nome || '') + '</td>' +
-              '<td class="text-end">' + formatarMoeda(d.valor_unitario) + '</td>' +
-              '<td class="text-end">× ' + (typeof diarias === 'number' ? diarias.toLocaleString('pt-BR') : diarias) + '</td>' +
+              '<td class="text-end">' + vuTxt + '</td>' +
+              '<td class="text-end">× ' + (typeof qtd === 'number' ? qtd.toLocaleString('pt-BR') : qtd) +
+              ' <span class="text-muted small">(' + rot + ')</span></td>' +
               '<td class="text-end">= ' + formatarMoeda(sub) + '</td>';
             tbody.appendChild(tr);
           });
@@ -1869,6 +2441,243 @@
           .catch(function () {});
       }
 
+      function popularSelectSugestaoArrendamento(cenarios) {
+        var sel = document.getElementById('sugestao-arrendamento-cenario');
+        if (!sel) return;
+        var prev = sel.value;
+        sel.innerHTML = '<option value="">Curva padrão do projeto</option>';
+        (cenarios || []).forEach(function (c) {
+          if (!c.id) return;
+          var opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = (c.nome_cenario || c.nome || c.id);
+          sel.appendChild(opt);
+        });
+        var ok = false;
+        for (var i = 0; i < sel.options.length; i++) {
+          if (sel.options[i].value === prev) { ok = true; break; }
+        }
+        if (ok) sel.value = prev;
+      }
+
+      function calcularSugestaoArrendamentoUi() {
+        var box = document.getElementById('sugestao-arrendamento-resultado');
+        var inner = document.getElementById('sugestao-arrendamento-conteudo');
+        var inp = document.getElementById('input-margem-sugestao-arrendamento');
+        var sel = document.getElementById('sugestao-arrendamento-cenario');
+        if (!inner || !box) return;
+        var margem = parseFloat(inp && inp.value !== '' ? inp.value : '15');
+        if (!Number.isFinite(margem)) margem = 15;
+        var url = '/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/sugestao-arrendamento?margem=' + encodeURIComponent(String(margem));
+        if (sel && sel.value) url += '&cenario=' + encodeURIComponent(sel.value);
+        fetch(url, { cache: 'no-store' })
+          .then(function (res) { return res.json(); })
+          .then(function (json) {
+            box.classList.remove('d-none');
+            inner.innerHTML = '';
+            if (!json.success) {
+              var pe = document.createElement('p');
+              pe.className = 'text-danger mb-0';
+              pe.textContent = json.message || 'Falha ao calcular sugestão.';
+              inner.appendChild(pe);
+              return;
+            }
+            var d = json.data;
+            if (!d) return;
+            if (d.status === 'viavel') {
+              var wrap = document.createElement('div');
+              wrap.className = 'alert alert-success border-0 py-3 mb-0';
+              var h = document.createElement('div');
+              h.className = 'fs-5 fw-bold text-success mb-2';
+              h.textContent = 'Arrendamento sugerido (mensal): ' + formatarMoeda(d.arrendamento_sugerido);
+              wrap.appendChild(h);
+              var ul = document.createElement('ul');
+              ul.className = 'list-unstyled small mb-0';
+              function addLi(text) {
+                var li = document.createElement('li');
+                li.textContent = text;
+                ul.appendChild(li);
+              }
+              addLi('Lucro operacional médio mensal (sem arrendamento/reforma no cálculo): ' + formatarMoeda(d.lucro_sem_arrendamento));
+              addLi('Receita média mensal: ' + formatarMoeda(d.receita_media_mensal));
+              addLi('Margem mínima (' + formatarPctSafe(d.margem_minima_pct) + ' sobre receita média): ' + formatarMoeda(d.margem_minima_R));
+              var brLi = document.createElement('li');
+              brLi.className = 'pt-2 mt-2 border-top small';
+              brLi.textContent =
+                'Breakdown: ' + formatarMoeda(d.lucro_sem_arrendamento) + ' − ' + formatarMoeda(d.margem_minima_R) + ' = ' + formatarMoeda(d.arrendamento_sugerido);
+              ul.appendChild(brLi);
+              wrap.appendChild(ul);
+              inner.appendChild(wrap);
+            } else if (d.status === 'inviavel') {
+              var inv = document.createElement('div');
+              inv.className = 'alert alert-light border-danger mb-0';
+              var badge = document.createElement('span');
+              badge.className = 'badge bg-danger';
+              badge.textContent = 'Inviável';
+              inv.appendChild(badge);
+              var pDiag = document.createElement('p');
+              pDiag.className = 'small mt-2 mb-2';
+              pDiag.textContent = d.diagnostico || 'Não há arrendamento mensal positivo compatível com a margem desejada.';
+              inv.appendChild(pDiag);
+              var ul2 = document.createElement('ul');
+              ul2.className = 'list-unstyled small text-muted mb-0';
+              var l1 = document.createElement('li');
+              l1.textContent = 'Lucro operacional médio mensal: ' + formatarMoeda(d.lucro_sem_arrendamento);
+              var l2 = document.createElement('li');
+              l2.textContent = 'Margem mínima exigida: ' + formatarMoeda(d.margem_minima_R);
+              var l3 = document.createElement('li');
+              l3.textContent = 'Resultado líquido da regra (sugestão): ' + formatarMoeda(d.arrendamento_sugerido);
+              ul2.appendChild(l1);
+              ul2.appendChild(l2);
+              ul2.appendChild(l3);
+              inv.appendChild(ul2);
+              inner.appendChild(inv);
+            }
+          })
+          .catch(function () {
+            box.classList.remove('d-none');
+            inner.innerHTML = '';
+            var pe = document.createElement('p');
+            pe.className = 'text-danger mb-0';
+            pe.textContent = 'Erro de rede ao calcular sugestão.';
+            inner.appendChild(pe);
+          });
+      }
+
+      function renderizarComparativoCenarios(cenarios) {
+        var tbody = document.getElementById('tbody-comparativo-cenarios');
+        var canvas = document.getElementById('chart-cenarios-comparativo');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        var labels = [];
+        var lucros = [];
+        var investimentos = [];
+        if (!cenarios || cenarios.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-4">Nenhum cenário salvo ainda.</td></tr>';
+          if (chartCenariosComparativo) {
+            chartCenariosComparativo.destroy();
+            chartCenariosComparativo = null;
+          }
+          return;
+        }
+        cenarios.forEach(function (c) {
+          var nome = (c.nome_cenario || c.nome || 'Sem nome').trim() || 'Sem nome';
+          var label = nome.length > 28 ? nome.slice(0, 26) + '…' : nome;
+          labels.push(label);
+          var lucro = c.lucro_anual;
+          var invT = c.investimento_total;
+          lucros.push(Number.isFinite(Number(lucro)) ? Number(lucro) : 0);
+          investimentos.push(Number.isFinite(Number(invT)) ? Number(invT) : 0);
+          var tr = document.createElement('tr');
+          var err = c.erro_calculo;
+          var tdNome = document.createElement('td');
+          var spNome = document.createElement('span');
+          spNome.className = 'fw-medium';
+          spNome.textContent = nome;
+          tdNome.appendChild(spNome);
+          var desc = (c.descricao || '').trim();
+          if (desc) {
+            var divDesc = document.createElement('div');
+            divDesc.className = 'small text-muted text-truncate';
+            divDesc.style.maxWidth = '14rem';
+            divDesc.title = desc;
+            divDesc.textContent = desc;
+            tdNome.appendChild(divDesc);
+          }
+          function tdText(cls, text) {
+            var td = document.createElement('td');
+            td.className = cls;
+            td.textContent = text;
+            return td;
+          }
+          tr.appendChild(tdNome);
+          if (err) {
+            var tdL = document.createElement('td');
+            tdL.className = 'text-end';
+            var sp = document.createElement('span');
+            sp.className = 'text-warning small';
+            sp.title = String(err);
+            sp.textContent = '—';
+            tdL.appendChild(sp);
+            tr.appendChild(tdL);
+            tr.appendChild(tdText('text-end', '—'));
+            tr.appendChild(tdText('text-end', '—'));
+            tr.appendChild(tdText('text-end', '—'));
+            tr.appendChild(tdText('text-end', '—'));
+          } else {
+            tr.appendChild(tdText('text-end', formatarMoeda(lucro)));
+            tr.appendChild(tdText('text-end', c.roi_pct != null && Number.isFinite(Number(c.roi_pct)) ? formatarPctSafe(c.roi_pct) : '—'));
+            tr.appendChild(tdText('text-end', c.payback_meses != null && Number.isFinite(Number(c.payback_meses)) ? Number(c.payback_meses).toFixed(1).replace('.', ',') : '—'));
+            tr.appendChild(tdText('text-end', c.margem_investidor != null && Number.isFinite(Number(c.margem_investidor)) ? formatarPctSafe(c.margem_investidor) : '—'));
+            tr.appendChild(tdText('text-end', formatarMoeda(invT)));
+          }
+          var tdBtn = document.createElement('td');
+          tdBtn.className = 'text-end';
+          var btnLoad = document.createElement('button');
+          btnLoad.type = 'button';
+          btnLoad.className = 'btn btn-sm btn-outline-primary text-nowrap';
+          btnLoad.textContent = 'Carregar na Simulação';
+          btnLoad.title = 'Aplica as metas deste cenário mantendo investimento e prazo atuais na simulação';
+          btnLoad.onclick = function () {
+            if (c.id) carregarCenario(c.id, { preserveInvestimento: true });
+          };
+          tdBtn.appendChild(btnLoad);
+          tr.appendChild(tdBtn);
+          tbody.appendChild(tr);
+        });
+        if (canvas && typeof Chart !== 'undefined') {
+          if (chartCenariosComparativo) chartCenariosComparativo.destroy();
+          chartCenariosComparativo = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: 'Lucro anual',
+                  data: lucros,
+                  backgroundColor: 'rgba(13, 110, 253, 0.75)',
+                  borderColor: 'rgb(13, 110, 253)',
+                  borderWidth: 1
+                },
+                {
+                  label: 'Investimento total',
+                  data: investimentos,
+                  backgroundColor: 'rgba(108, 117, 125, 0.75)',
+                  borderColor: 'rgb(108, 117, 125)',
+                  borderWidth: 1
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: 'index', intersect: false },
+              scales: {
+                x: { grid: { display: false } },
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    callback: function (v) {
+                      return 'R$ ' + Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+                    }
+                  }
+                }
+              },
+              plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                  callbacks: {
+                    label: function (ctx) {
+                      return ctx.dataset.label + ': ' + formatarMoeda(ctx.raw);
+                    }
+                  }
+                }
+              }
+            }
+          });
+        }
+      }
+
       function listarCenarios() {
         var wrap = document.getElementById('toolbar-cenarios-pills');
         if (!wrap) return;
@@ -1878,9 +2687,13 @@
             wrap.innerHTML = '';
             if (!json.success || !json.data || !json.data.cenarios) {
               wrap.innerHTML = '<span class="text-muted small">Não foi possível carregar cenários.</span>';
+              renderizarComparativoCenarios([]);
+              popularSelectSugestaoArrendamento([]);
               return;
             }
             var cenarios = json.data.cenarios;
+            renderizarComparativoCenarios(cenarios);
+            popularSelectSugestaoArrendamento(cenarios);
             if (cenarios.length === 0) {
               wrap.innerHTML = '<span class="text-muted small">Nenhum cenário salvo ainda.</span>';
               return;
@@ -1890,14 +2703,15 @@
               var dataStr = c.criado_em ? new Date(c.criado_em).toLocaleString('pt-BR') : '';
               var lucroStr = (c.lucro_anual != null && c.lucro_anual !== undefined && Number.isFinite(Number(c.lucro_anual)))
                 ? formatarMoeda(c.lucro_anual)
-                : 'Recalcular ao abrir';
+                : (c.erro_calculo ? 'Ver tabela' : '—');
+              var nomePill = (c.nome_cenario || c.nome || 'Sem nome');
               var grupo = document.createElement('div');
               grupo.className = 'btn-group btn-group-sm';
               grupo.setAttribute('role', 'group');
               var btn = document.createElement('button');
               btn.type = 'button';
               btn.className = 'btn rounded-pill ' + (isAtivo ? 'btn-primary' : 'btn-outline-primary');
-              btn.textContent = c.nome || 'Sem nome';
+              btn.textContent = nomePill;
               btn.title = (dataStr ? dataStr + ' · ' : '') + 'Lucro: ' + lucroStr;
               btn.onclick = function () { carregarCenario(c.id); };
               var btnX = document.createElement('button');
@@ -1916,6 +2730,8 @@
           })
           .catch(function () {
             wrap.innerHTML = '<span class="text-danger small">Erro ao listar cenários.</span>';
+            renderizarComparativoCenarios([]);
+            popularSelectSugestaoArrendamento([]);
           });
       }
 
@@ -1970,7 +2786,8 @@
           });
       }
 
-      function carregarCenario(cid) {
+      function carregarCenario(cid, opts) {
+        opts = opts || {};
         fetch('/api/projeto/' + encodeURIComponent(projetoId) + '/simulacao/cenarios/' + encodeURIComponent(cid))
           .then(function (res) { return res.json(); })
           .then(function (json) {
@@ -1980,17 +2797,22 @@
             cenarioAtivoNome = (c.nome || '').trim() || null;
             atualizarUIPerfilCenario();
             aplicarMetas(c.metas_mensais || {});
-            var refV = c.investimento_reforma != null ? c.investimento_reforma : (c.investimento_inicial != null ? c.investimento_inicial : 0);
-            var refEl = document.getElementById('investimento_reforma');
-            if (refEl) refEl.value = formatarMoeda(refV);
-            var arrTot2 = document.getElementById('arrendamento_total');
-            if (arrTot2) arrTot2.value = formatarMoeda(c.arrendamento_total != null ? c.arrendamento_total : 0);
-            var prazo2 = document.getElementById('prazo_contrato_meses');
-            if (prazo2) prazo2.value = c.prazo_contrato_meses != null ? c.prazo_contrato_meses : 12;
+            if (!opts.preserveInvestimento) {
+              var refV = c.investimento_reforma != null ? c.investimento_reforma : (c.investimento_inicial != null ? c.investimento_inicial : 0);
+              var refEl = document.getElementById('investimento_reforma');
+              if (refEl) refEl.value = formatarMoeda(refV);
+              var arrTot2 = document.getElementById('arrendamento_total');
+              if (arrTot2) arrTot2.value = formatarMoeda(c.arrendamento_total != null ? c.arrendamento_total : 0);
+              var prazo2 = document.getElementById('prazo_contrato_meses');
+              if (prazo2) prazo2.value = c.prazo_contrato_meses != null ? c.prazo_contrato_meses : 12;
+            }
             limparSaidaSimulacaoAteCarregar();
             executarCalculo(function () {
               listarCenarios();
-              mostrarToast('Cenário carregado (recalculado). Use Salvar para atualizar ou Salvar como Novo para criar cópia.', true);
+              var msg = opts.preserveInvestimento
+                ? 'Metas do cenário aplicadas com investimento e prazo atuais da simulação.'
+                : 'Cenário carregado (recalculado). Use Salvar para atualizar ou Salvar como Novo para criar cópia.';
+              mostrarToast(msg, true);
             });
           })
           .catch(function () { mostrarToast('Erro ao carregar cenário.', false); });
@@ -2028,6 +2850,7 @@
             }
           }
         }
+        atualizarSlidersMestresPelaTabela();
       }
 
       function mostrarToast(msg, sucesso) {
@@ -2039,9 +2862,56 @@
         container.insertAdjacentHTML('beforeend', html);
         var el = document.getElementById(id);
         if (el && typeof bootstrap !== 'undefined') {
-          var t = new bootstrap.Toast(el);
+          var t = new bootstrap.Toast(el, { delay: 4200, autohide: true });
           t.show();
           el.addEventListener('hidden.bs.toast', function () { el.remove(); });
+        }
+      }
+
+      function abrirRelatorioViabilidadeImpressao() {
+        var btn = document.getElementById('btn-gerar-relatorio-pdf');
+        if (btn && btn.disabled) return;
+        var txtOriginal = btn ? btn.innerHTML : '';
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Gerando...';
+        }
+        var metas = coletarMetas();
+        var inv = corpoInvestimentoSimulacao();
+        var margemEl = document.getElementById('input-margem-sugestao-arrendamento');
+        var margem = margemEl ? parseFloat(margemEl.value) : 15;
+        if (!Number.isFinite(margem)) margem = 15;
+        var payload = {
+          metas_mensais: metas,
+          investimento_params: {
+            investimento_reforma: inv.investimento_reforma,
+            arrendamento_total: inv.arrendamento_total,
+            prazo_contrato_meses: inv.prazo_contrato_meses,
+            investimento_inicial: inv.investimento_reforma,
+            margem_minima_pct: margem,
+            cenario_id: cenarioAtivoId || null,
+            nome_cenario_base: cenarioAtivoNome || 'Simulação Ad-hoc',
+          },
+          cenario_id: cenarioAtivoId || null,
+          auto_print: true,
+        };
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/projeto/' + encodeURIComponent(projetoId) + '/viabilidade';
+        form.target = '_blank';
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'payload_json';
+        input.value = JSON.stringify(payload);
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
+        if (btn) {
+          setTimeout(function () {
+            btn.disabled = false;
+            btn.innerHTML = txtOriginal || '<i class="bi bi-file-earmark-pdf me-1"></i>Gerar Relatório PDF';
+          }, 2000);
         }
       }
 
@@ -2062,6 +2932,7 @@
             esconderMsg();
             renderizarCustos(dadosBase);
             renderizarTabela();
+            atualizarSlidersMestresPelaTabela();
             atualizarLabelsSliders();
             var temSalvosInv = dadosSalvos && (
               dadosSalvos.investimento_reforma != null || dadosSalvos.investimento_inicial != null ||
@@ -2121,6 +2992,22 @@
       if (btnRecarregarApi) btnRecarregarApi.addEventListener('click', listarCenariosApiNova);
       var btnLimpar = document.getElementById('btn-limpar-cenario');
       if (btnLimpar) btnLimpar.addEventListener('click', limparCenarioAtivo);
+      var btnSugestaoArr = document.getElementById('btn-calcular-sugestao-arrendamento');
+      if (btnSugestaoArr) btnSugestaoArr.addEventListener('click', calcularSugestaoArrendamentoUi);
+      var btnRelatorioPdf = document.getElementById('btn-gerar-relatorio-pdf');
+      if (btnRelatorioPdf) btnRelatorioPdf.addEventListener('click', abrirRelatorioViabilidadeImpressao);
+      var simTabs = document.getElementById('simulacao-tabs');
+      if (simTabs) {
+        simTabs.querySelectorAll('[data-bs-toggle="tab"]').forEach(function (btn) {
+          btn.addEventListener('shown.bs.tab', function () {
+            requestAnimationFrame(function () {
+              redimensionarGraficosSimulacao();
+            });
+            if (btn.id === 'tab-cenarios') listarCenarios();
+          });
+        });
+      }
+      atualizarUIPerfilCenario();
       carregarDadosBase();
     })();
   </script>
