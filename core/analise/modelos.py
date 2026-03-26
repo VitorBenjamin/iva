@@ -58,6 +58,10 @@ class ResultadoAnaliseCurado(BaseModel):
     noites_break_even: float = 0.0
     retorno_arrendamento_percentual: float = 0.0
     cenarios: list[CenarioFinanceiro] = Field(default_factory=list)
+    itens_custos_variaveis_cadastro: list[dict] = Field(
+        default_factory=list,
+        description="Itens de custo variável do cadastro com valor e incidência (relatório PDF).",
+    )
 
 
 class ResultadoEngReversa(BaseModel):

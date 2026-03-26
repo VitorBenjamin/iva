@@ -62,7 +62,12 @@ class TestDecimalRoundtrip(unittest.TestCase):
         self.assertEqual(fin.get("folha_pagamento_mensal"), 12345.68)
         self.assertEqual(fin.get("media_pessoas_por_diaria"), 2.35)
         self.assertEqual(fin.get("custos_fixos", {}).get("luz"), 1000.12)
-        self.assertEqual(fin.get("custos_variaveis", {}).get("cafe_manha"), 20.56)
+        cm = fin.get("custos_variaveis", {}).get("cafe_manha")
+        if isinstance(cm, dict):
+            self.assertEqual(cm.get("valor"), 20.56)
+            self.assertEqual(cm.get("incidencia"), "hospede_noite")
+        else:
+            self.assertEqual(cm, 20.56)
 
 
 if __name__ == "__main__":

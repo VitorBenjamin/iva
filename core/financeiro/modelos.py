@@ -3,7 +3,8 @@ modelos - Schemas Pydantic para dados financeiros.
 Responsabilidade: validação de receitas, despesas e métricas financeiras.
 """
 from decimal import Decimal, ROUND_HALF_UP
-from typing import List, Optional
+from enum import Enum
+from typing import Any, List, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, model_validator
@@ -82,13 +83,48 @@ class Funcionario(BaseModel):
         return data
 
 
-class CustosVariaveisPorNoite(BaseModel):
-    """Custos variáveis por noite vendida."""
+class IncidenciaCustoVariavel(str, Enum):
+    """Como o valor monetário (ou percentual) incide sobre a operação."""
 
-    cafe_manha: float = Field(default=0.0, ge=0)
-    amenities: float = Field(default=0.0, ge=0)
-    lavanderia: float = Field(default=0.0, ge=0)
-    outros: float = Field(default=0.0, ge=0)
+    HOSPEDE_NOITE = "hospede_noite"
+    UH_NOITE = "uh_noite"
+    RESERVA = "reserva"
+    PERCENTUAL_RECEITA = "percentual_receita"
+
+
+class CustoVariavelItem(BaseModel):
+    """Um item de custo variável com valor e regra de incidência."""
+
+    valor: float = Field(default=0.0, ge=0)
+    incidencia: IncidenciaCustoVariavel = Field(
+        default=IncidenciaCustoVariavel.HOSPEDE_NOITE,
+        description="Padrão hospede_noite; JSONs antigos sem campo assumem o mesmo.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_numero_puro(cls, data: Any) -> Any:
+        if isinstance(data, (int, float)):
+            return {"valor": float(data), "incidencia": IncidenciaCustoVariavel.HOSPEDE_NOITE.value}
+        if isinstance(data, dict) and "valor" not in data and data.get("incidencia") is None:
+            # dict vazio ou só chaves estranhas
+            return data
+        return data
+
+
+class CustosVariaveisPorNoite(BaseModel):
+    """Custos variáveis cadastrais (café, amenities, lavanderia, outros)."""
+
+    cafe_manha: CustoVariavelItem = Field(
+        default_factory=lambda: CustoVariavelItem(
+            valor=0.0,
+            incidencia=IncidenciaCustoVariavel.HOSPEDE_NOITE,
+        ),
+        description="Café da manhã: auditoria — incidência padrão hóspede/noite.",
+    )
+    amenities: CustoVariavelItem = Field(default_factory=CustoVariavelItem)
+    lavanderia: CustoVariavelItem = Field(default_factory=CustoVariavelItem)
+    outros: CustoVariavelItem = Field(default_factory=CustoVariavelItem)
 
 
 class DadosFinanceiros(BaseModel):
@@ -121,6 +157,12 @@ class DadosFinanceiros(BaseModel):
         ge=0.1,
         le=10.0,
         description="Média de pessoas por diária vendida. Usado para calcular custo variável por noite. Default 2.0 (backward compatible).",
+    )
+    permanencia_media: float = Field(
+        default=2.0,
+        ge=0.5,
+        le=30.0,
+        description="Permanência média em noites por reserva (para incidência 'reserva'). Default 2.0.",
     )
     comissao_venda_pct: float = Field(
         default=0.0,

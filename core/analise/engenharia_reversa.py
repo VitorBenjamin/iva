@@ -14,6 +14,13 @@ from core.analise.modelos import (
     ResultadoAnaliseCurado,
     ResultadoEngReversa,
 )
+from core.financeiro.custos_variaveis_motor import (
+    custo_variavel_operacional_mensal_total,
+    listar_itens_cadastro_relatorio,
+    soma_fracoes_percentual_receita_itens,
+    soma_marginal_linear_por_noite,
+)
+from core.financeiro.modelos import CustosVariaveisPorNoite
 from core.projetos import Projeto
 from core.scraper.modelos import DadosMercado
 
@@ -127,16 +134,22 @@ def _custo_fixo_mensal_total(projeto: Projeto) -> float:
 
 
 def _custo_variavel_por_noite(projeto: Projeto) -> float:
-    """Retorna o custo variável estimado por noite (por quarto), considerando média de pessoas por diária."""
+    """Marginal de custo variável por noite vendida (linear em noites); usado em break-even e metas."""
     fin = getattr(projeto, "financeiro", None)
     if not fin or not getattr(fin, "custos_variaveis", None):
         return 0.0
     media = float(getattr(fin, "media_pessoas_por_diaria", 2.0) or 2.0)
     media = max(0.1, min(10.0, media))
-    cv = fin.custos_variaveis
-    por_pessoa = float(cv.cafe_manha) + float(cv.amenities) + float(cv.lavanderia) + float(cv.outros)
-    total = por_pessoa * media
-    return max(total, 0.0)
+    perm = float(getattr(fin, "permanencia_media", 2.0) or 2.0)
+    perm = max(0.5, min(30.0, perm))
+    return max(
+        soma_marginal_linear_por_noite(
+            fin.custos_variaveis,
+            media_pessoas=media,
+            permanencia_media=perm,
+        ),
+        0.0,
+    )
 
 
 def _impostos_sobre_faturamento(faturamento: float, projeto: Projeto) -> float:
@@ -153,12 +166,13 @@ def _impostos_sobre_faturamento(faturamento: float, projeto: Projeto) -> float:
 def _calcular_break_even(
     adr_anual: float,
     projeto: Projeto,
-    custo_var_noite: float,
+    custo_var_marginal_noite: float,
     faturamento_anual_total: float,
 ) -> float:
     """
     Calcula o ponto de equilíbrio em noites/mês.
-    Fórmula aproximada: (custo_fixo_mensal_total + impostos_mensais_est) / (adr - custo_var_noite)
+    Aproximação: (custo_fixo_mensal_total + impostos_mensais_est) / (ADR efetivo − custo marginal/noite),
+    com ADR efetivo reduzido por comissão e itens % receita.
     """
     if adr_anual <= 0:
         return 0.0
@@ -171,7 +185,13 @@ def _calcular_break_even(
     total_aliquota = max(aliquota + outros, 0.0)
     faturamento_medio_mensal = max(faturamento_anual_total, 0.0) / 12.0
     impostos_mensais_estimados = faturamento_medio_mensal * total_aliquota
-    denominador = adr_anual - max(custo_var_noite, 0.0)
+    comissao = float(getattr(fin, "comissao_venda_pct", 0.0) or 0.0) if fin else 0.0
+    comissao = max(0.0, min(1.0, comissao))
+    cv = getattr(fin, "custos_variaveis", None) if fin else None
+    fr_frac = soma_fracoes_percentual_receita_itens(cv) if cv else 0.0
+    pct_total = min(0.999, max(0.0, comissao + fr_frac))
+    adr_efetivo = adr_anual * (1.0 - pct_total)
+    denominador = adr_efetivo - max(custo_var_marginal_noite, 0.0)
     if denominador <= 0:
         return 0.0
     noites = (custo_fixo_mensal + impostos_mensais_estimados) / denominador
@@ -466,8 +486,18 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
     total_noites_vendidas = 0.0
     custos_variaveis_anuais = 0.0
     impostos_anuais = 0.0
-    custo_var_noite = _custo_variavel_por_noite(projeto)
+    custo_var_marginal_noite = _custo_variavel_por_noite(projeto)
     custo_fixo_mensal_total = _custo_fixo_mensal_total(projeto)
+    fin_loop = getattr(projeto, "financeiro", None)
+    comissao_pct = float(getattr(fin_loop, "comissao_venda_pct", 0.0) or 0.0) if fin_loop else 0.0
+    comissao_pct = max(0.0, min(1.0, comissao_pct))
+    media_p_loop = float(getattr(fin_loop, "media_pessoas_por_diaria", 2.0) or 2.0) if fin_loop else 2.0
+    media_p_loop = max(0.1, min(10.0, media_p_loop))
+    perm_loop = float(getattr(fin_loop, "permanencia_media", 2.0) or 2.0) if fin_loop else 2.0
+    perm_loop = max(0.5, min(30.0, perm_loop))
+    cv_loop = getattr(fin_loop, "custos_variaveis", None) if fin_loop else None
+    if cv_loop is None:
+        cv_loop = CustosVariaveisPorNoite()
 
     soma_pesos_sazonalidade = sum(PESOS_SAZONALIDADE_ARRAIAL.values())
     if soma_pesos_sazonalidade <= 0:
@@ -500,7 +530,14 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
         ocupacao_pct = noites_vendidas / capacidade_mes if capacidade_mes else 0.0
 
         total_noites_vendidas += noites_vendidas
-        custo_variavel_mensal = noites_vendidas * custo_var_noite
+        custo_variavel_mensal = custo_variavel_operacional_mensal_total(
+            cv_loop,
+            noites_vendidas=noites_vendidas,
+            receita_bruta=faturamento_mensal,
+            media_pessoas=media_p_loop,
+            permanencia_media=perm_loop,
+            comissao_pct=comissao_pct,
+        )
         impostos_mensais = _impostos_sobre_faturamento(faturamento_mensal, projeto)
         custos_variaveis_anuais += custo_variavel_mensal
         impostos_anuais += impostos_mensais
@@ -569,7 +606,7 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
     noites_break_even = _calcular_break_even(
         adr_anual=adr_anual,
         projeto=projeto,
-        custo_var_noite=custo_var_noite,
+        custo_var_marginal_noite=custo_var_marginal_noite,
         faturamento_anual_total=faturamento_anual,
     )
 
@@ -587,6 +624,10 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
         custos_variaveis_anuais=custos_variaveis_anuais,
         impostos_anuais=impostos_anuais,
     )
+
+    fin_cv = getattr(projeto, "financeiro", None)
+    cv_rel = getattr(fin_cv, "custos_variaveis", None) if fin_cv else None
+    itens_cv_cad = listar_itens_cadastro_relatorio(cv_rel) if cv_rel else []
 
     resultado = ResultadoAnaliseCurado(
         faturamento_anual_total=round(faturamento_anual, 2),
@@ -608,6 +649,7 @@ def gerar_analise_curado(projeto: Projeto, registros: list[dict]) -> ResultadoAn
         noites_break_even=round(noites_break_even, 2),
         retorno_arrendamento_percentual=round(retorno_arrendamento_percentual, 2),
         cenarios=cenarios,
+        itens_custos_variaveis_cadastro=itens_cv_cad,
     )
     logger.info(
         "Análise curado concluída: ADR {:.2f}, ocupação anual {:.2%}, RDM {:.2f}, lucro líquido anual {:.2f}",
