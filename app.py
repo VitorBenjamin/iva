@@ -45,6 +45,11 @@ from core.analise.engenharia_reversa import (
 )
 from core.backup import salvar_market_curado_com_backup
 from core.analise.desconto import obter_desconto_para_curadoria
+from core.analise.simulacao import (
+    comparar_cenarios_projeto,
+    gerar_contexto_completo_viabilidade,
+    sugerir_arrendamento,
+)
 from core.scraper.modelos import DadosMercado, MarketBruto, MarketCurado, MarketCuradoRegistro
 from core.scraper.scrapers import (
     EVIDENCE_STABILITY_DIR,
@@ -258,8 +263,30 @@ def _normalizar_financeiro_para_persistencia(financeiro: DadosFinanceiros) -> Da
     cf = dict(payload.get("custos_fixos") or {})
     cf["aluguel"] = 0.0
     cv = payload.get("custos_variaveis") or {}
+
+    def _incidencia_cv_para_str(x) -> str:
+        if x is None:
+            return "hospede_noite"
+        if hasattr(x, "value"):
+            return str(x.value)
+        s = str(x).strip()
+        if s.startswith("IncidenciaCustoVariavel."):
+            return "hospede_noite"
+        return s or "hospede_noite"
+
+    def _normalizar_item_cv_payload(v) -> dict:
+        if v is None:
+            return {"valor": 0.0, "incidencia": "hospede_noite"}
+        if isinstance(v, dict):
+            valor = v.get("valor", 0)
+            inc = _incidencia_cv_para_str(v.get("incidencia"))
+            return {"valor": _quantize_decimal(valor, 2), "incidencia": inc}
+        return {"valor": _quantize_decimal(v, 2), "incidencia": "hospede_noite"}
+
+    keys_cv = ("cafe_manha", "amenities", "lavanderia", "outros")
     payload["custos_fixos"] = {k: _quantize_decimal(v, 2) for k, v in cf.items()}
-    payload["custos_variaveis"] = {k: _quantize_decimal(v, 2) for k, v in cv.items()}
+    payload["custos_variaveis"] = {k: _normalizar_item_cv_payload(cv.get(k)) for k in keys_cv}
+    payload["permanencia_media"] = _quantize_decimal(payload.get("permanencia_media", 2.0), 2)
     payload["folha_pagamento_mensal"] = _quantize_decimal(payload.get("folha_pagamento_mensal", 0), 2)
     payload["encargos_pct_padrao"] = _normalize_percent(payload.get("encargos_pct_padrao", 0))
     payload["beneficio_vale_transporte"] = _quantize_decimal(payload.get("beneficio_vale_transporte", 0), 2)
@@ -1802,9 +1829,9 @@ def api_analise_engenharia_reversa(id: str):
     })
 
 
-@app.get("/projeto/<id_projeto>/viabilidade")
-def estudo_viabilidade(id_projeto: str):
-    """Renderiza a página de Estudo de Viabilidade (engenharia reversa) com análise curada."""
+@app.get("/projeto/<id_projeto>/relatorio")
+def estudo_relatorio_legado(id_projeto: str):
+    """Relatório legado (engenharia reversa) preservado para comparação histórica."""
     try:
         projeto = carregar_projeto(id_projeto)
     except ArquivoProjetoNaoEncontrado:
@@ -1812,7 +1839,7 @@ def estudo_viabilidade(id_projeto: str):
     registros = _carregar_registros_com_valor_efetivo(id_projeto)
     if not registros:
         return render_template(
-            "relatorio.html",
+            "relatorio_original.html",
             projeto=projeto.model_dump(mode="json"),
             nav_active="relatorio",
             analise=None,
@@ -1820,7 +1847,7 @@ def estudo_viabilidade(id_projeto: str):
         )
     analise = gerar_analise_curado(projeto, registros)
     return render_template(
-        "relatorio.html",
+        "relatorio_original.html",
         projeto=projeto.model_dump(mode="json"),
         nav_active="relatorio",
         analise=analise.model_dump(mode="json"),
@@ -1828,29 +1855,95 @@ def estudo_viabilidade(id_projeto: str):
     )
 
 
-@app.get("/projeto/<id_projeto>/viabilidade/resumo")
-def estudo_viabilidade_resumo(id_projeto: str):
-    """Renderiza apenas o resumo executivo do Estudo de Viabilidade (sem abas visuais)."""
+@app.route("/projeto/<id_projeto>/viabilidade", methods=["GET", "POST"])
+def estudo_viabilidade(id_projeto: str):
+    """Relatório executivo one-page da viabilidade (GET cenário salvo ou POST estado atual)."""
     try:
         projeto = carregar_projeto(id_projeto)
     except ArquivoProjetoNaoEncontrado:
         return "Projeto não encontrado", 404
-    registros = _carregar_registros_com_valor_efetivo(id_projeto)
-    if not registros:
-        return render_template(
-            "relatorio.html",
-            projeto=projeto.model_dump(mode="json"),
-            nav_active="relatorio",
-            analise=None,
-            sem_dados=True,
-        )
-    analise = gerar_analise_curado(projeto, registros)
+
+    metas_mensais = None
+    investimento_params: dict[str, Any] = {}
+    auto_print = False
+
+    if request.method == "POST":
+        body = request.get_json(force=False, silent=True)
+        if not isinstance(body, dict):
+            payload_form = request.form.get("payload_json")
+            if payload_form:
+                try:
+                    body = json.loads(payload_form)
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    body = {}
+            else:
+                body = {}
+        metas_c = body.get("metas_mensais") if isinstance(body, dict) else None
+        if isinstance(metas_c, dict):
+            metas_mensais = metas_c
+        inv_body = body.get("investimento_params") if isinstance(body, dict) else None
+        if isinstance(inv_body, dict):
+            investimento_params.update(inv_body)
+        for k in ("investimento_reforma", "arrendamento_total", "prazo_contrato_meses", "investimento_inicial", "margem_minima_pct"):
+            if isinstance(body, dict) and body.get(k) is not None:
+                investimento_params[k] = body.get(k)
+        auto_print = bool(body.get("auto_print")) if isinstance(body, dict) else False
+    else:
+        cid = (request.args.get("cenario") or "").strip()
+        if cid:
+            investimento_params["cenario_id"] = cid
+            cenarios = _carregar_cenarios(id_projeto)
+            if not cenarios:
+                cenarios = _migrar_simulacao_salva_para_cenarios(id_projeto)
+            c = next((x for x in cenarios if x.get("id") == cid), None)
+            if c:
+                mm = c.get("metas_mensais")
+                if isinstance(mm, dict):
+                    metas_mensais = mm
+                for k in ("investimento_reforma", "arrendamento_total", "prazo_contrato_meses", "investimento_inicial"):
+                    if c.get(k) is not None:
+                        investimento_params[k] = c.get(k)
+        margem_q = request.args.get("margem")
+        if margem_q not in (None, ""):
+            try:
+                investimento_params["margem_minima_pct"] = float(margem_q)
+            except (TypeError, ValueError):
+                pass
+        auto_print = (request.args.get("print") == "1")
+
+    contexto = gerar_contexto_completo_viabilidade(
+        id_projeto,
+        metas_mensais=metas_mensais,
+        investimento_params=investimento_params,
+    )
+    if contexto.get("erro"):
+        return jsonify({"success": False, "message": contexto.get("erro"), "data": contexto}), 400
+
     return render_template(
-        "relatorio.html",
+        "relatorio_viabilidade.html",
         projeto=projeto.model_dump(mode="json"),
         nav_active="relatorio",
-        analise=analise.model_dump(mode="json"),
-        sem_dados=False,
+        contexto=contexto,
+        auto_print=auto_print,
+    )
+
+
+@app.get("/projeto/<id_projeto>/viabilidade/resumo")
+def estudo_viabilidade_resumo(id_projeto: str):
+    """Atalho para o relatório executivo one-page."""
+    try:
+        projeto = carregar_projeto(id_projeto)
+    except ArquivoProjetoNaoEncontrado:
+        return "Projeto não encontrado", 404
+    contexto = gerar_contexto_completo_viabilidade(id_projeto)
+    if contexto.get("erro"):
+        return jsonify({"success": False, "message": contexto.get("erro"), "data": contexto}), 400
+    return render_template(
+        "relatorio_viabilidade.html",
+        projeto=projeto.model_dump(mode="json"),
+        nav_active="relatorio",
+        contexto=contexto,
+        auto_print=False,
     )
 
 
@@ -2202,6 +2295,26 @@ def api_simulacao_dados_base(id: str):
     })
 
 
+@app.get("/api/projeto/<id>/simulacao/sugestao-arrendamento")
+def api_simulacao_sugestao_arrendamento(id: str):
+    """Sugere valor mensal de arrendamento com base no lucro operacional isolado e margem mínima sobre receita."""
+    try:
+        carregar_projeto(id)
+    except ArquivoProjetoNaoEncontrado:
+        return jsonify({"success": False, "message": "Projeto não encontrado", "data": None}), 404
+    margem_raw = request.args.get("margem", default="15")
+    try:
+        margem = float(margem_raw)
+    except (TypeError, ValueError):
+        margem = 15.0
+    cid = (request.args.get("cenario") or "").strip() or None
+    out = sugerir_arrendamento(id, cenario_id=cid, margem_minima_pct=margem)
+    if out.get("erro"):
+        code = 404 if out.get("codigo") == "projeto_nao_encontrado" else 400
+        return jsonify({"success": False, "message": out.get("erro"), "data": out}), code
+    return jsonify({"success": True, "data": out})
+
+
 @app.post("/api/projeto/<id>/simulacao/salvar")
 def api_simulacao_salvar(id: str):
     """Salva metas_mensais e parâmetros de investimento em simulacao_salva.json."""
@@ -2454,7 +2567,7 @@ def _migrar_simulacao_salva_para_cenarios(id_projeto: str) -> list[dict]:
 
 @app.get("/api/projeto/<id>/simulacao/cenarios")
 def api_simulacao_listar_cenarios(id: str):
-    """Lista cenários salvos. Migra simulacao_salva.json para cenário único se necessário."""
+    """Lista cenários com KPIs recalculados (metas do cenário + custos/investimento atuais do projeto)."""
     try:
         carregar_projeto(id)
     except ArquivoProjetoNaoEncontrado:
@@ -2462,17 +2575,7 @@ def api_simulacao_listar_cenarios(id: str):
     cenarios = _carregar_cenarios(id)
     if not cenarios:
         cenarios = _migrar_simulacao_salva_para_cenarios(id)
-    lista = []
-    for c in cenarios:
-        resumo = (c.get("resultado") or {}).get("resumo") or {}
-        lista.append({
-            "id": c.get("id"),
-            "nome": c.get("nome") or "Sem nome",
-            "criado_em": c.get("criado_em"),
-            "lucro_anual": resumo.get("lucro_anual"),
-            "payback_meses": resumo.get("payback_meses"),
-            "payback_status": resumo.get("payback_status"),
-        })
+    lista = comparar_cenarios_projeto(id)
     return jsonify({"success": True, "data": {"cenarios": lista}})
 
 
@@ -2548,6 +2651,12 @@ def api_simulacao_criar_ou_atualizar_cenario(id: str):
         cenario["arrendamento_total"] = snap["arrendamento_total"]
         cenario["prazo_contrato_meses"] = snap["prazo_contrato_meses"]
         cenario["investimento_inicial"] = snap["investimento_inicial"]
+        if "descricao" in body:
+            d = body.get("descricao")
+            if isinstance(d, str) and d.strip():
+                cenario["descricao"] = d.strip()
+            else:
+                cenario.pop("descricao", None)
         cenario.pop("resultado", None)
         _salvar_cenarios(id, cenarios)
         return jsonify({
@@ -2568,6 +2677,9 @@ def api_simulacao_criar_ou_atualizar_cenario(id: str):
         "prazo_contrato_meses": snap["prazo_contrato_meses"],
         "investimento_inicial": snap["investimento_inicial"],
     }
+    d_new = body.get("descricao")
+    if isinstance(d_new, str) and d_new.strip():
+        cenario["descricao"] = d_new.strip()
     cenarios.append(cenario)
     _salvar_cenarios(id, cenarios)
     return jsonify({
