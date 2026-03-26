@@ -69,6 +69,22 @@ class TestSimulacaoResumo(unittest.TestCase):
             esperado_roi = (ri / inv) * 100.0
             self.assertAlmostEqual(float(res["roi_anual_pct"]), esperado_roi, places=1)
 
+    def test_plurianual_presente_e_saldo_final(self):
+        pid = "village-arraial"
+        metas = construir_metas_para_projecao(pid)
+        r = calcular_projecao(pid, metas, prazo_contrato_meses=24)
+        if r.get("erro"):
+            self.skipTest("projeto de teste indisponível")
+        self.assertIn("plurianual", r)
+        pl = r["plurianual"]
+        self.assertEqual(pl["horizonte_meses"], 24)
+        self.assertEqual(len(pl["meses"]), 24)
+        lucros = [float(m["lucro_liquido"]) for m in r["meses"]]
+        esperado_m13 = lucros[0]
+        self.assertAlmostEqual(float(pl["meses"][12]["lucro_operacional_mes"]), esperado_m13, places=1)
+        saldo_esperado = sum(lucros) * 2.0
+        self.assertAlmostEqual(float(pl["lucro_final_contrato"]), saldo_esperado, places=0)
+
 
 if __name__ == "__main__":
     unittest.main()
