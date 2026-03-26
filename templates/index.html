@@ -229,20 +229,67 @@
           <div class="row g-2 mb-3">
             <div class="col-md-4">
               <label class="form-label small">Média de Pessoas por Quarto</label>
-              <span class="ms-1" data-bs-toggle="tooltip" title="Média de pessoas por diária vendida. Usado para calcular custo variável por noite (ex.: 2,13)."><i class="bi bi-question-circle text-muted small"></i></span>
+              <span class="ms-1" data-bs-toggle="tooltip" title="Média de pessoas por diária vendida. Usado para custos com incidência hóspede/noite."><i class="bi bi-question-circle text-muted small"></i></span>
               <input type="number" id="fin-media-pessoas" class="form-control form-control-sm" step="0.01" min="0.1" max="10" value="2" placeholder="2">
             </div>
-          </div>
-          <h6 class="mb-2">Custos variáveis por noite</h6>
-          <div class="row g-2 mb-3">
-            <div class="col-md-3">
-              <label class="form-label small">Café da manhã</label>
-              <span class="ms-1" data-bs-toggle="tooltip" title="Custo por pessoa/dia. Multiplicado pela média de pessoas por quarto."><i class="bi bi-question-circle text-muted small"></i></span>
-              <input type="text" id="fin-cafe" class="form-control form-control-sm moeda">
+            <div class="col-md-4">
+              <label class="form-label small">Permanência média (noites/reserva)</label>
+              <span class="ms-1" data-bs-toggle="tooltip" title="Usada quando a incidência for &quot;por reserva&quot; (noites ÷ permanência). Padrão 2."><i class="bi bi-question-circle text-muted small"></i></span>
+              <input type="number" id="fin-permanencia-media" class="form-control form-control-sm" step="0.1" min="0.5" max="30" value="2" placeholder="2">
             </div>
-            <div class="col-md-3"><label class="form-label small">Amenities</label><input type="text" id="fin-amenities" class="form-control form-control-sm moeda"></div>
-            <div class="col-md-3"><label class="form-label small">Lavanderia</label><input type="text" id="fin-lavanderia" class="form-control form-control-sm moeda"></div>
-            <div class="col-md-3"><label class="form-label small">Outros</label><input type="text" id="fin-outros-var" class="form-control form-control-sm moeda"></div>
+          </div>
+          <h6 class="mb-2">Custos variáveis</h6>
+          <p class="small text-muted mb-2">Valor + incidência: hóspede/noite, UH/noite, reserva ou % da receita bruta.</p>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6 col-xl-3">
+              <label class="form-label small">Café da manhã</label>
+              <span class="ms-1" data-bs-toggle="tooltip" title="Padrão: por hóspede e noite (auditoria)."><i class="bi bi-question-circle text-muted small"></i></span>
+              <div class="input-group input-group-sm">
+                <input type="text" id="fin-cafe" class="form-control moeda" autocomplete="off">
+                <select id="fin-cafe-incidencia" class="form-select" style="max-width: 7.5rem;" title="Incidência">
+                  <option value="hospede_noite">Hósp./n.</option>
+                  <option value="uh_noite">UH/n.</option>
+                  <option value="reserva">Reserva</option>
+                  <option value="percentual_receita">% rec.</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+              <label class="form-label small">Amenities</label>
+              <div class="input-group input-group-sm">
+                <input type="text" id="fin-amenities" class="form-control moeda" autocomplete="off">
+                <select id="fin-amenities-incidencia" class="form-select" style="max-width: 7.5rem;" title="Incidência">
+                  <option value="hospede_noite">Hósp./n.</option>
+                  <option value="uh_noite">UH/n.</option>
+                  <option value="reserva">Reserva</option>
+                  <option value="percentual_receita">% rec.</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+              <label class="form-label small">Lavanderia</label>
+              <div class="input-group input-group-sm">
+                <input type="text" id="fin-lavanderia" class="form-control moeda" autocomplete="off">
+                <select id="fin-lavanderia-incidencia" class="form-select" style="max-width: 7.5rem;" title="Incidência">
+                  <option value="hospede_noite">Hósp./n.</option>
+                  <option value="uh_noite">UH/n.</option>
+                  <option value="reserva">Reserva</option>
+                  <option value="percentual_receita">% rec.</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+              <label class="form-label small">Outros</label>
+              <div class="input-group input-group-sm">
+                <input type="text" id="fin-outros-var" class="form-control moeda" autocomplete="off">
+                <select id="fin-outros-var-incidencia" class="form-select" style="max-width: 7.5rem;" title="Incidência">
+                  <option value="hospede_noite">Hósp./n.</option>
+                  <option value="uh_noite">UH/n.</option>
+                  <option value="reserva">Reserva</option>
+                  <option value="percentual_receita">% rec.</option>
+                </select>
+              </div>
+            </div>
           </div>
           <div class="row g-2 mb-2">
             <div class="col-md-3"><label class="form-label small">Alíquota impostos (%)</label><input type="number" id="fin-aliquota" class="form-control form-control-sm" step="0.1" min="0" max="100" placeholder="ex: 6"></div>

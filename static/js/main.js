@@ -221,20 +221,30 @@
       outros: valorMoeda(el('fin-outros-fixos')) || 0,
       aluguel: 0
     };
+    function montarCvItem(moedaId, incId) {
+      var m = el(moedaId);
+      var i = el(incId);
+      return {
+        valor: roundTo(valorMoeda(m) || 0, 2),
+        incidencia: (i && i.value) ? i.value : 'hospede_noite'
+      };
+    }
     var cv = {
-      cafe_manha: valorMoeda(el('fin-cafe')) || 0,
-      amenities: valorMoeda(el('fin-amenities')) || 0,
-      lavanderia: valorMoeda(el('fin-lavanderia')) || 0,
-      outros: valorMoeda(el('fin-outros-var')) || 0
+      cafe_manha: montarCvItem('fin-cafe', 'fin-cafe-incidencia'),
+      amenities: montarCvItem('fin-amenities', 'fin-amenities-incidencia'),
+      lavanderia: montarCvItem('fin-lavanderia', 'fin-lavanderia-incidencia'),
+      outros: montarCvItem('fin-outros-var', 'fin-outros-var-incidencia')
     };
     var aliquota = num('fin-aliquota');
     var contingencia = num('fin-contingencia');
     var outrosImpostos = num('fin-outros-impostos');
     var mediaPessoas = num('fin-media-pessoas') || 2;
+    var permanenciaMedia = num('fin-permanencia-media') || 2;
     if (aliquota >= 1) aliquota = aliquota / 100;
     if (contingencia >= 1) contingencia = contingencia / 100;
     if (outrosImpostos >= 1) outrosImpostos = outrosImpostos / 100;
     mediaPessoas = Math.max(0.1, Math.min(10, mediaPessoas));
+    permanenciaMedia = Math.max(0.5, Math.min(30, permanenciaMedia));
     Object.keys(cf).forEach(function (k) { cf[k] = roundTo(cf[k], 2); });
     Object.keys(cv).forEach(function (k) { cv[k] = roundTo(cv[k], 2); });
     syncRhGlobaisFromDom();
@@ -254,6 +264,7 @@
       beneficio_vale_alimentacao: rhGlobais.vale_alimentacao,
       custos_variaveis: cv,
       media_pessoas_por_diaria: roundTo(mediaPessoas, 2),
+      permanencia_media: roundTo(permanenciaMedia, 2),
       aliquota_impostos: roundTo(aliquota, 4),
       percentual_contingencia: roundTo(contingencia, 4),
       outros_impostos_taxas_percentual: roundTo(outrosImpostos, 4)
@@ -524,17 +535,37 @@
       }); });
       renderRhFuncionarios();
     }
+    function cvItemValorMoeda(raw) {
+      if (raw == null) return 0;
+      if (typeof raw === 'object' && raw !== null && 'valor' in raw) return Number(raw.valor) || 0;
+      return Number(raw) || 0;
+    }
+    function aplicarCvItemIncidencia(selId, raw) {
+      var sel = document.getElementById(selId);
+      if (!sel) return;
+      var inc = (raw && typeof raw === 'object' && raw.incidencia) ? raw.incidencia : 'hospede_noite';
+      sel.value = inc;
+    }
     if (fin && fin.custos_variaveis) {
       var cv = fin.custos_variaveis;
-      definirMoeda(document.getElementById('fin-cafe'), cv.cafe_manha);
-      definirMoeda(document.getElementById('fin-amenities'), cv.amenities);
-      definirMoeda(document.getElementById('fin-lavanderia'), cv.lavanderia);
-      definirMoeda(document.getElementById('fin-outros-var'), cv.outros);
+      definirMoeda(document.getElementById('fin-cafe'), cvItemValorMoeda(cv.cafe_manha));
+      definirMoeda(document.getElementById('fin-amenities'), cvItemValorMoeda(cv.amenities));
+      definirMoeda(document.getElementById('fin-lavanderia'), cvItemValorMoeda(cv.lavanderia));
+      definirMoeda(document.getElementById('fin-outros-var'), cvItemValorMoeda(cv.outros));
+      aplicarCvItemIncidencia('fin-cafe-incidencia', cv.cafe_manha);
+      aplicarCvItemIncidencia('fin-amenities-incidencia', cv.amenities);
+      aplicarCvItemIncidencia('fin-lavanderia-incidencia', cv.lavanderia);
+      aplicarCvItemIncidencia('fin-outros-var-incidencia', cv.outros);
     }
     var mediaPessoasEl = document.getElementById('fin-media-pessoas');
     if (mediaPessoasEl) {
       var mp = (fin && fin.media_pessoas_por_diaria != null) ? Number(fin.media_pessoas_por_diaria) : 2;
       mediaPessoasEl.value = (mp >= 0.1 && mp <= 10) ? mp : 2;
+    }
+    var permEl = document.getElementById('fin-permanencia-media');
+    if (permEl) {
+      var pm = (fin && fin.permanencia_media != null) ? Number(fin.permanencia_media) : 2;
+      permEl.value = (pm >= 0.5 && pm <= 30) ? pm : 2;
     }
     if (fin) {
       var aliquotaVal = fin.aliquota_impostos != null ? fin.aliquota_impostos : '';
@@ -628,8 +659,14 @@
     definirMoeda(document.getElementById('fin-amenities'), 0);
     definirMoeda(document.getElementById('fin-lavanderia'), 0);
     definirMoeda(document.getElementById('fin-outros-var'), 0);
+    ['fin-cafe-incidencia', 'fin-amenities-incidencia', 'fin-lavanderia-incidencia', 'fin-outros-var-incidencia'].forEach(function (id) {
+      var s = document.getElementById(id);
+      if (s) s.value = 'hospede_noite';
+    });
     var finMedia = document.getElementById('fin-media-pessoas');
     if (finMedia) finMedia.value = '2';
+    var finPerm = document.getElementById('fin-permanencia-media');
+    if (finPerm) finPerm.value = '2';
     document.getElementById('fin-aliquota').value = '';
     document.getElementById('fin-contingencia').value = '';
     document.getElementById('fin-outros-impostos').value = '';
