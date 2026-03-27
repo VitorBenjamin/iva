@@ -1841,7 +1841,7 @@ def estudo_relatorio_legado(id_projeto: str):
         return render_template(
             "relatorio_original.html",
             projeto=projeto.model_dump(mode="json"),
-            nav_active="relatorio",
+            nav_active="relatorio_legado",
             analise=None,
             sem_dados=True,
         )
@@ -1849,7 +1849,7 @@ def estudo_relatorio_legado(id_projeto: str):
     return render_template(
         "relatorio_original.html",
         projeto=projeto.model_dump(mode="json"),
-        nav_active="relatorio",
+        nav_active="relatorio_legado",
         analise=analise.model_dump(mode="json"),
         sem_dados=False,
     )
@@ -1922,7 +1922,7 @@ def estudo_viabilidade(id_projeto: str):
     return render_template(
         "relatorio_viabilidade.html",
         projeto=projeto.model_dump(mode="json"),
-        nav_active="relatorio",
+        nav_active="relatorio_viabilidade",
         contexto=contexto,
         auto_print=auto_print,
     )
@@ -1941,7 +1941,7 @@ def estudo_viabilidade_resumo(id_projeto: str):
     return render_template(
         "relatorio_viabilidade.html",
         projeto=projeto.model_dump(mode="json"),
-        nav_active="relatorio",
+        nav_active="relatorio_viabilidade",
         contexto=contexto,
         auto_print=False,
     )
